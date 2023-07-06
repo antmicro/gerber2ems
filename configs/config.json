@@ -1,0 +1,94 @@
+{
+    "conversion_settings" :
+    {
+        "pcb_height" : 0.2,
+        "pcb_metal_thickness" : 0.1,
+        "pcb_metal_zero_thick" : true,
+        "corner_approximation" : 3
+    },
+    "mesh_params" :
+    {
+        "automatic_mesh" :
+        {
+            "insert_automatic_mesh" : true,
+            "smooth_mesh_lines" : true,
+            "smth_neighbor_size_diff" : 4,
+            "pcb_z_lines" : 4,
+            "remove_small_cells" : true,
+            "min_cell_size" :
+            {
+                "X" : 0.03,
+                "Y" : 0.03,
+                "Z" : 0.025
+            },
+            "max_cell_size" :
+            {
+                "X" : 6,
+                "Y" : 6,
+                "Z" : 6
+            }
+        },
+        "manual_mesh" :
+        {
+            "insert_manual_mesh" : false,
+            "X" :
+            [
+                2.5
+            ],
+            "Y" :
+            [
+            ],
+            "Z" :
+            [
+                0, 1.0
+            ]
+        }
+    },
+    "SimulationBox" :
+    {
+        "min" :
+        {
+            "X" : -5,
+            "Y" : 5,
+            "Z" : -5
+        },
+        "max" :
+        {
+            "X" : 10,
+            "Y" : -25,
+            "Z" : 6
+        },
+        "box_fill" :
+        {
+            "use_box_fill" : false,
+            "box_material" : {}
+        },
+        "materials" :
+        {
+            "pcb" :
+            {
+                "boundary_one_third_rule" : false,
+                "boundary_additional_lines" : true,
+                "boundary_rule_distance" : 0.1
+            },
+            "metal_top" :
+            {
+                "boundary_one_third_rule" : false,
+                "boundary_additional_lines" : true,
+                "boundary_rule_distance" : 0.1
+            },
+            "metal_bot" :
+            {
+                "boundary_one_third_rule" : true,
+                "boundary_additional_lines" : false,
+                "boundary_rule_distance" : 0.1
+            },
+            "hole_fill" :
+            {
+                "boundary_one_third_rule" : false,
+                "boundary_additional_lines" : false,
+                "boundary_rule_distance" : 0.1
+            }
+        }
+    }
+}
