@@ -6,6 +6,9 @@ close all
 clear
 % clc
 
+addpath('/usr/share/octave/packages/openems-0.0.35/')
+addpath('/usr/local/share/CSXCAD/matlab/')
+
 function [string, f_nyquist] = GaussianStep(rise_time, center_time, dB_cutoff)
   C = center_time;
   sigma = rise_time / (2*erfinv(0.8));
