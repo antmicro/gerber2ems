@@ -56,35 +56,35 @@ unit = 1e-3; % all length in mm
 % Setup FDTD parameter & excitation function
 % frequency range of interest
 f_start = 5e8;
-f_stop  = 2e10;
+f_stop  = 2e9;
 f0 = 0.5 * (f_start + f_stop);
 fc = f_stop - f0;
 
 % Setup exitation types
-FDTD = InitFDTD('NrTs', 40000);
+FDTD = InitFDTD('NrTs', 400000);
 % FDTD = SetCustomExcite(FDTD, f_nyq, func_string);
 FDTD = SetGaussExcite(FDTD, f0, f_stop - f0);
 
 % boundary conditions
-BC = {'MUR' 'MUR' 'MUR' 'MUR' 'MUR' 'MUR'};
+BC = {'PML_8' 'PML_8' 'PML_8' 'PML_8' 'PML_8' 'PML_8'};
 FDTD = SetBoundaryCond(FDTD, BC);
 
 % Setup CSXCAD geometry & mesh
 CSX = InitCSX();
 
 % Define excitation port
-start = [3.3 -1.8 0.2];
-stop  = [3.7 -1.8 0];
+start = [14.8 10 0.2];
+stop  = [15.2 10 0];
 
 % Priority MUST be > 3
 [CSX port] = AddLumpedPort(CSX, 15, 1, 50, start, stop, [0 0 1], true);
 
-start = [2.475 -19.025 0];
-stop  = [2.875 -19.025 0.2];
+start = [14.8 40 0];
+stop  = [15.2 40 0.2];
 [CSX port2] = AddLumpedPort(CSX, 15, 2, 50, start, stop, [0 0 1], false);
 
 CSX = AddDump(CSX,'Et');
-CSX = AddBox(CSX,'Et',0,[-5 5 0.1],[10 -25 0.1]);
+CSX = AddBox(CSX,'Et',0,[-5 5 0.1],[35 65 0.1]);
 
 % Setup materials used (WARNING: check that material names are same in config.json)
 CSX = AddMaterial(CSX, 'pcb');
@@ -110,10 +110,14 @@ disp('Model import and simulation setup done');
 % Prepare simulation folder
 Sim_Path = 'tmp';
 Sim_CSX = 'simulation.xml';
+Output_Path = 'out';
 
 if(post_proc_only == 0)
     [status, message, messageid] = rmdir(Sim_Path, 's'); % clear previous directory
     [status, message, messageid] = mkdir(Sim_Path); % create empty simulation folder
+
+    [status, message, messageid] = rmdir(Output_Path, 's'); % clear previous directory
+    [status, message, messageid] = mkdir(Output_Path); % create empty output folder
 
     disp('Generating simulation configuration file');
 
@@ -176,7 +180,7 @@ y1 = ylim(ax(1));
 y2 = ylim(ax(2));
 ylim(ax(1), [-max(abs(y1)) max(abs(y1))]);
 ylim(ax(2), [-max(abs(y2)) max(abs(y2))]);
-print -dpng Ut.png
+print -dpng out/Ut.png
 
 % Plot feed point impedance
 figure
@@ -189,7 +193,7 @@ title('Feed Point Impedance');
 xlabel('Frequency (MHz)');
 ylabel('Z_{in} Impedance (Ohm)');
 legend('|Z|', 'arg(Z)');
-print -dpng Z.png
+print -dpng out/Z.png
 
 % Plot reflection coefficient S11
 figure
@@ -203,6 +207,11 @@ grid on
 title('Reflection Coefficient S_{11}');
 xlabel('Frequency (MHz)');
 ylabel('Reflection Coefficient |S_{11}|');
-print -dpng S11.png
+print -dpng out/S11.png
+
+% Plot S11 on smith chart
+port = calcPort(port, Sim_Path, linspace(f_start, f_stop, 200));
+plotRefl(port, 'fmarkers', [f_start, f_stop]);
+print -dpng out/Smith.png
 
 exit()
