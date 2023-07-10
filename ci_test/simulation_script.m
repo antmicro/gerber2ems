@@ -63,7 +63,7 @@ FDTD = InitFDTD('NrTs', 400000);
 FDTD = SetGaussExcite(FDTD, f0, f_stop - f0);
 
 % boundary conditions
-BC = {'PML_8' 'PML_8' 'PML_8' 'PML_8' 'PML_8' 'PML_8'};
+BC = {'MUR' 'MUR' 'MUR' 'MUR' 'MUR' 'MUR'};
 FDTD = SetBoundaryCond(FDTD, BC);
 
 % Setup CSXCAD geometry & mesh
@@ -80,8 +80,8 @@ start = [14.8 40 0];
 stop  = [15.2 40 0.2];
 [CSX port2] = AddLumpedPort(CSX, 15, 2, 50, start, stop, [0 0 1], false);
 
-CSX = AddDump(CSX,'Et');
-CSX = AddBox(CSX,'Et',0,[-5 5 0.1],[35 65 0.1]);
+% CSX = AddDump(CSX,'Et');
+% CSX = AddBox(CSX,'Et',0,[-5 5 0.1],[35 65 0.1]);
 
 % Setup materials used (WARNING: check that material names are same in config.json)
 CSX = AddMaterial(CSX, 'pcb');
@@ -125,7 +125,7 @@ if(post_proc_only == 0)
     disp('Showing geometry');
 
     % show the structure
-    % CSXGeomPlot([Sim_Path '/' Sim_CSX]);
+    CSXGeomPlot([Sim_Path '/' Sim_CSX]);
 
     if(show_model_only)
         disp('Showing only model - exit');
