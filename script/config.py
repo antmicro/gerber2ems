@@ -30,7 +30,7 @@ class Config:
         self.ports = []
         for port in ports:
             self.ports.append(PortConfig(port))
-        logger.info("Found %d ports", len(self.ports))
+        logger.debug("Found %d ports", len(self.ports))
 
 
 class PortConfig:

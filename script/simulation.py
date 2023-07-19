@@ -194,5 +194,25 @@ class Simulation:
     def save_geometry(self) -> None:
         """Save geometry to file"""
         filename = os.path.join(os.getcwd(), TMP_DIR, "geometry.xml")
+        os.remove(filename)
         logger.info("Saving geometry to %s", filename)
         self.csx.Write2XML(filename)
+
+    def load_geometry(self) -> None:
+        """Loads geometry from file"""
+        filename = os.path.join(os.getcwd(), TMP_DIR, "geometry.xml")
+        logger.info("Loading geometry from %s", filename)
+        self.csx.ReadFromXML(filename)
+
+    def get_port_parameters(self, frequencies) -> Tuple[List, List]:
+        """Returns reflected and incident power vs frequency for each port"""
+        result_path = os.path.join(os.getcwd(), TMP_DIR)
+
+        incident: List[np.ndarray] = []
+        reflected: List[np.ndarray] = []
+        for port in self.ports:
+            port.CalcPort(result_path, frequencies)
+            incident.append(port.uf_inc)
+            reflected.append(port.uf_ref)
+
+        return (reflected, incident)

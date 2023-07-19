@@ -3,7 +3,7 @@
         "start": 2e9,
         "stop": 20e9
     },
-    "max_steps": 1e5,
+    "max_steps": 3e4,
     "epsilon": 4.2,
     "pcb": {
         "dimensions": {
