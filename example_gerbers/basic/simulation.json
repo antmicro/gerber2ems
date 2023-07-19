@@ -1,0 +1,51 @@
+{
+    "frequency": {
+        "start": 2e9,
+        "stop": 20e9
+    },
+    "max_steps": 1e5,
+    "epsilon": 4.2,
+    "pcb": {
+        "dimensions": {
+            "width": 10000,
+            "height": 15000,
+            "thickness": 200
+        },
+        "mesh": {
+            "xy": 50,
+            "z": 25
+        }
+    },
+    "margin": {
+        "dimensions": {
+            "xy": 3000,
+            "z": 3000
+        },
+        "mesh": {
+            "xy": 200,
+            "z": 200
+        }
+    },
+    "ports": [
+        {
+            "position": {
+                "x": 5000,
+                "y": 800
+            },
+            "direction": "y",
+            "width": 400,
+            "length": 1000,
+            "impedance": 50
+        },
+        {
+            "position": {
+                "x": 5000,
+                "y": 13200
+            },
+            "direction": "-y",
+            "width": 400,
+            "length": 1000,
+            "impedance": 50
+        }
+    ]
+}
