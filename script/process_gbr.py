@@ -8,7 +8,7 @@ import sys
 import cv2
 import numpy as np
 
-from constants import TMP_DIR, UNIT, PIXEL_SIZE
+from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +30,13 @@ def process():
 
     for name in layers:
         output = name.split("-")[1].split(".")[0] + ".png"
-        gbr_to_png(name, edge, os.path.join(os.getcwd(), TMP_DIR, output))
+        gbr_to_png(name, edge, os.path.join(os.getcwd(), GEOMETRY_DIR, output))
 
 
 def gbr_to_png(gerber: str, edge: str, output: str) -> None:
     """Generate PNG from gerber file"""
     logger.debug("Generating PNG for %s", gerber)
-    not_cropped_name = os.path.join(os.getcwd(), TMP_DIR, "not_cropped.png")
+    not_cropped_name = os.path.join(os.getcwd(), GEOMETRY_DIR, "not_cropped.png")
 
     dpi = 1 / (PIXEL_SIZE * UNIT / 0.0254)
     if not dpi.is_integer():
@@ -53,7 +53,7 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
 def get_contours(input_name: str) -> Tuple[np.ndarray, ...]:
     """Finds outlines in the image"""
 
-    path = os.path.join(TMP_DIR, input_name)
+    path = os.path.join(GEOMETRY_DIR, input_name)
     image = cv2.imread(path)
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

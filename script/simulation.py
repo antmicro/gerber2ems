@@ -1,6 +1,7 @@
 """Module containing Simulation class used for interacting with openEMS"""
 import logging
 import os
+import sys
 from typing import Tuple, List
 
 import CSXCAD
@@ -8,7 +9,7 @@ import openEMS
 import numpy as np
 
 from config import Config, PortConfig
-from constants import UNIT, TMP_DIR, BORDER_THICKNESS, PIXEL_SIZE
+from constants import UNIT, SIMULATION_DIR, GEOMETRY_DIR, BORDER_THICKNESS, PIXEL_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -189,29 +190,37 @@ class Simulation:
     def run(self):
         """Execute simulation"""
         logger.info("Starting simulation")
-        self.fdtd.Run(os.path.join(os.getcwd(), TMP_DIR))
+        self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR))
 
     def save_geometry(self) -> None:
         """Save geometry to file"""
-        filename = os.path.join(os.getcwd(), TMP_DIR, "geometry.xml")
-        os.remove(filename)
+        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
         logger.info("Saving geometry to %s", filename)
         self.csx.Write2XML(filename)
 
     def load_geometry(self) -> None:
         """Loads geometry from file"""
-        filename = os.path.join(os.getcwd(), TMP_DIR, "geometry.xml")
+        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
         logger.info("Loading geometry from %s", filename)
+        if not os.path.exists(filename):
+            logger.error("Geometry file does not exist. Did you run geometry step?")
+            sys.exit(1)
         self.csx.ReadFromXML(filename)
 
     def get_port_parameters(self, frequencies) -> Tuple[List, List]:
         """Returns reflected and incident power vs frequency for each port"""
-        result_path = os.path.join(os.getcwd(), TMP_DIR)
+        result_path = os.path.join(os.getcwd(), SIMULATION_DIR)
 
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
         for port in self.ports:
-            port.CalcPort(result_path, frequencies)
+            try:
+                port.CalcPort(result_path, frequencies)
+            except IOError:
+                logger.error(
+                    "Port data files do not exist. Did you run simulation step?"
+                )
+                sys.exit(1)
             incident.append(port.uf_inc)
             reflected.append(port.uf_ref)
 

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import skrf
 
 
-from constants import SIM_DIR
+from constants import RESULTS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ class Postprocesor:
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Magnitude, [dB]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), SIM_DIR, f"S_x{i+1}.png"))
+                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"))
 
     def render_impedance(self):
         """Renders all ports impedance plots to files"""
@@ -139,7 +139,7 @@ class Postprocesor:
                 axs[0].grid(True)
                 axs[1].grid(True)
                 fig.savefig(
-                    os.path.join(os.getcwd(), SIM_DIR, f"Z_{port+1}.png"),
+                    os.path.join(os.getcwd(), RESULTS_DIR, f"Z_{port+1}.png"),
                     bbox_inches="tight",
                 )
 
@@ -156,7 +156,9 @@ class Postprocesor:
                     m=port, n=port, ax=axes, draw_labels=True, show_legend=False
                 )
                 fig.savefig(
-                    os.path.join(os.getcwd(), SIM_DIR, f"S_{port+1}{port+1}_smith.png"),
+                    os.path.join(
+                        os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"
+                    ),
                     bbox_inches="tight",
                 )
 

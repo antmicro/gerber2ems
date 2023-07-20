@@ -12,7 +12,7 @@ import time
 import coloredlogs
 import numpy as np
 
-from constants import SIM_DIR, TMP_DIR
+from constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
 import process_gbr
 from simulation import Simulation
 from postprocess import Postprocesor
@@ -34,7 +34,7 @@ def main():
 
     config = open_config(args)
     config = Config(config)
-    create_dirs()
+    create_dir(BASE_DIR)
 
     sim = Simulation(config)
     sim.add_mesh()
@@ -47,12 +47,15 @@ def main():
 
     if args.geometry or args.all:
         logger.info("Creating geometry")
+        create_dir(GEOMETRY_DIR, cleanup=True)
         geometry(config, sim)
     if args.simulate or args.all:
         logger.info("Running simulation")
+        create_dir(SIMULATION_DIR, cleanup=True)
         simulate(sim)
     if args.postprocess or args.all:
         logger.info("Postprocessing")
+        create_dir(RESULTS_DIR, cleanup=True)
         postprocess(config, sim)
 
 
@@ -73,7 +76,6 @@ def geometry(config: Config, sim) -> None:
     sim.set_boundary_conditions()
 
     sim.save_geometry()
-    time.sleep(5)  # Delay needed to save geometry files
 
 
 def simulate(sim) -> None:
@@ -81,7 +83,6 @@ def simulate(sim) -> None:
     sim.load_geometry()
     sim.set_excitation()
     sim.run()
-    time.sleep(5)  # Delay needed for simulation to save all files
 
 
 def postprocess(config: Config, sim) -> None:
@@ -194,15 +195,14 @@ def open_config(args: Any) -> None:
     return config
 
 
-def create_dirs() -> None:
-    """Creates directories for output and temporary files"""
-    sim_dir = os.path.join(os.getcwd(), SIM_DIR)
-    if not os.path.exists(sim_dir):
-        os.mkdir(sim_dir)
-
-    tmp_dir = os.path.join(os.getcwd(), TMP_DIR)
-    if not os.path.exists(tmp_dir):
-        os.mkdir(tmp_dir)
+def create_dir(path: str, cleanup: bool = False) -> None:
+    """Creates a directory if doesn't exists or cleans it if cleanup = True"""
+    directory_path = os.path.join(os.getcwd(), path)
+    if not os.path.exists(directory_path):
+        os.mkdir(directory_path)
+    elif cleanup:
+        for file in os.listdir(directory_path):
+            os.remove(os.path.join(directory_path, file))
 
 
 if __name__ == "__main__":
