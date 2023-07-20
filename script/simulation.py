@@ -190,7 +190,9 @@ class Simulation:
     def run(self):
         """Execute simulation"""
         logger.info("Starting simulation")
+        cwd = os.getcwd()
         self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR))
+        os.chdir(cwd)
 
     def save_geometry(self) -> None:
         """Save geometry to file"""

@@ -7,7 +7,6 @@ import json
 import argparse
 import logging
 from typing import Any
-import time
 
 import coloredlogs
 import numpy as np
