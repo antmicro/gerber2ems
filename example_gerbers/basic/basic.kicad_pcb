@@ -42,7 +42,7 @@
     (aux_axis_origin 140 110)
     (grid_origin 140 110)
     (pcbplotparams
-      (layerselection 0x0001000_7fffffff)
+      (layerselection 0x0001000_ffffffff)
       (plot_on_all_layers_selection 0x0000000_00000000)
       (disableapertmacros false)
       (usegerberextensions false)
@@ -98,8 +98,14 @@
     (fill yes (thermal_gap 0.508) (thermal_bridge_width 0.508))
     (polygon
       (pts
+        (xy 150 102.35)
+        (xy 141.7 102.35)
+        (xy 141.7 102.9)
+        (xy 150 102.9)
         (xy 150 110)
         (xy 140 110)
+        (xy 140 103.1)
+        (xy 140 100.35)
         (xy 140 95)
         (xy 150 95)
       )
@@ -110,6 +116,14 @@
       (pts
         (xy 149.485148 95.514852)
         (xy 149.4995 95.5495)
+        (xy 149.4995 102.301)
+        (xy 149.485148 102.335648)
+        (xy 149.4505 102.35)
+        (xy 141.7 102.35)
+        (xy 141.7 102.9)
+        (xy 149.4505 102.9)
+        (xy 149.485148 102.914352)
+        (xy 149.4995 102.949)
         (xy 149.4995 109.4505)
         (xy 149.485148 109.485148)
         (xy 149.4505 109.4995)
