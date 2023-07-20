@@ -8,8 +8,16 @@ import CSXCAD
 import openEMS
 import numpy as np
 
-from config import Config, PortConfig
-from constants import UNIT, SIMULATION_DIR, GEOMETRY_DIR, BORDER_THICKNESS, PIXEL_SIZE
+from config import Config, PortConfig, LayerKind
+from constants import (
+    UNIT,
+    SIMULATION_DIR,
+    GEOMETRY_DIR,
+    BORDER_THICKNESS,
+    PIXEL_SIZE,
+    VIA_POLYGON,
+)
+import process_gbr
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +43,13 @@ class Simulation:
         self.material_gerber = self.csx.AddMetal("Gerber")
         self.material_port = self.csx.AddMetal("Port")
         self.material_plane = self.csx.AddMetal("Plane")
-        self.material_substrate = self.csx.AddMaterial(
-            "Substrate", epsilon=self.config.epsilon
-        )
+        self.materials_substrate = []
+        for i, layer in enumerate(self.config.get_substrates()):
+            self.materials_substrate.append(
+                self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon)
+            )
+        self.material_via = self.csx.AddMetal("Via")
+        self.material_filling = self.csx.AddMaterial("ViaFilling", epsilon=1)
 
     def add_mesh(self) -> None:
         """Add mesh to simulation"""
@@ -80,8 +92,10 @@ class Simulation:
 
         #### Z Mesh
         # Min-0-Max
+
+        thickness = sum(l.thickness for l in self.config.get_substrates())
         z_lines = [
-            -self.config.pcb_thickness - self.config.margin_z,
+            -thickness - self.config.margin_z,
             0,
             self.config.margin_z,
         ]
@@ -89,44 +103,86 @@ class Simulation:
         z_lines = np.concatenate(
             (
                 z_lines,
-                np.arange(-self.config.pcb_thickness, 0, step=self.config.pcb_mesh_z),
+                np.arange(-thickness, 0, step=self.config.pcb_mesh_z),
             )
         )
-        z_lines = np.concatenate((z_lines, [-self.config.pcb_thickness / 2]))
+        offset = 0
+        for layer in self.config.get_substrates():
+            np.append(z_lines, offset - (layer.thickness / 2))
+            offset -= layer.thickness
+
         self.mesh.AddLine("z", z_lines)
         # Margin
         self.mesh.SmoothMeshLines("z", self.config.margin_mesh_z, ratio=1.2)
 
-    def add_contours(self, contours: Tuple[np.ndarray, ...], z_height: float) -> None:
+    def add_gerbers(self) -> None:
+        """Add metal from all gerber files"""
+        process_gbr.process()
+
+        offset = 0
+        for layer in self.config.layers:
+            if layer.kind == LayerKind.SUBSTRATE:
+                offset -= layer.thickness
+            elif layer.kind == LayerKind.METAL:
+                logger.info("Adding contours for %s", layer.file)
+                contours = process_gbr.get_triangles(layer.file + ".png")
+                self.add_contours(contours, offset)
+
+    def add_contours(self, contours: np.ndarray, z_height: float) -> None:
         """Add contours as flat polygons on specified z-height"""
         logger.debug("Adding contours on z=%f", z_height)
         for contour in contours:
             points: List[List[float]] = [[], []]
             for point in contour:
                 # Half of the border thickness is subtracted as image is shifted by it
-                points[0].append((point[0][0] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
-                points[1].append((point[0][1] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
+                points[0].append((point[1] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
+                points[1].append((point[0] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
 
             self.material_gerber.AddPolygon(points, "z", z_height, priority=1)
+
+    def get_metal_layer_offset(self, index: int) -> float:
+        """Get z offset of nth metal layer"""
+        current_metal_index = -1
+        offset = 0
+        for layer in self.config.layers:
+            if layer.kind == LayerKind.METAL:
+                current_metal_index += 1
+                if current_metal_index == index:
+                    return offset
+            elif layer.kind == LayerKind.SUBSTRATE:
+                offset -= layer.thickness
+        logger.error("Hadn't found %dth metal layer", index)
+        sys.exit(1)
 
     def add_port(self, port_config: PortConfig, excite: bool = False):
         """Add microstripline port based on config"""
         logger.debug("Adding port number %d", len(self.ports))
-        # TODO: Add handling different layers
+
+        start_z = self.get_metal_layer_offset(port_config.layer)
+        stop_z = self.get_metal_layer_offset(port_config.plane)
+
         if "y" in port_config.direction:
-            start = [port_config.x_pos - port_config.width / 2, port_config.y_pos, 0]
+            start = [
+                port_config.x_pos - port_config.width / 2,
+                port_config.y_pos,
+                start_z,
+            ]
             stop = [
                 port_config.x_pos + port_config.width / 2,
                 port_config.y_pos + port_config.length,
-                -self.config.pcb_thickness,
+                stop_z,
             ]
 
         elif "x" in port_config.direction:
-            start = [port_config.x_pos, port_config.y_pos - port_config.width / 2, 0]
+            start = [
+                port_config.x_pos,
+                port_config.y_pos - port_config.width / 2,
+                start_z,
+            ]
             stop = [
                 port_config.x_pos + port_config.length,
                 port_config.y_pos + port_config.width / 2,
-                -self.config.pcb_thickness,
+                stop_z,
             ]
 
         if "-" in port_config.direction:
@@ -153,28 +209,68 @@ class Simulation:
             priority=1,
         )
 
-    def add_substrate(self, start, stop):
+    def add_substrates(self):
         """Add substrate in whole bounding box of the PCB"""
-        self.material_substrate.AddBox(
-            [0, 0, start],
-            [self.config.pcb_width, self.config.pcb_height, stop],
-            priority=-1,
+        offset = 0
+        for i, layer in enumerate(self.config.get_substrates()):
+            self.materials_substrate[i].AddBox(
+                [0, 0, offset],
+                [
+                    self.config.pcb_width,
+                    self.config.pcb_height,
+                    offset - layer.thickness,
+                ],
+                priority=-i,
+            )
+            offset -= layer.thickness
+
+    def add_via(self, x_pos, y_pos, diameter):
+        """Adds via at specified position with specified diameter"""
+        thickness = sum(l.thickness for l in self.config.get_substrates())
+
+        x_coords = []
+        y_coords = []
+        for i in range(VIA_POLYGON):
+            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
+            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
+        self.material_filling.AddLinPoly(
+            [x_coords, y_coords], "z", -thickness, thickness, priority=51
         )
 
-    def add_dump_box(self):
-        """Add electric field dump box in whole bounding box of the PCB at half the thickness"""
-        Et = self.csx.AddDump("Et", sub_sampling=[1, 1, 1])
-        start = [
-            -self.config.margin_xy,
-            -self.config.margin_xy,
-            -self.config.pcb_thickness / 2,
-        ]
-        stop = [
-            self.config.pcb_width + self.config.margin_xy,
-            self.config.pcb_height + self.config.margin_xy,
-            -self.config.pcb_thickness / 2,
-        ]
-        Et.AddBox(start, stop)
+        x_coords = []
+        y_coords = []
+        for i in range(VIA_POLYGON)[::-1]:
+            x_coords.append(
+                x_pos
+                + np.sin(i / VIA_POLYGON * 2 * np.pi)
+                * (diameter / 2 + self.config.via_plating)
+            )
+            y_coords.append(
+                y_pos
+                + np.cos(i / VIA_POLYGON * 2 * np.pi)
+                * (diameter / 2 + self.config.via_plating)
+            )
+        self.material_via.AddLinPoly(
+            [x_coords, y_coords], "z", -thickness, thickness, priority=50
+        )
+
+    def add_dump_boxes(self):
+        """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate"""
+        offset = 0
+        for i, layer in enumerate(self.config.get_substrates()):
+            dump = self.csx.AddDump(f"e_field_{i}", sub_sampling=[1, 1, 1])
+            start = [
+                -self.config.margin_xy,
+                -self.config.margin_xy,
+                offset - layer.thickness / 2,
+            ]
+            stop = [
+                self.config.pcb_width + self.config.margin_xy,
+                self.config.pcb_height + self.config.margin_xy,
+                offset - layer.thickness / 2,
+            ]
+            dump.AddBox(start, stop)
+            offset -= layer.thickness
 
     def set_boundary_conditions(self):
         """Add MUR boundary conditions"""

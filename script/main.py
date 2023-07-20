@@ -47,7 +47,7 @@ def main():
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
-        geometry(config, sim)
+        geometry(sim)
     if args.simulate or args.all:
         logger.info("Running simulation")
         create_dir(SIMULATION_DIR, cleanup=True)
@@ -58,21 +58,18 @@ def main():
         postprocess(config, sim)
 
 
-def geometry(config: Config, sim) -> None:
+def geometry(sim) -> None:
     """Creates a geometry for the simulation"""
-    process_gbr.process()
-    contours = process_gbr.get_contours("F_Cu.png")
-
-    logger.info("Adding contours")
-    sim.add_contours(contours, 0)
 
     logger.info("Adding planes and substrates")
-    sim.add_plane(-config.pcb_thickness)
-    sim.add_substrate(0, -config.pcb_thickness)
+    sim.add_gerbers()
+    sim.add_substrates()
 
     logger.info("Adding dump box and boundary conditions")
-    sim.add_dump_box()
+    sim.add_dump_boxes()
     sim.set_boundary_conditions()
+
+    sim.add_via(2000, 2000, 300)
 
     sim.save_geometry()
 

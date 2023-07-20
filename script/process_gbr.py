@@ -7,6 +7,8 @@ import sys
 
 import cv2
 import numpy as np
+from nanomesh import Image
+from nanomesh import Mesher2D
 
 from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE
 
@@ -50,14 +52,29 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
     os.remove(not_cropped_name)
 
 
-def get_contours(input_name: str) -> Tuple[np.ndarray, ...]:
+def get_triangles(input_name: str) -> np.ndarray:
     """Finds outlines in the image"""
 
     path = os.path.join(GEOMETRY_DIR, input_name)
     image = cv2.imread(path)
-
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY_INV)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    return contours
+    plane = Image(thresh)
+
+    mesher = Mesher2D(plane)
+    mesher.generate_contour(max_edge_dist=1000)
+    mesher.plot_contour()
+    mesh = mesher.triangulate(opts="a100000")
+
+    points = mesh.get("triangle").points
+    cells = mesh.get("triangle").cells
+    kinds = mesh.get("triangle").cell_data["physical"]
+
+    triangles: np.ndarray = np.empty((len(cells), 3, 2))
+    for i, cell in enumerate(cells):
+        triangles[i] = [points[cell[0]], points[cell[1]], points[cell[2]]]
+
+    mask = kinds == 2.0
+
+    return triangles[mask]
