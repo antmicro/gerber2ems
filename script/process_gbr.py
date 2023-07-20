@@ -2,8 +2,9 @@
 import subprocess
 import os
 import logging
-from typing import Tuple
+from typing import List
 import sys
+import re
 
 import cv2
 import numpy as np
@@ -78,3 +79,23 @@ def get_triangles(input_name: str) -> np.ndarray:
     mask = kinds == 2.0
 
     return triangles[mask]
+
+
+def get_vias() -> List[List[float]]:
+    """Get via information from excellon file"""
+    files = os.listdir(os.getcwd())
+    drill_filename = next(filter(lambda name: "-PTH.drl" in name, files), None)
+    if drill_filename is None:
+        logger.error("Couldn't find drill file")
+        sys.exit(1)
+
+    # TODO: Add different diameter handling
+
+    vias: List[List[float]] = []
+    with open(drill_filename, "r", encoding="utf-8") as drill_file:
+        groups = re.finditer("X([0-9]+.[0-9]+)Y([0-9]+.[0-9]+)", drill_file.read())
+        for group in groups:
+            vias.append(
+                [float(group.group(1)) * 1000, float(group.group(2)) * 1000, 300]
+            )
+    return vias

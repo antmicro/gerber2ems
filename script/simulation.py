@@ -136,7 +136,11 @@ class Simulation:
             for point in contour:
                 # Half of the border thickness is subtracted as image is shifted by it
                 points[0].append((point[1] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
-                points[1].append((point[0] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
+                points[1].append(
+                    self.config.pcb_height
+                    - (point[0] * PIXEL_SIZE)
+                    + BORDER_THICKNESS / 2
+                )
 
             self.material_gerber.AddPolygon(points, "z", z_height, priority=1)
 
@@ -223,6 +227,12 @@ class Simulation:
                 priority=-i,
             )
             offset -= layer.thickness
+
+    def add_vias(self):
+        """Add all vias from excellon file"""
+        vias = process_gbr.get_vias()
+        for via in vias:
+            self.add_via(via[0], via[1], via[2])
 
     def add_via(self, x_pos, y_pos, diameter):
         """Adds via at specified position with specified diameter"""

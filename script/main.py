@@ -12,7 +12,6 @@ import coloredlogs
 import numpy as np
 
 from constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
-import process_gbr
 from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
@@ -69,7 +68,7 @@ def geometry(sim) -> None:
     sim.add_dump_boxes()
     sim.set_boundary_conditions()
 
-    sim.add_via(2000, 2000, 300)
+    sim.add_vias()
 
     sim.save_geometry()
 
