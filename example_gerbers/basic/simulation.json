@@ -4,6 +4,7 @@
         "stop": 20e9
     },
     "max_steps": 3e4,
+    "via_plating": 50,
     "pcb": {
         "dimensions": {
             "width": 10000,
