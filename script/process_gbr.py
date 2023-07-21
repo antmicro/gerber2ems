@@ -32,7 +32,7 @@ def process():
         logger.warning("No copper gerbers found")
 
     for name in layers:
-        output = name.split("-")[1].split(".")[0] + ".png"
+        output = name.split("-")[-1].split(".")[0] + ".png"
         gbr_to_png(name, edge, os.path.join(os.getcwd(), GEOMETRY_DIR, output))
 
 
@@ -89,13 +89,29 @@ def get_vias() -> List[List[float]]:
         logger.error("Couldn't find drill file")
         sys.exit(1)
 
-    # TODO: Add different diameter handling
-
+    drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
+    current_drill = 0
     vias: List[List[float]] = []
     with open(drill_filename, "r", encoding="utf-8") as drill_file:
-        groups = re.finditer("X([0-9]+.[0-9]+)Y([0-9]+.[0-9]+)", drill_file.read())
-        for group in groups:
-            vias.append(
-                [float(group.group(1)) * 1000, float(group.group(2)) * 1000, 300]
-            )
+        for line in drill_file.readlines():
+            match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
+            if match is not None:
+                drills[int(match.group(1))] = float(match.group(2)) * 1000
+            match = re.fullmatch("T([0-9]+)\\n", line)
+            if match is not None:
+                current_drill = int(match.group(1))
+            match = re.fullmatch("X([0-9]+.[0-9]+)Y([0-9]+.[0-9]+)\\n", line)
+            if match is not None:
+                if current_drill in drills:
+                    vias.append(
+                        [
+                            float(match.group(1)) * 1000,
+                            float(match.group(2)) * 1000,
+                            drills[current_drill],
+                        ]
+                    )
+                else:
+                    logger.warning(
+                        "Drill file parsing failed. Drill with specifed number wasn't found"
+                    )
     return vias

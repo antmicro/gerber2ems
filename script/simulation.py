@@ -284,7 +284,9 @@ class Simulation:
 
     def set_boundary_conditions(self):
         """Add MUR boundary conditions"""
-        self.fdtd.SetBoundaryCond(["MUR", "MUR", "MUR", "MUR", "MUR", "MUR"])
+        self.fdtd.SetBoundaryCond(
+            ["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"]
+        )
 
     def set_excitation(self):
         """Sets gauss excitation according to config"""
