@@ -156,13 +156,21 @@ def setup_logging(args: Any) -> None:
             fmt="[%(asctime)s][%(name)s:%(lineno)d][%(levelname).4s] %(message)s",
             datefmt="%H:%M:%S",
             level=level,
+            logger=logger,
         )
     else:
         coloredlogs.install(
             fmt="[%(asctime)s][%(levelname).4s] %(message)s",
             datefmt="%H:%M:%S",
             level=level,
+            logger=logger,
         )
+
+    # Temporary fix to disable logging from other libraries
+    to_disable = ["PIL", "matplotlib"]
+    for name in to_disable:
+        disabled_logger = logging.getLogger(name)
+        disabled_logger.setLevel(logging.ERROR)
 
 
 def open_config(args: Any) -> None:
