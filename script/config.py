@@ -102,31 +102,52 @@ def get(
 class Config:
     """Class representing and parsing config"""
 
-    def __init__(self, config: Any) -> None:
-        logger.info("Parsing config")
-        self.start_frequency = get(config, ["frequency", "start"], (float, int), 500e3)
-        self.stop_frequency = get(config, ["frequency", "stop"], (float, int), 10e6)
-        self.max_steps = get(config, ["max_steps"], (float, int), None)
-        self.pcb_width = get(config, ["pcb", "dimensions", "width"], (float, int))
-        self.pcb_height = get(config, ["pcb", "dimensions", "height"], (float, int))
-        self.pcb_mesh_xy = get(config, ["pcb", "mesh", "xy"], (float, int), 50)
-        self.pcb_mesh_z = get(config, ["pcb", "mesh", "z"], (float, int), 20)
-        self.margin_xy = get(config, ["margin", "dimensions", "xy"], (float, int), 3000)
-        self.margin_z = get(config, ["margin", "dimensions", "z"], (float, int), 3000)
-        self.margin_mesh_xy = get(config, ["margin", "mesh", "xy"], (float, int), 200)
-        self.margin_mesh_z = get(config, ["margin", "mesh", "z"], (float, int), 200)
-        self.via_plating = get(config, ["via_plating"], (int, float), 50)
+    _instance = None
 
-        ports = get(config, ["ports"], list)
+    @classmethod
+    def get(cls) -> Any:
+        """Returns already instantiated config"""
+        if cls._instance is not None:
+            return cls._instance
+        else:
+            logger.error("Config hasn't been instantiated. Exiting")
+            sys.exit(1)
+
+    def __init__(self, json: Any, args: Any) -> None:
+        if self.__class__._instance is not None:
+            logger.warning(
+                "Config has already beed instatiated. Use Config.get() to get the instance. Skipping"
+            )
+            return
+
+        logger.info("Parsing config")
+        self.start_frequency = get(json, ["frequency", "start"], (float, int), 500e3)
+        self.stop_frequency = get(json, ["frequency", "stop"], (float, int), 10e6)
+        self.max_steps = get(json, ["max_steps"], (float, int), None)
+        self.pcb_width = get(json, ["pcb", "dimensions", "width"], (float, int))
+        self.pcb_height = get(json, ["pcb", "dimensions", "height"], (float, int))
+        self.pcb_mesh_xy = get(json, ["pcb", "mesh", "xy"], (float, int), 50)
+        self.pcb_mesh_z = get(json, ["pcb", "mesh", "z"], (float, int), 20)
+        self.margin_xy = get(json, ["margin", "dimensions", "xy"], (float, int), 3000)
+        self.margin_z = get(json, ["margin", "dimensions", "z"], (float, int), 3000)
+        self.margin_mesh_xy = get(json, ["margin", "mesh", "xy"], (float, int), 200)
+        self.margin_mesh_z = get(json, ["margin", "mesh", "z"], (float, int), 200)
+        self.via_plating = get(json, ["via_plating"], (int, float), 50)
+
+        self.arguments = args
+
+        ports = get(json, ["ports"], list)
         self.ports = []
         for port in ports:
             self.ports.append(PortConfig(port))
         logger.debug("Found %d ports", len(self.ports))
 
-        layers = get(config, ["pcb", "layers"], list)
+        layers = get(json, ["pcb", "layers"], list)
         self.layers: List[LayerConfig] = []
         for i, _ in enumerate(layers):
-            self.layers.append(LayerConfig(config, i))
+            self.layers.append(LayerConfig(json, i))
+
+        self.__class__._instance = self
 
     def get_substrates(self) -> List[LayerConfig]:
         """Returns substrate layers configs"""

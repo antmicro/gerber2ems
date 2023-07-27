@@ -31,10 +31,10 @@ def main():
         sys.exit(0)
 
     config = open_config(args)
-    config = Config(config)
+    config = Config(config, args)
     create_dir(BASE_DIR)
 
-    sim = Simulation(config)
+    sim = Simulation()
     sim.add_mesh()
 
     logger.info("Adding ports")
@@ -57,30 +57,25 @@ def main():
         postprocess(config, sim)
 
 
-def geometry(sim) -> None:
+def geometry(sim: Simulation) -> None:
     """Creates a geometry for the simulation"""
 
-    logger.info("Adding planes and substrates")
     sim.add_gerbers()
     sim.add_substrates()
-
-    logger.info("Adding dump box and boundary conditions")
     sim.add_dump_boxes()
-    sim.set_boundary_conditions()
-
+    sim.set_boundary_conditions(pml=False)
     sim.add_vias()
-
     sim.save_geometry()
 
 
-def simulate(sim) -> None:
+def simulate(sim: Simulation) -> None:
     """Runs the simulation"""
     sim.load_geometry()
     sim.set_excitation()
     sim.run()
 
 
-def postprocess(config: Config, sim) -> None:
+def postprocess(config: Config, sim: Simulation) -> None:
     """Postprocesses data from the simulation"""
     frequencies = np.linspace(config.start_frequency, config.stop_frequency, 1001)
     reflected, incident = sim.get_port_parameters(frequencies)

@@ -25,11 +25,9 @@ logger = logging.getLogger(__name__)
 class Simulation:
     """Class used for interacting with openEMS"""
 
-    def __init__(self, config: Config) -> None:
-        self.config = config
-
+    def __init__(self) -> None:
         self.csx = CSXCAD.ContinuousStructure()
-        self.fdtd = openEMS.openEMS(NrTS=config.max_steps)
+        self.fdtd = openEMS.openEMS(NrTS=Config.get().max_steps)
         self.fdtd.SetCSX(self.csx)
         self.mesh = self.csx.GetGrid()
         self.mesh.SetDeltaUnit(UNIT)
@@ -44,7 +42,7 @@ class Simulation:
         self.material_port = self.csx.AddMetal("Port")
         self.material_plane = self.csx.AddMetal("Plane")
         self.materials_substrate = []
-        for i, layer in enumerate(self.config.get_substrates()):
+        for i, layer in enumerate(Config.get().get_substrates()):
             self.materials_substrate.append(
                 self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon)
             )
@@ -57,70 +55,85 @@ class Simulation:
         #### X Mesh
         # Min-Max
         x_lines = [
-            -self.config.margin_xy,
-            self.config.pcb_width + self.config.margin_xy,
+            -Config.get().margin_xy,
+            Config.get().pcb_width + Config.get().margin_xy,
         ]
         # PCB
-        mesh = self.config.pcb_mesh_xy
+        mesh = Config.get().pcb_mesh_xy
         x_lines = np.concatenate(
             (
                 x_lines,
-                np.arange(0 - mesh / 2, self.config.pcb_width + mesh / 2, step=mesh),
+                np.arange(0 - mesh / 2, Config.get().pcb_width + mesh / 2, step=mesh),
             )
         )
         self.mesh.AddLine("x", x_lines)
         # Margin
-        self.mesh.SmoothMeshLines("x", self.config.margin_mesh_xy, ratio=1.2)
+        self.mesh.SmoothMeshLines("x", Config.get().margin_mesh_xy, ratio=1.2)
 
         #### Y Mesh
         # Min-Max
         y_lines = [
-            -self.config.margin_xy,
-            self.config.pcb_height + self.config.margin_xy,
+            -Config.get().margin_xy,
+            Config.get().pcb_height + Config.get().margin_xy,
         ]
         # PCB
-        mesh = self.config.pcb_mesh_xy
+        mesh = Config.get().pcb_mesh_xy
         y_lines = np.concatenate(
             (
                 y_lines,
-                np.arange(0 - mesh / 2, self.config.pcb_height + mesh / 2, step=mesh),
+                np.arange(0 - mesh / 2, Config.get().pcb_height + mesh / 2, step=mesh),
             )
         )
         self.mesh.AddLine("y", y_lines)
         # Margin
-        self.mesh.SmoothMeshLines("x", self.config.margin_mesh_xy, ratio=1.2)
+        self.mesh.SmoothMeshLines("x", Config.get().margin_mesh_xy, ratio=1.2)
 
         #### Z Mesh
         # Min-0-Max
 
-        thickness = sum(l.thickness for l in self.config.get_substrates())
+        thickness = sum(l.thickness for l in Config.get().get_substrates())
         z_lines = [
-            -thickness - self.config.margin_z,
+            -thickness - Config.get().margin_z,
             0,
-            self.config.margin_z,
+            Config.get().margin_z,
         ]
         # PCB
         z_lines = np.concatenate(
             (
                 z_lines,
-                np.arange(-thickness, 0, step=self.config.pcb_mesh_z),
+                np.arange(-thickness, 0, step=Config.get().pcb_mesh_z),
             )
         )
         offset = 0
-        for layer in self.config.get_substrates():
+        for layer in Config.get().get_substrates():
             np.append(z_lines, offset - (layer.thickness / 2))
             offset -= layer.thickness
 
         self.mesh.AddLine("z", z_lines)
         # Margin
-        self.mesh.SmoothMeshLines("z", self.config.margin_mesh_z, ratio=1.2)
+        self.mesh.SmoothMeshLines("z", Config.get().margin_mesh_z, ratio=1.2)
+
+        xyz = [
+            self.mesh.GetQtyLines("x"),
+            self.mesh.GetQtyLines("y"),
+            self.mesh.GetQtyLines("z"),
+        ]
+        logger.info(
+            "Mesh line count, x: %d, y: %d z: %d. Total number of cells: ~%.2fM",
+            xyz[0],
+            xyz[1],
+            xyz[2],
+            xyz[0] * xyz[1] * xyz[2] / 1.0e6,
+        )
 
     def add_gerbers(self) -> None:
         """Add metal from all gerber files"""
+        logger.info("Adding copper from gerber files")
+
         process_gbr.process()
 
         offset = 0
-        for layer in self.config.layers:
+        for layer in Config.get().layers:
             if layer.kind == LayerKind.SUBSTRATE:
                 offset -= layer.thickness
             elif layer.kind == LayerKind.METAL:
@@ -137,7 +150,7 @@ class Simulation:
                 # Half of the border thickness is subtracted as image is shifted by it
                 points[0].append((point[1] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
                 points[1].append(
-                    self.config.pcb_height
+                    Config.get().pcb_height
                     - (point[0] * PIXEL_SIZE)
                     + BORDER_THICKNESS / 2
                 )
@@ -148,7 +161,7 @@ class Simulation:
         """Get z offset of nth metal layer"""
         current_metal_index = -1
         offset = 0
-        for layer in self.config.layers:
+        for layer in Config.get().layers:
             if layer.kind == LayerKind.METAL:
                 current_metal_index += 1
                 if current_metal_index == index:
@@ -209,34 +222,40 @@ class Simulation:
         """Add metal plane in whole bounding box of the PCB"""
         self.material_plane.AddBox(
             [0, 0, z_height],
-            [self.config.pcb_width, self.config.pcb_height, z_height],
+            [Config.get().pcb_width, Config.get().pcb_height, z_height],
             priority=1,
         )
 
     def add_substrates(self):
         """Add substrate in whole bounding box of the PCB"""
+        logger.info("Adding substrates")
+
         offset = 0
-        for i, layer in enumerate(self.config.get_substrates()):
+        for i, layer in enumerate(Config.get().get_substrates()):
             self.materials_substrate[i].AddBox(
                 [0, 0, offset],
                 [
-                    self.config.pcb_width,
-                    self.config.pcb_height,
+                    Config.get().pcb_width,
+                    Config.get().pcb_height,
                     offset - layer.thickness,
                 ],
                 priority=-i,
+            )
+            logger.debug(
+                "Added substrate from %f to %f", offset, offset - layer.thickness
             )
             offset -= layer.thickness
 
     def add_vias(self):
         """Add all vias from excellon file"""
+        logger.info("Adding vias from excellon file")
         vias = process_gbr.get_vias()
         for via in vias:
             self.add_via(via[0], via[1], via[2])
 
     def add_via(self, x_pos, y_pos, diameter):
         """Adds via at specified position with specified diameter"""
-        thickness = sum(l.thickness for l in self.config.get_substrates())
+        thickness = sum(l.thickness for l in Config.get().get_substrates())
 
         x_coords = []
         y_coords = []
@@ -253,12 +272,12 @@ class Simulation:
             x_coords.append(
                 x_pos
                 + np.sin(i / VIA_POLYGON * 2 * np.pi)
-                * (diameter / 2 + self.config.via_plating)
+                * (diameter / 2 + Config.get().via_plating)
             )
             y_coords.append(
                 y_pos
                 + np.cos(i / VIA_POLYGON * 2 * np.pi)
-                * (diameter / 2 + self.config.via_plating)
+                * (diameter / 2 + Config.get().via_plating)
             )
         self.material_via.AddLinPoly(
             [x_coords, y_coords], "z", -thickness, thickness, priority=50
@@ -266,33 +285,41 @@ class Simulation:
 
     def add_dump_boxes(self):
         """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate"""
+        logger.info("Adding dump box for each dielectic")
         offset = 0
-        for i, layer in enumerate(self.config.get_substrates()):
+        for i, layer in enumerate(Config.get().get_substrates()):
+            height = offset - layer.thickness / 2
+            logger.debug("Adding dump box at %f", height)
             dump = self.csx.AddDump(f"e_field_{i}", sub_sampling=[1, 1, 1])
             start = [
-                -self.config.margin_xy,
-                -self.config.margin_xy,
-                offset - layer.thickness / 2,
+                -Config.get().margin_xy,
+                -Config.get().margin_xy,
+                height,
             ]
             stop = [
-                self.config.pcb_width + self.config.margin_xy,
-                self.config.pcb_height + self.config.margin_xy,
-                offset - layer.thickness / 2,
+                Config.get().pcb_width + Config.get().margin_xy,
+                Config.get().pcb_height + Config.get().margin_xy,
+                height,
             ]
             dump.AddBox(start, stop)
             offset -= layer.thickness
 
-    def set_boundary_conditions(self):
-        """Add MUR boundary conditions"""
-        self.fdtd.SetBoundaryCond(
-            ["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"]
-        )
+    def set_boundary_conditions(self, pml=False):
+        """Add boundary conditions. MUR for fast simulation, PML for more accurate"""
+        if pml:
+            logger.info("Adding perfectly matched layer boundary condition")
+            self.fdtd.SetBoundaryCond(
+                ["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"]
+            )
+        else:
+            logger.info("Adding MUR boundary condition")
+            self.fdtd.SetBoundaryCond(["MUR", "MUR", "MUR", "MUR", "MUR", "MUR"])
 
     def set_excitation(self):
         """Sets gauss excitation according to config"""
         self.fdtd.SetGaussExcite(
-            (self.config.start_frequency + self.config.stop_frequency) / 2,
-            (self.config.stop_frequency - self.config.start_frequency) / 2,
+            (Config.get().start_frequency + Config.get().stop_frequency) / 2,
+            (Config.get().stop_frequency - Config.get().start_frequency) / 2,
         )
 
     def run(self):

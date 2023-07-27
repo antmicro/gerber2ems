@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 from nanomesh import Image
 from nanomesh import Mesher2D
+import matplotlib.pyplot as plt
+from config import Config
 
 from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE
 
@@ -68,6 +70,12 @@ def get_triangles(input_name: str) -> np.ndarray:
     mesher.plot_contour()
     mesh = mesher.triangulate(opts="a100000")
 
+    if Config.get().arguments.debug:
+        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, input_name + "_mesh.png")
+        logger.debug("Saving mesh to file: %s", filename)
+        mesh.plot_mpl()
+        plt.savefig(filename, dpi=300)
+
     points = mesh.get("triangle").points
     cells = mesh.get("triangle").cells
     kinds = mesh.get("triangle").cell_data["physical"]
@@ -76,7 +84,10 @@ def get_triangles(input_name: str) -> np.ndarray:
     for i, cell in enumerate(cells):
         triangles[i] = [points[cell[0]], points[cell[1]], points[cell[2]]]
 
+    # Selecting only triangles that represent copper
     mask = kinds == 2.0
+
+    logger.debug("Found %d triangles for %s", len(triangles[mask]), input_name)
 
     return triangles[mask]
 
@@ -114,4 +125,5 @@ def get_vias() -> List[List[float]]:
                     logger.warning(
                         "Drill file parsing failed. Drill with specifed number wasn't found"
                     )
+    logger.debug("Found %d vias", len(vias))
     return vias
