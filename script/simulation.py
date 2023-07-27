@@ -197,7 +197,7 @@ class Simulation:
             self.material_port,
             start,
             stop,
-            "y",
+            port_config.direction.replace("-", ""),
             "z",
             Feed_R=port_config.impedance,
             priority=100,
