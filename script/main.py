@@ -15,7 +15,7 @@ from constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
 from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
-import process_gbr
+import importer
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +69,8 @@ def add_virtual_ports(sim: Simulation) -> None:
 
 def geometry(sim: Simulation) -> None:
     """Creates a geometry for the simulation"""
-    process_gbr.process()
-    (width, height) = process_gbr.get_dimensions("F_Cu.png")
+    importer.process_gbr()
+    (width, height) = importer.get_dimensions("F_Cu.png")
     Config.get().pcb_height = height
     Config.get().pcb_width = width
     sim.add_gerbers()

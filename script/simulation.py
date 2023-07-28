@@ -17,7 +17,7 @@ from constants import (
     PIXEL_SIZE,
     VIA_POLYGON,
 )
-import process_gbr
+import importer
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ class Simulation:
         """Add metal from all gerber files"""
         logger.info("Adding copper from gerber files")
 
-        process_gbr.process()
+        importer.process_gbr()
 
         offset = 0
         for layer in Config.get().layers:
@@ -138,7 +138,7 @@ class Simulation:
                 offset -= layer.thickness
             elif layer.kind == LayerKind.METAL:
                 logger.info("Adding contours for %s", layer.file)
-                contours = process_gbr.get_triangles(layer.file + ".png")
+                contours = importer.get_triangles(layer.file + ".png")
                 self.add_contours(contours, offset)
 
     def add_contours(self, contours: np.ndarray, z_height: float) -> None:
@@ -253,7 +253,7 @@ class Simulation:
     def add_vias(self):
         """Add all vias from excellon file"""
         logger.info("Adding vias from excellon file")
-        vias = process_gbr.get_vias()
+        vias = importer.get_vias()
         for via in vias:
             self.add_via(via[0], via[1], via[2])
 

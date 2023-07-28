@@ -18,7 +18,7 @@ from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE, BORDER_THICKNESS
 logger = logging.getLogger(__name__)
 
 
-def process():
+def process_gbr():
     """Processes all gerber files"""
     logger.info("Processing gerber files")
 
