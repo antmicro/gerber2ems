@@ -127,8 +127,8 @@ class Config:
         self.start_frequency = get(json, ["frequency", "start"], (float, int), 500e3)
         self.stop_frequency = get(json, ["frequency", "stop"], (float, int), 10e6)
         self.max_steps = get(json, ["max_steps"], (float, int), None)
-        self.pcb_width = None
-        self.pcb_height = None
+        self.pcb_width: Union[float, None] = None
+        self.pcb_height: Union[float, None] = None
         self.pcb_mesh_xy = get(json, ["pcb", "mesh", "xy"], (float, int), 50)
         self.pcb_mesh_z = get(json, ["pcb", "mesh", "z"], (float, int), 20)
         self.margin_xy = get(json, ["margin", "dimensions", "xy"], (float, int), 3000)

@@ -13,8 +13,6 @@ from constants import (
     UNIT,
     SIMULATION_DIR,
     GEOMETRY_DIR,
-    BORDER_THICKNESS,
-    PIXEL_SIZE,
     VIA_POLYGON,
 )
 import importer
