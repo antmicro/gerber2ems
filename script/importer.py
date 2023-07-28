@@ -1,4 +1,5 @@
 """ Module containing functions for importing gerbers """
+import json
 import subprocess
 import os
 import logging
@@ -147,3 +148,23 @@ def get_vias() -> List[List[float]]:
                     )
     logger.debug("Found %d vias", len(vias))
     return vias
+
+
+def import_stackup():
+    """Imports stackup information from json file and loads it into configuration"""
+    filename = "stackup.json"
+    if "stackup" in Config.get().arguments:
+        filename = Config.get().arguments["stackup"]
+
+    with open(filename, "r", encoding="utf-8") as file:
+        try:
+            stackup = json.load(file)
+        except json.JSONDecodeError as error:
+            logger.error(
+                "JSON decoding failed at %d:%d: %s",
+                error.lineno,
+                error.colno,
+                error.msg,
+            )
+            sys.exit(1)
+        Config.get().load_stackup(stackup)

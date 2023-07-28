@@ -32,8 +32,6 @@ class Simulation:
 
         self.ports: List[openEMS.ports.MSLPort] = []
 
-        self.create_materials()
-
     def create_materials(self) -> None:
         """Creates materials required for simulation"""
         self.material_gerber = self.csx.AddMetal("Gerber")

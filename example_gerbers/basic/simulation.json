@@ -9,24 +9,7 @@
         "mesh": {
             "xy": 50,
             "z": 25
-        },
-        "layers": [
-            {
-                "type": "metal",
-                "file": "F_Cu",
-                "thickness": 0
-            },
-            {
-                "type": "substrate",
-                "thickness": 200,
-                "epsilon": 4.2
-            },
-            {
-                "type": "metal",
-                "file": "B_Cu",
-                "thickness": 0
-            }
-        ]
+        }
     },
     "margin": {
         "dimensions": {

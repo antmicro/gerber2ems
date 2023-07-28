@@ -5,6 +5,7 @@ import sys
 import logging
 from typing import Any, List, Union, Tuple, Dict
 from enum import Enum
+from constants import UNIT
 
 logger = logging.getLogger(__name__)
 
@@ -30,28 +31,28 @@ class PortConfig:
 class LayerConfig:
     """Class representing and parsing layer config"""
 
-    def __init__(self, config: Any, index: int) -> None:
-        self.kind = self.parse_kind(get(config, ["pcb", "layers", index, "type"], str))
-        self.thickness = get(
-            config, ["pcb", "layers", index, "thickness"], (float, int)
-        )
+    def __init__(self, config: Any) -> None:
+        self.kind = self.parse_kind(config["type"])
+        self.thickness = None
+        if config["thickness"] is not None:
+            self.thickness = config["thickness"] / 1000 / UNIT
         if self.kind == LayerKind.METAL:
-            self.file = get(config, ["pcb", "layers", index, "file"], str)
+            self.file = config["name"].replace(".", "_")
         elif self.kind == LayerKind.SUBSTRATE:
-            self.epsilon = get(
-                config, ["pcb", "layers", index, "epsilon"], (float, int)
-            )
+            self.epsilon = config["epsilon"]
+
+    def __repr__(self):
+        return f"Layer kind:{self.kind} thickness: {self.thickness}"
 
     @staticmethod
     def parse_kind(kind: str):
         """Parse type name to enum"""
-        if kind == "substrate":
+        if kind in ["core", "prepreg"]:
             return LayerKind.SUBSTRATE
-        elif kind == "metal":
+        elif kind == "copper":
             return LayerKind.METAL
         else:
-            logger.error("Layer type is invalid: %s", kind)
-            sys.exit(1)
+            return LayerKind.OTHER
 
 
 class LayerKind(Enum):
@@ -59,6 +60,7 @@ class LayerKind(Enum):
 
     SUBSTRATE = 1
     METAL = 2
+    OTHER = 3
 
 
 def get(
@@ -145,12 +147,18 @@ class Config:
             self.ports.append(PortConfig(port))
         logger.debug("Found %d ports", len(self.ports))
 
-        layers = get(json, ["pcb", "layers"], list)
         self.layers: List[LayerConfig] = []
-        for i, _ in enumerate(layers):
-            self.layers.append(LayerConfig(json, i))
 
         self.__class__._instance = self
+
+    def load_stackup(self, stackup) -> None:
+        """Loads stackup from json object"""
+        layers = []
+        for layer in stackup:
+            layers.append(LayerConfig(layer))
+        self.layers = list(
+            filter(lambda l: l.kind in [LayerKind.METAL, LayerKind.SUBSTRATE], layers)
+        )
 
     def get_substrates(self) -> List[LayerConfig]:
         """Returns substrate layers configs"""

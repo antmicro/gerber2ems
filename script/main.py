@@ -69,10 +69,12 @@ def add_virtual_ports(sim: Simulation) -> None:
 
 def geometry(sim: Simulation) -> None:
     """Creates a geometry for the simulation"""
+    importer.import_stackup()
     importer.process_gbr()
     (width, height) = importer.get_dimensions("F_Cu.png")
     Config.get().pcb_height = height
     Config.get().pcb_width = width
+    sim.create_materials()
     sim.add_gerbers()
     sim.add_mesh()
     sim.add_substrates()
