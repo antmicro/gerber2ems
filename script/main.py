@@ -15,6 +15,7 @@ from constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
 from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
+import process_gbr
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +36,6 @@ def main():
     create_dir(BASE_DIR)
 
     sim = Simulation()
-    sim.add_mesh()
-
-    logger.info("Adding ports")
-    excited = True
-    for port_config in config.ports:
-        sim.add_port(port_config, excited)
-        excited = False
 
     if args.geometry or args.all:
         logger.info("Creating geometry")
@@ -57,14 +51,35 @@ def main():
         postprocess(config, sim)
 
 
+def add_ports(sim: Simulation) -> None:
+    """Add ports for simulation"""
+    logger.info("Adding ports")
+    excited = True
+    for port_config in Config.get().ports:
+        sim.add_msl_port(port_config, excited)
+        excited = False
+
+
+def add_virtual_ports(sim: Simulation) -> None:
+    """Add virtual ports needed for data postprocessing due to openEMS api design"""
+    logger.info("Adding virtual ports")
+    for port_config in Config.get().ports:
+        sim.add_virtual_port(port_config)
+
+
 def geometry(sim: Simulation) -> None:
     """Creates a geometry for the simulation"""
-
+    process_gbr.process()
+    (width, height) = process_gbr.get_dimensions("F_Cu.png")
+    Config.get().pcb_height = height
+    Config.get().pcb_width = width
     sim.add_gerbers()
+    sim.add_mesh()
     sim.add_substrates()
     sim.add_dump_boxes()
     sim.set_boundary_conditions(pml=False)
     sim.add_vias()
+    add_ports(sim)
     sim.save_geometry()
 
 
@@ -77,6 +92,9 @@ def simulate(sim: Simulation) -> None:
 
 def postprocess(config: Config, sim: Simulation) -> None:
     """Postprocesses data from the simulation"""
+    if len(sim.ports) == 0:
+        add_virtual_ports(sim)
+
     frequencies = np.linspace(config.start_frequency, config.stop_frequency, 1001)
     reflected, incident = sim.get_port_parameters(frequencies)
 

@@ -148,12 +148,8 @@ class Simulation:
             points: List[List[float]] = [[], []]
             for point in contour:
                 # Half of the border thickness is subtracted as image is shifted by it
-                points[0].append((point[1] * PIXEL_SIZE) - BORDER_THICKNESS / 2)
-                points[1].append(
-                    Config.get().pcb_height
-                    - (point[0] * PIXEL_SIZE)
-                    + BORDER_THICKNESS / 2
-                )
+                points[0].append((point[1]))
+                points[1].append(Config.get().pcb_height - point[0])
 
             self.material_gerber.AddPolygon(points, "z", z_height, priority=1)
 
@@ -171,7 +167,7 @@ class Simulation:
         logger.error("Hadn't found %dth metal layer", index)
         sys.exit(1)
 
-    def add_port(self, port_config: PortConfig, excite: bool = False):
+    def add_msl_port(self, port_config: PortConfig, excite: bool = False):
         """Add microstripline port based on config"""
         logger.debug("Adding port number %d", len(self.ports))
 
@@ -215,6 +211,14 @@ class Simulation:
             Feed_R=port_config.impedance,
             priority=100,
             excite=1 if excite else 0,
+        )
+        self.ports.append(port)
+
+    def add_virtual_port(self, port_config: PortConfig) -> None:
+        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing"""
+        logger.debug("Adding virtual port number %d", len(self.ports))
+        port = self.fdtd.AddLumpedPort(
+            len(self.ports), port_config.impedance, [0, 0, 0], [1, 0, 1], "z"
         )
         self.ports.append(port)
 

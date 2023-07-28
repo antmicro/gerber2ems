@@ -2,7 +2,7 @@
 import subprocess
 import os
 import logging
-from typing import List
+from typing import List, Tuple
 import sys
 import re
 
@@ -13,7 +13,7 @@ from nanomesh import Mesher2D
 import matplotlib.pyplot as plt
 from config import Config
 
-from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE
+from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE, BORDER_THICKNESS
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,17 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
     os.remove(not_cropped_name)
 
 
+def get_dimensions(input_name: str) -> Tuple[float, float]:
+    """Returns board dimensions based on png"""
+    image = cv2.imread(os.path.join(GEOMETRY_DIR, input_name))
+    height = image.shape[0] * PIXEL_SIZE - BORDER_THICKNESS
+    width = image.shape[1] * PIXEL_SIZE - BORDER_THICKNESS
+    logger.debug(
+        "Board dimensions read from file are: height:%f width:%f", height, width
+    )
+    return (width, height)
+
+
 def get_triangles(input_name: str) -> np.ndarray:
     """Finds outlines in the image"""
 
@@ -82,7 +93,11 @@ def get_triangles(input_name: str) -> np.ndarray:
 
     triangles: np.ndarray = np.empty((len(cells), 3, 2))
     for i, cell in enumerate(cells):
-        triangles[i] = [points[cell[0]], points[cell[1]], points[cell[2]]]
+        triangles[i] = [
+            image_to_board_coordinates(points[cell[0]]),
+            image_to_board_coordinates(points[cell[1]]),
+            image_to_board_coordinates(points[cell[2]]),
+        ]
 
     # Selecting only triangles that represent copper
     mask = kinds == 2.0
@@ -90,6 +105,11 @@ def get_triangles(input_name: str) -> np.ndarray:
     logger.debug("Found %d triangles for %s", len(triangles[mask]), input_name)
 
     return triangles[mask]
+
+
+def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
+    """Transforms point coordinates from image to board coordinates"""
+    return (point * PIXEL_SIZE) - [BORDER_THICKNESS / 2, BORDER_THICKNESS / 2]
 
 
 def get_vias() -> List[List[float]]:

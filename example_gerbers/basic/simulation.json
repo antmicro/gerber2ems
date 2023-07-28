@@ -6,10 +6,6 @@
     "max_steps": 9e4,
     "via_plating": 50,
     "pcb": {
-        "dimensions": {
-            "width": 10000,
-            "height": 15000
-        },
         "mesh": {
             "xy": 50,
             "z": 25
