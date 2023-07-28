@@ -1,25 +1,27 @@
 {
+    "format_version": "0.1",
     "frequency": {
         "start": 2e9,
         "stop": 20e9
     },
     "max_steps": 9e4,
-    "via_plating": 50,
-    "pcb": {
-        "mesh": {
+    "via": {
+        "filling_epsilon": 1,
+        "plating_thickness": 50
+    },
+    "mesh": {
+        "pcb": {
             "xy": 50,
             "z": 25
-        }
-    },
-    "margin": {
-        "dimensions": {
-            "xy": 3000,
-            "z": 3000
         },
-        "mesh": {
+        "margin": {
             "xy": 200,
             "z": 200
         }
+    },
+    "margin": {
+        "xy": 3000,
+        "z": 3000
     },
     "ports": [
         {
