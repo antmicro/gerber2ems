@@ -179,42 +179,48 @@ class Simulation:
         """Add microstripline port based on config"""
         logger.debug("Adding port number %d", len(self.ports))
 
+        if port_config.position is None or port_config.direction is None:
+            logger.warning("Port has no defined position or rotation, skipping")
+            return
+
         start_z = self.get_metal_layer_offset(port_config.layer)
         stop_z = self.get_metal_layer_offset(port_config.plane)
 
-        if "y" in port_config.direction:
+        if int(port_config.direction) in [0, 180]:
             start = [
-                port_config.x_pos - port_config.width / 2,
-                port_config.y_pos,
+                port_config.position[0] - port_config.width / 2,
+                port_config.position[1],
                 start_z,
             ]
             stop = [
-                port_config.x_pos + port_config.width / 2,
-                port_config.y_pos + port_config.length,
+                port_config.position[0] + port_config.width / 2,
+                port_config.position[1] + port_config.length,
                 stop_z,
             ]
 
-        elif "x" in port_config.direction:
+        elif int(port_config.direction) in [90, 270]:
             start = [
-                port_config.x_pos,
-                port_config.y_pos - port_config.width / 2,
+                port_config.position[0],
+                port_config.position[1] - port_config.width / 2,
                 start_z,
             ]
             stop = [
-                port_config.x_pos + port_config.length,
-                port_config.y_pos + port_config.width / 2,
+                port_config.position[0] + port_config.length,
+                port_config.position[1] + port_config.width / 2,
                 stop_z,
             ]
 
-        if "-" in port_config.direction:
+        if int(port_config.direction) in [180, 270]:
             start[0:2], stop[0:2] = stop[0:2], start[0:2]
+
+        dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
 
         port = self.fdtd.AddMSLPort(
             len(self.ports),
             self.port_material,
             start,
             stop,
-            port_config.direction.replace("-", ""),
+            dir_map[int(port_config.direction)],
             "z",
             Feed_R=port_config.impedance,
             priority=100,

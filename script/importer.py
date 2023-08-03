@@ -1,4 +1,5 @@
 """ Module containing functions for importing gerbers """
+import csv
 import json
 import subprocess
 import os
@@ -29,7 +30,7 @@ def process_gbr():
     """Processes all gerber files"""
     logger.info("Processing gerber files")
 
-    files = os.listdir(os.getcwd())
+    files = os.listdir(os.path.join(os.getcwd(), "fab"))
 
     edge = next(filter(lambda name: "Edge_Cuts.gbr" in name, files), None)
     if edge is None:
@@ -42,7 +43,11 @@ def process_gbr():
 
     for name in layers:
         output = name.split("-")[-1].split(".")[0] + ".png"
-        gbr_to_png(name, edge, os.path.join(os.getcwd(), GEOMETRY_DIR, output))
+        gbr_to_png(
+            os.path.join(os.getcwd(), "fab", name),
+            os.path.join(os.getcwd(), "fab", edge),
+            os.path.join(os.getcwd(), GEOMETRY_DIR, output),
+        )
 
 
 def gbr_to_png(gerber: str, edge: str, output: str) -> None:
@@ -121,7 +126,7 @@ def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
 
 def get_vias() -> List[List[float]]:
     """Get via information from excellon file"""
-    files = os.listdir(os.getcwd())
+    files = os.listdir(os.path.join(os.getcwd(), "fab"))
     drill_filename = next(filter(lambda name: "-PTH.drl" in name, files), None)
     if drill_filename is None:
         logger.error("Couldn't find drill file")
@@ -130,7 +135,9 @@ def get_vias() -> List[List[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: List[List[float]] = []
-    with open(drill_filename, "r", encoding="utf-8") as drill_file:
+    with open(
+        os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8"
+    ) as drill_file:
         for line in drill_file.readlines():
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
@@ -187,3 +194,51 @@ def import_stackup():
                 STACKUP_FORMAT_VERSION,
             )
             sys.exit()
+
+
+def import_port_positions() -> None:
+    """Imports port positions from PnP .csv files"""
+    ports: List[Tuple[int, Tuple[float, float], float]] = []
+    if "pnp" in Config.get().arguments:
+        filename = Config.get().arguments["pnp"]
+        ports += get_ports_from_file(filename)
+    else:
+        for filename in os.listdir(os.path.join(os.getcwd(), "fab")):
+            if filename.endswith("-pos.csv"):
+                ports += get_ports_from_file(os.path.join(os.getcwd(), "fab", filename))
+
+    for number, position, direction in ports:
+        if len(Config.get().ports) > number:
+            port = Config.get().ports[number]
+            if port.position is None:
+                Config.get().ports[number].position = position
+                Config.get().ports[number].direction = direction
+            else:
+                logger.warning(
+                    "Port #%i is defined twice on the board. Ignoring the second instance",
+                    number,
+                )
+    for port in Config.get().ports:
+        if port.position is None:
+            logger.error("Port #%i is not defined on board. It will be skipped")
+
+
+def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], float]]:
+    """Parses pnp CSV files and returns all ports in format (number, (x, y), direction)"""
+    ports: List[Tuple[int, Tuple[float, float], float]] = []
+    with open(filename, "r", encoding="utf-8") as csvfile:
+        reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+        next(reader, None)  # skip the headers
+        for row in reader:
+            if "Simulation-Port" in row[2]:
+                number = int(row[0][2:])
+                ports.append(
+                    (
+                        number - 1,
+                        (float(row[3]) / 1000 / UNIT, float(row[4]) / 1000 / UNIT),
+                        float(row[5]),
+                    )
+                )
+                logging.debug("Found port #%i position in pos file", number)
+
+    return ports

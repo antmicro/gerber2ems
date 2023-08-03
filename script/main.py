@@ -54,6 +54,9 @@ def main():
 def add_ports(sim: Simulation) -> None:
     """Add ports for simulation"""
     logger.info("Adding ports")
+
+    importer.import_port_positions()
+
     excited = True
     for port_config in Config.get().ports:
         sim.add_msl_port(port_config, excited)

@@ -14,13 +14,8 @@ class PortConfig:
     """Class representing and parsing port config"""
 
     def __init__(self, config: Any) -> None:
-        self.x_pos = get(
-            config,
-            ["position", "x"],
-            (float, int),
-        )
-        self.y_pos = get(config, ["position", "y"], (float, int))
-        self.direction = get(config, ["direction"], str)
+        self.position: Union[Tuple[float, float], None] = None
+        self.direction: Union[float, None] = None
         self.width = get(config, ["width"], (float, int))
         self.length = get(config, ["length"], (float, int), 1000)
         self.impedance = get(config, ["impedance"], (float, int), 50)
@@ -145,7 +140,7 @@ class Config:
         self.arguments = args
 
         ports = get(json, ["ports"], list)
-        self.ports = []
+        self.ports: List[PortConfig] = []
         for port in ports:
             self.ports.append(PortConfig(port))
         logger.debug("Found %d ports", len(self.ports))

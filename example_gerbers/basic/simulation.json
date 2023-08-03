@@ -25,11 +25,6 @@
     },
     "ports": [
         {
-            "position": {
-                "x": 5000,
-                "y": 800
-            },
-            "direction": "y",
             "width": 400,
             "length": 1000,
             "impedance": 50,
@@ -37,11 +32,6 @@
             "plane": 1
         },
         {
-            "position": {
-                "x": 5000,
-                "y": 13200
-            },
-            "direction": "-y",
             "width": 400,
             "length": 1000,
             "impedance": 50,

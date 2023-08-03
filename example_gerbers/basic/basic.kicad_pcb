@@ -52,6 +52,7 @@
       (dielectric_constraints no)
     )
     (pad_to_mask_clearance 0)
+    (aux_axis_origin 140 115)
     (pcbplotparams
       (layerselection 0x00010fc_ffffffff)
       (disableapertmacros false)
@@ -81,7 +82,7 @@
       (subtractmaskfromsilk false)
       (outputformat 1)
       (mirror false)
-      (drillshape 1)
+      (drillshape 0)
       (scaleselection 1)
       (outputdirectory "")
     )
@@ -140,13 +141,13 @@
 
   (footprint "antmicro-footprints:Simulation-Port" (layer "F.Cu")
     (tedit 0) (tstamp 821fb71b-a107-4317-a2f0-68dc1c12879d)
-    (at 143 103.3 180)
+    (at 143 103.24 180)
     (attr board_only exclude_from_pos_files exclude_from_bom)
     (fp_text reference "SP1" (at 0 1 180 unlocked) (layer "F.Fab")
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp ff930ea8-96ef-49cd-b865-ff1e7b451267)
     )
-    (fp_text value "Simulation-Port" (at 0 2.5 180 unlocked) (layer "F.Fab")
+    (fp_text value "Simulation-Port" (at 0.1 0.64 180 unlocked) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp f3e8d917-5c42-47ea-bce6-cada28096323)
     )
@@ -170,7 +171,7 @@
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 8ad6103e-7cc1-4472-be2d-cd0c6c132a2a)
     )
-    (fp_text user "${REFERENCE}" (at 0 4 180 unlocked) (layer "F.Fab")
+    (fp_text user "${REFERENCE}" (at -3.4 1.6 180 unlocked) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp aea37b4e-c679-441f-b57f-5b5095572241)
     )
@@ -233,13 +234,13 @@
 
   (footprint "antmicro-footprints:Simulation-Port" (layer "F.Cu")
     (tedit 0) (tstamp acfb6246-c5ac-43b4-a7e1-0e1f5b445594)
-    (at 147 112.6)
+    (at 147 112.7)
     (attr board_only exclude_from_pos_files exclude_from_bom)
     (fp_text reference "SP2" (at 0 1 unlocked) (layer "F.Fab")
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp d41183fa-afb1-42af-b917-5cfb4680cbf8)
     )
-    (fp_text value "Simulation-Port" (at 0 2.5 unlocked) (layer "F.Fab")
+    (fp_text value "Simulation-Port" (at 0 1 unlocked) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 5ba3b6c7-1020-4e5a-a198-b369efa1bab0)
     )
@@ -247,7 +248,7 @@
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 0dc1e276-58e7-4430-85ea-f9e56f245ebe)
     )
-    (fp_text user "${REFERENCE}" (at 0 4 unlocked) (layer "F.Fab")
+    (fp_text user "${REFERENCE}" (at 0 2.5 unlocked) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 1f521de5-35b1-446b-9aae-b0c199af57a3)
     )
@@ -383,6 +384,8 @@
   (arc (start 146.414214 109.914214) (mid 146.82172 110.503015) (end 146.998156 111.19746) (width 0.4) (layer "F.Cu") (net 1) (tstamp 4614ec85-e2fc-4d82-90b1-13c35da027f8))
   (arc (start 145.914214 107.585786) (mid 146.34775 106.936938) (end 146.5 106.171573) (width 0.4) (layer "F.Cu") (net 1) (tstamp e8da367e-9298-4564-aab3-cb1632893db9))
   (arc (start 143 105.671573) (mid 143.15225 106.436939) (end 143.585787 107.085787) (width 0.4) (layer "F.Cu") (net 1) (tstamp ecda02c8-f80a-400f-9c56-79ee63d5a433))
+  (via (at 145 105.3) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (free) (net 2) (tstamp 09152dab-a115-4a7c-9455-8c533edb4c56))
+  (via (at 143.4 110) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (free) (net 2) (tstamp 591d5bd9-0121-4388-bb0f-728a17ec57d9))
 
   (zone (net 2) (net_name "GND") (layer "B.Cu") (tstamp b7cdfa54-5757-4397-958e-d8d963a9613a) (hatch edge 0.508)
     (connect_pads yes (clearance 0.2))
