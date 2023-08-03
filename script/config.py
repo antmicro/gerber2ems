@@ -33,7 +33,7 @@ class LayerConfig:
 
     def __init__(self, config: Any) -> None:
         self.kind = self.parse_kind(config["type"])
-        self.thickness = None
+        self.thickness = 0
         if config["thickness"] is not None:
             self.thickness = config["thickness"] / 1000 / UNIT
         if self.kind == LayerKind.METAL:
@@ -131,13 +131,16 @@ class Config:
         self.max_steps = get(json, ["max_steps"], (float, int), None)
         self.pcb_width: Union[float, None] = None
         self.pcb_height: Union[float, None] = None
-        self.pcb_mesh_xy = get(json, ["pcb", "mesh", "xy"], (float, int), 50)
-        self.pcb_mesh_z = get(json, ["pcb", "mesh", "z"], (float, int), 20)
-        self.margin_xy = get(json, ["margin", "dimensions", "xy"], (float, int), 3000)
-        self.margin_z = get(json, ["margin", "dimensions", "z"], (float, int), 3000)
-        self.margin_mesh_xy = get(json, ["margin", "mesh", "xy"], (float, int), 200)
-        self.margin_mesh_z = get(json, ["margin", "mesh", "z"], (float, int), 200)
-        self.via_plating = get(json, ["via_plating"], (int, float), 50)
+        self.pcb_mesh_xy = get(json, ["mesh", "pcb", "xy"], (float, int), 50)
+        self.pcb_mesh_z = get(json, ["mesh", "pcb", "z"], (float, int), 20)
+        self.margin_xy = get(json, ["margin", "xy"], (float, int), 3000)
+        self.margin_z = get(json, ["margin", "z"], (float, int), 3000)
+        self.margin_mesh_xy = get(json, ["mesh", "margin", "xy"], (float, int), 200)
+        self.margin_mesh_z = get(json, ["mesh", "margin", "z"], (float, int), 200)
+        self.via_plating = get(json, ["via", "plating_thickness"], (int, float), 50)
+        self.via_filling_epsilon = get(
+            json, ["via", "filling_epsilon"], (int, float), 1
+        )
 
         self.arguments = args
 
@@ -154,7 +157,7 @@ class Config:
     def load_stackup(self, stackup) -> None:
         """Loads stackup from json object"""
         layers = []
-        for layer in stackup:
+        for layer in stackup["layers"]:
             layers.append(LayerConfig(layer))
         self.layers = list(
             filter(lambda l: l.kind in [LayerKind.METAL, LayerKind.SUBSTRATE], layers)

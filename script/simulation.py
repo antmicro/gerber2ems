@@ -2,7 +2,7 @@
 import logging
 import os
 import sys
-from typing import Tuple, List
+from typing import Tuple, List, Any
 
 import CSXCAD
 import openEMS
@@ -32,18 +32,24 @@ class Simulation:
 
         self.ports: List[openEMS.ports.MSLPort] = []
 
+        # Separate metal materials for easier switching of layers
+        self.gerber_materials: List[Any] = []
+        self.substrate_materials: List[Any] = []
+        self.plane_material = self.csx.AddMetal("Plane")
+        self.port_material = self.csx.AddMetal("Port")
+        self.via_material = self.csx.AddMetal("Via")
+        self.via_filling_material = self.csx.AddMaterial(
+            "ViaFilling", epsilon=Config.get().via_filling_epsilon
+        )
+
     def create_materials(self) -> None:
         """Creates materials required for simulation"""
-        self.material_gerber = self.csx.AddMetal("Gerber")
-        self.material_port = self.csx.AddMetal("Port")
-        self.material_plane = self.csx.AddMetal("Plane")
-        self.materials_substrate = []
+        for i, layer in enumerate(Config.get().get_metals()):
+            self.gerber_materials.append(self.csx.AddMetal(f"Gerber_{i}"))
         for i, layer in enumerate(Config.get().get_substrates()):
-            self.materials_substrate.append(
+            self.substrate_materials.append(
                 self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon)
             )
-        self.material_via = self.csx.AddMetal("Via")
-        self.material_filling = self.csx.AddMaterial("ViaFilling", epsilon=1)
 
     def add_mesh(self) -> None:
         """Add mesh to simulation"""
@@ -129,15 +135,19 @@ class Simulation:
         importer.process_gbr()
 
         offset = 0
+        index = 0
         for layer in Config.get().layers:
             if layer.kind == LayerKind.SUBSTRATE:
                 offset -= layer.thickness
             elif layer.kind == LayerKind.METAL:
                 logger.info("Adding contours for %s", layer.file)
                 contours = importer.get_triangles(layer.file + ".png")
-                self.add_contours(contours, offset)
+                self.add_contours(contours, offset, index)
+                index += 1
 
-    def add_contours(self, contours: np.ndarray, z_height: float) -> None:
+    def add_contours(
+        self, contours: np.ndarray, z_height: float, layer_index: int
+    ) -> None:
         """Add contours as flat polygons on specified z-height"""
         logger.debug("Adding contours on z=%f", z_height)
         for contour in contours:
@@ -147,7 +157,9 @@ class Simulation:
                 points[0].append((point[1]))
                 points[1].append(Config.get().pcb_height - point[0])
 
-            self.material_gerber.AddPolygon(points, "z", z_height, priority=1)
+            self.gerber_materials[layer_index].AddPolygon(
+                points, "z", z_height, priority=1
+            )
 
     def get_metal_layer_offset(self, index: int) -> float:
         """Get z offset of nth metal layer"""
@@ -199,7 +211,7 @@ class Simulation:
 
         port = self.fdtd.AddMSLPort(
             len(self.ports),
-            self.material_port,
+            self.port_material,
             start,
             stop,
             port_config.direction.replace("-", ""),
@@ -220,7 +232,7 @@ class Simulation:
 
     def add_plane(self, z_height):
         """Add metal plane in whole bounding box of the PCB"""
-        self.material_plane.AddBox(
+        self.plane_material.AddBox(
             [0, 0, z_height],
             [Config.get().pcb_width, Config.get().pcb_height, z_height],
             priority=1,
@@ -232,7 +244,7 @@ class Simulation:
 
         offset = 0
         for i, layer in enumerate(Config.get().get_substrates()):
-            self.materials_substrate[i].AddBox(
+            self.substrate_materials[i].AddBox(
                 [0, 0, offset],
                 [
                     Config.get().pcb_width,
@@ -262,7 +274,7 @@ class Simulation:
         for i in range(VIA_POLYGON):
             x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
             y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
-        self.material_filling.AddLinPoly(
+        self.via_filling_material.AddLinPoly(
             [x_coords, y_coords], "z", -thickness, thickness, priority=51
         )
 
@@ -279,7 +291,7 @@ class Simulation:
                 + np.cos(i / VIA_POLYGON * 2 * np.pi)
                 * (diameter / 2 + Config.get().via_plating)
             )
-        self.material_via.AddLinPoly(
+        self.via_material.AddLinPoly(
             [x_coords, y_coords], "z", -thickness, thickness, priority=50
         )
 

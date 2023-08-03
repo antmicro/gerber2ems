@@ -14,7 +14,13 @@ from nanomesh import Mesher2D
 import matplotlib.pyplot as plt
 from config import Config
 
-from constants import GEOMETRY_DIR, UNIT, PIXEL_SIZE, BORDER_THICKNESS
+from constants import (
+    GEOMETRY_DIR,
+    UNIT,
+    PIXEL_SIZE,
+    BORDER_THICKNESS,
+    STACKUP_FORMAT_VERSION,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -167,4 +173,17 @@ def import_stackup():
                 error.msg,
             )
             sys.exit(1)
-        Config.get().load_stackup(stackup)
+        ver = stackup["format_version"]
+        if (
+            ver is not None
+            and ver.split(".")[0] == STACKUP_FORMAT_VERSION.split(".", maxsplit=1)[0]
+            and ver.split(".")[1] >= STACKUP_FORMAT_VERSION.split(".", maxsplit=1)[1]
+        ):
+            Config.get().load_stackup(stackup)
+        else:
+            logger.error(
+                "Stackup format (%s) is not supported (supported: %s)",
+                ver,
+                STACKUP_FORMAT_VERSION,
+            )
+            sys.exit()
