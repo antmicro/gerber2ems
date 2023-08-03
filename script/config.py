@@ -5,7 +5,7 @@ import sys
 import logging
 from typing import Any, List, Union, Tuple, Dict
 from enum import Enum
-from constants import UNIT
+from constants import CONFIG_FORMAT_VERSION, UNIT
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +121,20 @@ class Config:
             return
 
         logger.info("Parsing config")
+        version = get(json, ["format_version"], str)
+        if (
+            version is None
+            or not version.split(".")[0]
+            == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
+            or version.split(".")[1] < CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[1]
+        ):
+            logger.error(
+                "Config format (%s) is not supported (supported: %s)",
+                version,
+                CONFIG_FORMAT_VERSION,
+            )
+            sys.exit()
+
         self.start_frequency = get(json, ["frequency", "start"], (float, int), 500e3)
         self.stop_frequency = get(json, ["frequency", "stop"], (float, int), 10e6)
         self.max_steps = get(json, ["max_steps"], (float, int), None)
