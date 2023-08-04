@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+import math
 from typing import Tuple, List, Any
 
 import CSXCAD
@@ -180,40 +181,36 @@ class Simulation:
         logger.debug("Adding port number %d", len(self.ports))
 
         if port_config.position is None or port_config.direction is None:
-            logger.warning("Port has no defined position or rotation, skipping")
+            logger.error("Port has no defined position or rotation, skipping")
+            return
+
+        dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
+        if int(port_config.direction) not in dir_map:
+            logger.error(
+                "Ports rotation is not a multiple of 90 degrees which is not supported, skipping"
+            )
             return
 
         start_z = self.get_metal_layer_offset(port_config.layer)
         stop_z = self.get_metal_layer_offset(port_config.plane)
 
-        if int(port_config.direction) in [0, 180]:
-            start = [
-                port_config.position[0] - port_config.width / 2,
-                port_config.position[1],
-                start_z,
-            ]
-            stop = [
-                port_config.position[0] + port_config.width / 2,
-                port_config.position[1] + port_config.length,
-                stop_z,
-            ]
+        angle = port_config.direction / 360 * 2 * math.pi
 
-        elif int(port_config.direction) in [90, 270]:
-            start = [
-                port_config.position[0],
-                port_config.position[1] - port_config.width / 2,
-                start_z,
-            ]
-            stop = [
-                port_config.position[0] + port_config.length,
-                port_config.position[1] + port_config.width / 2,
-                stop_z,
-            ]
-
-        if int(port_config.direction) in [180, 270]:
-            start[0:2], stop[0:2] = stop[0:2], start[0:2]
-
-        dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
+        start = [
+            port_config.position[0] - (port_config.width / 2) * round(math.cos(angle)),
+            port_config.position[1] - (port_config.width / 2) * round(math.sin(angle)),
+            start_z,
+        ]
+        stop = [
+            port_config.position[0]
+            + (port_config.width / 2) * round(math.cos(angle))
+            + port_config.length * round(math.sin(angle)),
+            port_config.position[1]
+            - (port_config.width / 2) * round(math.sin(angle))
+            + port_config.length * round(math.cos(angle)),
+            stop_z,
+        ]
+        print(start, stop)
 
         port = self.fdtd.AddMSLPort(
             len(self.ports),
