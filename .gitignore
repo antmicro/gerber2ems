@@ -10,8 +10,8 @@ saved_results
 
 example_gerbers/*/*
 !example_gerbers/*/*.kicad_pcb
-!example_gerbers/*/*-F_Cu.gbr
-!example_gerbers/*/*-Edge_Cuts.gbr
+!example_gerbers/*/*.kicad_pcb
+!example_gerbers/*/*.kicad_pro
 !example_gerbers/*/*.json
 
 .vscode/
