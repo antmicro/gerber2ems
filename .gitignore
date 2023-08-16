@@ -12,7 +12,8 @@ example_gerbers/*/*
 !example_gerbers/*/*.kicad_pcb
 !example_gerbers/*/*.kicad_pcb
 !example_gerbers/*/*.kicad_pro
-!example_gerbers/*/*.json
+!example_gerbers/*/simulation.json
+!example_gerbers/*/PCB_preparation
 
 .vscode/
 .mypy_cache/
