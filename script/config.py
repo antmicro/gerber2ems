@@ -1,9 +1,9 @@
-"""This module contains classes that describe the configuration"""
+"""Contains classes that describe the configuration."""
 from __future__ import annotations
 
 import sys
 import logging
-from typing import Any, List, Union, Tuple, Dict
+from typing import Any, List, Optional, Union, Tuple, Dict
 from enum import Enum
 from constants import CONFIG_FORMAT_VERSION, UNIT
 
@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class PortConfig:
-    """Class representing and parsing port config"""
+    """Class representing and parsing port config."""
 
     def __init__(self, config: Any) -> None:
+        """Initialize PortConfig based on passed json object."""
         self.position: Union[Tuple[float, float], None] = None
         self.direction: Union[float, None] = None
         self.width = get(config, ["width"], (float, int))
@@ -24,9 +25,10 @@ class PortConfig:
 
 
 class LayerConfig:
-    """Class representing and parsing layer config"""
+    """Class representing and parsing layer config."""
 
     def __init__(self, config: Any) -> None:
+        """Initialize LayerConfig based on passed json object."""
         self.kind = self.parse_kind(config["type"])
         self.thickness = 0
         if config["thickness"] is not None:
@@ -37,21 +39,21 @@ class LayerConfig:
             self.epsilon = config["epsilon"]
 
     def __repr__(self):
+        """Get human-readable string describing layer."""
         return f"Layer kind:{self.kind} thickness: {self.thickness}"
 
     @staticmethod
     def parse_kind(kind: str):
-        """Parse type name to enum"""
+        """Parse type name to enum."""
         if kind in ["core", "prepreg"]:
             return LayerKind.SUBSTRATE
-        elif kind == "copper":
+        if kind == "copper":
             return LayerKind.METAL
-        else:
-            return LayerKind.OTHER
+        return LayerKind.OTHER
 
 
 class LayerKind(Enum):
-    """Enum describing layer type"""
+    """Enum describing layer type."""
 
     SUBSTRATE = 1
     METAL = 2
@@ -64,7 +66,7 @@ def get(
     kind: Union[type, Tuple[type, ...]],
     default=None,
 ):
-    """Gracefully look for value in object"""
+    """Gracefully look for value in object."""
     for name in path:
         if isinstance(config, Dict) and name in config:
             config = config[name]
@@ -74,13 +76,11 @@ def get(
             logger.error("No field %s found in config", path)
             sys.exit(1)
         else:
-            logger.warning(
-                "No field %s found in config. Using default: %s", path, str(default)
-            )
+            logger.warning("No field %s found in config. Using default: %s", path, str(default))
             return default
     if isinstance(config, kind):
         return config
-    elif default is None:
+    if default is None:
         logger.error(
             "Field %s found in config has incorrect type %s (correct is %s)",
             path,
@@ -100,32 +100,30 @@ def get(
 
 
 class Config:
-    """Class representing and parsing config"""
+    """Class representing and parsing config."""
 
-    _instance = None
+    _instance: Optional[Config] = None
 
     @classmethod
     def get(cls) -> Config:
-        """Returns already instantiated config"""
+        """Return already instantiated config."""
         if cls._instance is not None:
             return cls._instance
-        else:
-            logger.error("Config hasn't been instantiated. Exiting")
-            sys.exit(1)
+
+        logger.error("Config hasn't been instantiated. Exiting")
+        sys.exit(1)
 
     def __init__(self, json: Any, args: Any) -> None:
+        """Initialize Config based on passed json object."""
         if self.__class__._instance is not None:
-            logger.warning(
-                "Config has already beed instatiated. Use Config.get() to get the instance. Skipping"
-            )
+            logger.warning("Config has already beed instatiated. Use Config.get() to get the instance. Skipping")
             return
 
         logger.info("Parsing config")
         version = get(json, ["format_version"], str)
         if (
             version is None
-            or not version.split(".")[0]
-            == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
+            or not version.split(".")[0] == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
             or version.split(".")[1] < CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[1]
         ):
             logger.error(
@@ -147,9 +145,7 @@ class Config:
         self.margin_mesh_xy = get(json, ["mesh", "margin", "xy"], (float, int), 200)
         self.margin_mesh_z = get(json, ["mesh", "margin", "z"], (float, int), 200)
         self.via_plating = get(json, ["via", "plating_thickness"], (int, float), 50)
-        self.via_filling_epsilon = get(
-            json, ["via", "filling_epsilon"], (int, float), 1
-        )
+        self.via_filling_epsilon = get(json, ["via", "filling_epsilon"], (int, float), 1)
 
         self.arguments = args
 
@@ -164,18 +160,16 @@ class Config:
         self.__class__._instance = self
 
     def load_stackup(self, stackup) -> None:
-        """Loads stackup from json object"""
+        """Load stackup from json object."""
         layers = []
         for layer in stackup["layers"]:
             layers.append(LayerConfig(layer))
-        self.layers = list(
-            filter(lambda l: l.kind in [LayerKind.METAL, LayerKind.SUBSTRATE], layers)
-        )
+        self.layers = list(filter(lambda layer: layer.kind in [LayerKind.METAL, LayerKind.SUBSTRATE], layers))
 
     def get_substrates(self) -> List[LayerConfig]:
-        """Returns substrate layers configs"""
-        return list(filter(lambda l: l.kind == LayerKind.SUBSTRATE, self.layers))
+        """Return substrate layers configs."""
+        return list(filter(lambda layer: layer.kind == LayerKind.SUBSTRATE, self.layers))
 
     def get_metals(self) -> List[LayerConfig]:
-        """Returns metals layers configs"""
-        return list(filter(lambda l: l.kind == LayerKind.METAL, self.layers))
+        """Return metals layers configs."""
+        return list(filter(lambda layer: layer.kind == LayerKind.METAL, self.layers))

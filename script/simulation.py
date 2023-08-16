@@ -1,4 +1,4 @@
-"""Module containing Simulation class used for interacting with openEMS"""
+"""Module containing Simulation class used for interacting with openEMS."""
 import logging
 import os
 import sys
@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 class Simulation:
-    """Class used for interacting with openEMS"""
+    """Class used for interacting with openEMS."""
 
     def __init__(self) -> None:
+        """Initialize simulation object."""
         self.csx = CSXCAD.ContinuousStructure()
         self.fdtd = openEMS.openEMS(NrTS=Config.get().max_steps)
         self.fdtd.SetCSX(self.csx)
@@ -39,22 +40,17 @@ class Simulation:
         self.plane_material = self.csx.AddMetal("Plane")
         self.port_material = self.csx.AddMetal("Port")
         self.via_material = self.csx.AddMetal("Via")
-        self.via_filling_material = self.csx.AddMaterial(
-            "ViaFilling", epsilon=Config.get().via_filling_epsilon
-        )
+        self.via_filling_material = self.csx.AddMaterial("ViaFilling", epsilon=Config.get().via_filling_epsilon)
 
     def create_materials(self) -> None:
-        """Creates materials required for simulation"""
-        for i, layer in enumerate(Config.get().get_metals()):
+        """Create materials required for simulation."""
+        for i, _ in enumerate(Config.get().get_metals()):
             self.gerber_materials.append(self.csx.AddMetal(f"Gerber_{i}"))
         for i, layer in enumerate(Config.get().get_substrates()):
-            self.substrate_materials.append(
-                self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon)
-            )
+            self.substrate_materials.append(self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon))
 
     def add_mesh(self) -> None:
-        """Add mesh to simulation"""
-
+        """Add mesh to simulation."""
         #### X Mesh
         # Min-Max
         x_lines = [
@@ -94,7 +90,7 @@ class Simulation:
         #### Z Mesh
         # Min-0-Max
 
-        thickness = sum(l.thickness for l in Config.get().get_substrates())
+        thickness = sum(layer.thickness for layer in Config.get().get_substrates())
         z_lines = [
             -thickness - Config.get().margin_z,
             0,
@@ -130,7 +126,7 @@ class Simulation:
         )
 
     def add_gerbers(self) -> None:
-        """Add metal from all gerber files"""
+        """Add metal from all gerber files."""
         logger.info("Adding copper from gerber files")
 
         importer.process_gbr()
@@ -146,10 +142,8 @@ class Simulation:
                 self.add_contours(contours, offset, index)
                 index += 1
 
-    def add_contours(
-        self, contours: np.ndarray, z_height: float, layer_index: int
-    ) -> None:
-        """Add contours as flat polygons on specified z-height"""
+    def add_contours(self, contours: np.ndarray, z_height: float, layer_index: int) -> None:
+        """Add contours as flat polygons on specified z-height."""
         logger.debug("Adding contours on z=%f", z_height)
         for contour in contours:
             points: List[List[float]] = [[], []]
@@ -158,12 +152,10 @@ class Simulation:
                 points[0].append((point[1]))
                 points[1].append(Config.get().pcb_height - point[0])
 
-            self.gerber_materials[layer_index].AddPolygon(
-                points, "z", z_height, priority=1
-            )
+            self.gerber_materials[layer_index].AddPolygon(points, "z", z_height, priority=1)
 
     def get_metal_layer_offset(self, index: int) -> float:
-        """Get z offset of nth metal layer"""
+        """Get z offset of nth metal layer."""
         current_metal_index = -1
         offset = 0
         for layer in Config.get().layers:
@@ -177,7 +169,7 @@ class Simulation:
         sys.exit(1)
 
     def add_msl_port(self, port_config: PortConfig, excite: bool = False):
-        """Add microstripline port based on config"""
+        """Add microstripline port based on config."""
         logger.debug("Adding port number %d", len(self.ports))
 
         if port_config.position is None or port_config.direction is None:
@@ -186,9 +178,7 @@ class Simulation:
 
         dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
         if int(port_config.direction) not in dir_map:
-            logger.error(
-                "Ports rotation is not a multiple of 90 degrees which is not supported, skipping"
-            )
+            logger.error("Ports rotation is not a multiple of 90 degrees which is not supported, skipping")
             return
 
         start_z = self.get_metal_layer_offset(port_config.layer)
@@ -226,15 +216,13 @@ class Simulation:
         self.ports.append(port)
 
     def add_virtual_port(self, port_config: PortConfig) -> None:
-        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing"""
+        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
         logger.debug("Adding virtual port number %d", len(self.ports))
-        port = self.fdtd.AddLumpedPort(
-            len(self.ports), port_config.impedance, [0, 0, 0], [1, 0, 1], "z"
-        )
+        port = self.fdtd.AddLumpedPort(len(self.ports), port_config.impedance, [0, 0, 0], [1, 0, 1], "z")
         self.ports.append(port)
 
     def add_plane(self, z_height):
-        """Add metal plane in whole bounding box of the PCB"""
+        """Add metal plane in whole bounding box of the PCB."""
         self.plane_material.AddBox(
             [0, 0, z_height],
             [Config.get().pcb_width, Config.get().pcb_height, z_height],
@@ -242,7 +230,7 @@ class Simulation:
         )
 
     def add_substrates(self):
-        """Add substrate in whole bounding box of the PCB"""
+        """Add substrate in whole bounding box of the PCB."""
         logger.info("Adding substrates")
 
         offset = 0
@@ -256,50 +244,36 @@ class Simulation:
                 ],
                 priority=-i,
             )
-            logger.debug(
-                "Added substrate from %f to %f", offset, offset - layer.thickness
-            )
+            logger.debug("Added substrate from %f to %f", offset, offset - layer.thickness)
             offset -= layer.thickness
 
     def add_vias(self):
-        """Add all vias from excellon file"""
+        """Add all vias from excellon file."""
         logger.info("Adding vias from excellon file")
         vias = importer.get_vias()
         for via in vias:
             self.add_via(via[0], via[1], via[2])
 
     def add_via(self, x_pos, y_pos, diameter):
-        """Adds via at specified position with specified diameter"""
-        thickness = sum(l.thickness for l in Config.get().get_substrates())
+        """Add via at specified position with specified diameter."""
+        thickness = sum(layer.thickness for layer in Config.get().get_substrates())
 
         x_coords = []
         y_coords = []
         for i in range(VIA_POLYGON):
             x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
             y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
-        self.via_filling_material.AddLinPoly(
-            [x_coords, y_coords], "z", -thickness, thickness, priority=51
-        )
+        self.via_filling_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=51)
 
         x_coords = []
         y_coords = []
         for i in range(VIA_POLYGON)[::-1]:
-            x_coords.append(
-                x_pos
-                + np.sin(i / VIA_POLYGON * 2 * np.pi)
-                * (diameter / 2 + Config.get().via_plating)
-            )
-            y_coords.append(
-                y_pos
-                + np.cos(i / VIA_POLYGON * 2 * np.pi)
-                * (diameter / 2 + Config.get().via_plating)
-            )
-        self.via_material.AddLinPoly(
-            [x_coords, y_coords], "z", -thickness, thickness, priority=50
-        )
+            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + Config.get().via_plating))
+            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + Config.get().via_plating))
+        self.via_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=50)
 
     def add_dump_boxes(self):
-        """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate"""
+        """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate."""
         logger.info("Adding dump box for each dielectic")
         offset = 0
         for i, layer in enumerate(Config.get().get_substrates()):
@@ -320,38 +294,36 @@ class Simulation:
             offset -= layer.thickness
 
     def set_boundary_conditions(self, pml=False):
-        """Add boundary conditions. MUR for fast simulation, PML for more accurate"""
+        """Add boundary conditions. MUR for fast simulation, PML for more accurate."""
         if pml:
             logger.info("Adding perfectly matched layer boundary condition")
-            self.fdtd.SetBoundaryCond(
-                ["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"]
-            )
+            self.fdtd.SetBoundaryCond(["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"])
         else:
             logger.info("Adding MUR boundary condition")
             self.fdtd.SetBoundaryCond(["MUR", "MUR", "MUR", "MUR", "MUR", "MUR"])
 
     def set_excitation(self):
-        """Sets gauss excitation according to config"""
+        """Set gauss excitation according to config."""
         self.fdtd.SetGaussExcite(
             (Config.get().start_frequency + Config.get().stop_frequency) / 2,
             (Config.get().stop_frequency - Config.get().start_frequency) / 2,
         )
 
     def run(self):
-        """Execute simulation"""
+        """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
         self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR))
         os.chdir(cwd)
 
     def save_geometry(self) -> None:
-        """Save geometry to file"""
+        """Save geometry to file."""
         filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
         logger.info("Saving geometry to %s", filename)
         self.csx.Write2XML(filename)
 
     def load_geometry(self) -> None:
-        """Loads geometry from file"""
+        """Load geometry from file."""
         filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
         logger.info("Loading geometry from %s", filename)
         if not os.path.exists(filename):
@@ -360,7 +332,7 @@ class Simulation:
         self.csx.ReadFromXML(filename)
 
     def get_port_parameters(self, frequencies) -> Tuple[List, List]:
-        """Returns reflected and incident power vs frequency for each port"""
+        """Return reflected and incident power vs frequency for each port."""
         result_path = os.path.join(os.getcwd(), SIMULATION_DIR)
 
         incident: List[np.ndarray] = []
@@ -369,9 +341,7 @@ class Simulation:
             try:
                 port.CalcPort(result_path, frequencies)
             except IOError:
-                logger.error(
-                    "Port data files do not exist. Did you run simulation step?"
-                )
+                logger.error("Port data files do not exist. Did you run simulation step?")
                 sys.exit(1)
             incident.append(port.uf_inc)
             reflected.append(port.uf_ref)

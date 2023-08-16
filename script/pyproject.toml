@@ -1,0 +1,14 @@
+[project]
+name = "OpenEMS - Kicad PCB"
+version = "0.0.1"
+
+[tool.ruff]
+select = ["E", "F", "N", "B", "D", "A", "RET"]
+line-length = 120
+target-version = "py38"
+
+[tool.black]
+line-length = 120
+
+[tool.mypy]
+ignore_missing_imports = true

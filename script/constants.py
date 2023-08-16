@@ -1,4 +1,4 @@
-"""Module containing constans used in the app"""
+"""Module containing constans used in the app."""
 import os
 
 UNIT = 1e-6
