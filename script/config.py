@@ -15,6 +15,7 @@ class PortConfig:
 
     def __init__(self, config: Any) -> None:
         """Initialize PortConfig based on passed json object."""
+        self.name: str = get(config, ["name"], str, "Unnamed")
         self.position: Union[Tuple[float, float], None] = None
         self.direction: Union[float, None] = None
         self.width = get(config, ["width"], (float, int))
@@ -22,6 +23,7 @@ class PortConfig:
         self.impedance = get(config, ["impedance"], (float, int), 50)
         self.layer = get(config, ["layer"], int)
         self.plane = get(config, ["plane"], int)
+        self.dB_margin = get(config, ["dB_margin"], (float, int), -15)
 
 
 class LayerConfig:

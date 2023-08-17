@@ -7,8 +7,9 @@ BASE_DIR = "ems"
 SIMULATION_DIR = os.path.join(BASE_DIR, "simulation")
 GEOMETRY_DIR = os.path.join(BASE_DIR, "geometry")
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
+REPORT_DIR = os.path.join(BASE_DIR, "report")
 BORDER_THICKNESS = 50
 VIA_POLYGON = 8
 
 STACKUP_FORMAT_VERSION = "1.0"
-CONFIG_FORMAT_VERSION = "0.0"
+CONFIG_FORMAT_VERSION = "0.1"

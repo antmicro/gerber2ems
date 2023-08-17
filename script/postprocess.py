@@ -6,6 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import skrf
+from config import Config
 
 
 from constants import RESULTS_DIR
@@ -108,13 +109,25 @@ class Postprocesor:
                 axes.grid(True)
                 fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"))
 
+    def calculate_min_max_impedance(self, s11_margin, z0):
+        """Calculate aproximated min-max values for impedance (it assumes phase is 0)."""
+        angles = [0, np.pi]
+        reflection_coeffs = 10 ** (-s11_margin / 20) * (np.cos(angles) + 1j * np.sin(angles))
+        impedances = z0 * (1 + reflection_coeffs) / (1 - reflection_coeffs)
+        return (impedances[0], impedances[1])
+
     def render_impedance(self):
         """Render all ports impedance plots to files."""
         logger.info("Rendering impedance plots")
         for port, impedance in enumerate(self.impedances):
             if self.is_valid(impedance):
+                s11_margin = Config.get().ports[port].dB_margin
+                z0 = Config.get().ports[port].impedance
+                min_z, max_z = self.calculate_min_max_impedance(s11_margin, z0)
                 fig, axs = plt.subplots(2)
                 axs[0].plot(self.frequencies / 1e9, np.abs(impedance))
+                axs[0].axhline(np.real(min_z), color="red")
+                axs[0].axhline(np.real(max_z), color="red")
                 axs[1].plot(
                     self.frequencies / 1e9,
                     np.angle(impedance, deg=True),
@@ -139,11 +152,48 @@ class Postprocesor:
         for port in range(self.count):
             if self.is_valid(self.s_params[port][port]):
                 fig, axes = plt.subplots()
-                net.plot_s_smith(m=port, n=port, ax=axes, draw_labels=True, show_legend=False)
+                s11_margin = Config.get().ports[port].dB_margin
+                vswr_margin = (10 ** (s11_margin / 20) + 1) / (10 ** (s11_margin / 20) - 1)
+                net.plot_s_smith(m=port, n=port, ax=axes, draw_labels=False, show_legend=True, draw_vswr=[vswr_margin])
                 fig.savefig(
                     os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"),
                     bbox_inches="tight",
                 )
+
+    def save_to_file(self) -> None:
+        """Save S parameters to files."""
+        logger.info("Saving S parameters")
+        s_param_path = os.path.join(RESULTS_DIR, "S-parameters")
+        os.mkdir(s_param_path)
+        for i, _ in enumerate(self.s_params):
+            if self.is_valid(self.s_params[i][i]):
+                self.save_port_to_file(i, s_param_path)
+
+    def save_port_to_file(self, port_number: int, path) -> None:
+        """Save S parameters from single excitation."""
+        header: str = "Frequency, ," + "".join(
+            [f"|S_{i}{port_number}|, arg(S_{i}{port_number}), " for i, _ in enumerate(self.s_params[port_number])]
+        )
+        s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
+        frequencies = np.transpose([self.frequencies], (1, 0))
+        output_values = np.concatenate((frequencies, s_params), axis=1)
+
+        magnitude = np.abs(output_values)
+        angle = np.angle(output_values)
+
+        output = np.empty((magnitude.shape[0], (magnitude.shape[1] + angle.shape[1])), dtype=magnitude.dtype)
+        output[:, 0::2] = magnitude
+        output[:, 1::2] = angle
+
+        file_path = f"S_x{port_number}.csv"
+        logger.debug("Saving S_x%d parameters to file: %s", port_number, file_path)
+        np.savetxt(
+            os.path.join(path, file_path),
+            output,
+            fmt="%e",
+            delimiter=",",
+            header=header,
+        )
 
     @staticmethod
     def is_valid(array: np.ndarray):

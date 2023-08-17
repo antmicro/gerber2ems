@@ -7,11 +7,12 @@ import json
 import argparse
 import logging
 from typing import Any
+import shutil
 
 import coloredlogs
 import numpy as np
 
-from constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
+from constants import BASE_DIR, REPORT_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
 from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
@@ -26,7 +27,7 @@ def main():
     setup_logging(args)
 
     if not any([args.geometry, args.simulate, args.postprocess, args.all]):
-        logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-a" flags')
+        logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-r", "-a" flags')
         sys.exit(0)
 
     config = open_config(args)
@@ -46,7 +47,11 @@ def main():
     if args.postprocess or args.all:
         logger.info("Postprocessing")
         create_dir(RESULTS_DIR, cleanup=True)
-        postprocess(config, sim)
+        postprocess(sim)
+    if args.report or args.all:
+        logger.info("Generating report")
+        create_dir(REPORT_DIR, cleanup=True)
+        report()
 
 
 def add_ports(sim: Simulation) -> None:
@@ -93,24 +98,36 @@ def simulate(sim: Simulation) -> None:
     sim.run()
 
 
-def postprocess(config: Config, sim: Simulation) -> None:
+def postprocess(sim: Simulation) -> None:
     """Postprocess data from the simulation."""
-    if len(sim.ports) == 0:
-        add_virtual_ports(sim)
+    # Needed to be able to add ports
+    importer.import_stackup()
+    (width, height) = importer.get_dimensions("F_Cu.png")
+    Config.get().pcb_height = height
+    Config.get().pcb_width = width
+    sim.create_materials()
+    sim.add_mesh()
+    add_ports(sim)
 
-    frequencies = np.linspace(config.start_frequency, config.stop_frequency, 1001)
+    frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
     reflected, incident = sim.get_port_parameters(frequencies)
 
-    post = Postprocesor(frequencies, len(config.ports))
-    impedances = np.array([p.impedance for p in config.ports])
+    post = Postprocesor(frequencies, len(Config.get().ports))
+    impedances = np.array([p.impedance for p in Config.get().ports])
     post.add_impedances(impedances)
 
-    for i, _ in enumerate(config.ports):
+    for i, _ in enumerate(Config.get().ports):
         post.add_port_data(i, 0, incident[i], reflected[i])
     post.process_data()
+    post.save_to_file()
     post.render_s_params()
     post.render_impedance()
     post.render_smith()
+
+
+def report() -> None:
+    """Generate human-readable report."""
+    pass
 
 
 def parse_arguments() -> Any:
@@ -140,6 +157,13 @@ def parse_arguments() -> Any:
         dest="postprocess",
         action="store_true",
         help="Pass to postprocess the data",
+    )
+    parser.add_argument(
+        "-r",
+        "--report",
+        dest="report",
+        action="store_true",
+        help="Pass to generate report",
     )
     parser.add_argument(
         "-a",
@@ -214,11 +238,10 @@ def open_config(args: Any) -> None:
 def create_dir(path: str, cleanup: bool = False) -> None:
     """Create a directory if doesn't exist."""
     directory_path = os.path.join(os.getcwd(), path)
+    if cleanup and os.path.exists(directory_path):
+        shutil.rmtree(directory_path)
     if not os.path.exists(directory_path):
         os.mkdir(directory_path)
-    elif cleanup:
-        for file in os.listdir(directory_path):
-            os.remove(os.path.join(directory_path, file))
 
 
 if __name__ == "__main__":
