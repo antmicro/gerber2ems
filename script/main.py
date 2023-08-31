@@ -17,6 +17,7 @@ from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
 import importer
+import kmake_interface
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,8 @@ def main():
     args = parse_arguments()
     setup_logging(args)
 
-    if not any([args.geometry, args.simulate, args.postprocess, args.all]):
-        logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-r", "-a" flags')
+    if not any([args.geometry, args.simulate, args.postprocess, args.kmake, args.report, args.all]):
+        logger.info('No steps selected. Exiting. To select steps use "-k", "-g", "-s", "-p", "-r", "-a" flags')
         sys.exit(0)
 
     config = open_config(args)
@@ -36,6 +37,9 @@ def main():
 
     sim = Simulation()
 
+    if args.kmake or args.all:
+        logger.info("Creating prerequisites")
+        kmake_interface.generate_prerequisites()
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
@@ -166,6 +170,13 @@ def parse_arguments() -> Any:
         dest="report",
         action="store_true",
         help="Pass to generate report",
+    )
+    parser.add_argument(
+        "-k",
+        "--kmake",
+        dest="kmake",
+        action="store_true",
+        help="Pass to generate prerequisites using kmake",
     )
     parser.add_argument(
         "-a",

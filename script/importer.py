@@ -64,8 +64,10 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
     gerbv_command += f" -o {not_cropped_name}"
     gerbv_command += f" --dpi={dpi} --export=png -a"
 
-    subprocess.call(gerbv_command, shell=True)
-    subprocess.call(f"convert {not_cropped_name} -trim {output}", shell=True)
+    subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+    subprocess.call(
+        f"convert {not_cropped_name} -trim {output}", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
+    )
     os.remove(not_cropped_name)
 
 
