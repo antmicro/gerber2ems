@@ -114,7 +114,7 @@ class Postprocesor:
         angles = [0, np.pi]
         reflection_coeffs = 10 ** (-s11_margin / 20) * (np.cos(angles) + 1j * np.sin(angles))
         impedances = z0 * (1 + reflection_coeffs) / (1 - reflection_coeffs)
-        return (impedances[0], impedances[1])
+        return (abs(impedances[0]), abs(impedances[1]))
 
     def render_impedance(self):
         """Render all ports impedance plots to files."""

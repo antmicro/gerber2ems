@@ -93,7 +93,6 @@ class Simulation:
         thickness = sum(layer.thickness for layer in Config.get().get_substrates())
         z_lines = [
             -thickness - Config.get().margin_z,
-            0,
             Config.get().margin_z,
         ]
         # PCB
@@ -108,6 +107,8 @@ class Simulation:
             np.append(z_lines, offset - (layer.thickness / 2))
             offset -= layer.thickness
 
+        z_lines = np.round(z_lines)
+        logger.debug("Mesh z lines: %s", z_lines)
         self.mesh.AddLine("z", z_lines)
         # Margin
         self.mesh.SmoothMeshLines("z", Config.get().margin_mesh_z, ratio=1.2)
@@ -187,20 +188,24 @@ class Simulation:
         angle = port_config.direction / 360 * 2 * math.pi
 
         start = [
-            port_config.position[0] - (port_config.width / 2) * round(math.cos(angle)),
-            port_config.position[1] - (port_config.width / 2) * round(math.sin(angle)),
-            start_z,
+            round(port_config.position[0] - (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
+            round(start_z),
         ]
         stop = [
-            port_config.position[0]
-            + (port_config.width / 2) * round(math.cos(angle))
-            + port_config.length * round(math.sin(angle)),
-            port_config.position[1]
-            - (port_config.width / 2) * round(math.sin(angle))
-            + port_config.length * round(math.cos(angle)),
-            stop_z,
+            round(
+                port_config.position[0]
+                + (port_config.width / 2) * round(math.cos(angle))
+                + port_config.length * round(math.sin(angle))
+            ),
+            round(
+                port_config.position[1]
+                - (port_config.width / 2) * round(math.sin(angle))
+                + port_config.length * round(math.cos(angle))
+            ),
+            round(stop_z),
         ]
-        print(start, stop)
+        logger.debug("Adding port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddMSLPort(
             len(self.ports),
@@ -304,6 +309,11 @@ class Simulation:
 
     def set_excitation(self):
         """Set gauss excitation according to config."""
+        logger.debug(
+            "Setting excitation to gaussian pulse from %f to %f",
+            Config.get().start_frequency,
+            Config.get().stop_frequency,
+        )
         self.fdtd.SetGaussExcite(
             (Config.get().start_frequency + Config.get().stop_frequency) / 2,
             (Config.get().stop_frequency - Config.get().start_frequency) / 2,
@@ -337,9 +347,10 @@ class Simulation:
 
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
-        for port in self.ports:
+        for index, port in enumerate(self.ports):
             try:
                 port.CalcPort(result_path, frequencies)
+                logger.debug("Found data for port %d", index)
             except IOError:
                 logger.error("Port data files do not exist. Did you run simulation step?")
                 sys.exit(1)

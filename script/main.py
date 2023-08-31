@@ -107,7 +107,9 @@ def postprocess(sim: Simulation) -> None:
     Config.get().pcb_width = width
     sim.create_materials()
     sim.add_mesh()
-    add_ports(sim)
+
+    if len(sim.ports) == 0:
+        add_ports(sim)
 
     frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
     reflected, incident = sim.get_port_parameters(frequencies)
