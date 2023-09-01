@@ -17,17 +17,17 @@ def generate_prerequisites():
 
 def run_pnp():
     """Run kmake pnp command."""
-    subprocess.Popen("kmake pnp -e -v -o", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
+    subprocess.Popen("kmake pnp -e -v -o", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
 
 
 def run_stackup():
     """Run kmake stackup-export command."""
-    subprocess.Popen("kmake stackup-export", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
+    subprocess.Popen("kmake stackup-export", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
 
 
 def run_gerber():
     """Run kmake gerber command."""
-    subprocess.Popen("kmake gerber -e", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
+    subprocess.Popen("kmake gerber -e -x", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
 
 
 def check_kmake():
