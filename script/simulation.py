@@ -104,10 +104,13 @@ class Simulation:
         )
         offset = 0
         for layer in Config.get().get_substrates():
-            np.append(z_lines, offset - (layer.thickness / 2))
+            z_lines = np.append(z_lines, offset)
+            z_lines = np.append(z_lines, offset - (layer.thickness / 2))
             offset -= layer.thickness
 
         z_lines = np.round(z_lines)
+        logger.debug("Mesh x lines: %s", x_lines)
+        logger.debug("Mesh y lines: %s", y_lines)
         logger.debug("Mesh z lines: %s", z_lines)
         self.mesh.AddLine("z", z_lines)
         # Margin
@@ -177,7 +180,11 @@ class Simulation:
             logger.error("Port has no defined position or rotation, skipping")
             return
 
+        while port_config.direction < 0:
+            port_config.direction += 360
+
         dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
+        print(int(port_config.direction))
         if int(port_config.direction) not in dir_map:
             logger.error("Ports rotation is not a multiple of 90 degrees which is not supported, skipping")
             return
@@ -196,11 +203,11 @@ class Simulation:
             round(
                 port_config.position[0]
                 + (port_config.width / 2) * round(math.cos(angle))
-                + port_config.length * round(math.sin(angle))
+                - port_config.length * round(math.sin(angle))
             ),
             round(
                 port_config.position[1]
-                - (port_config.width / 2) * round(math.sin(angle))
+                + (port_config.width / 2) * round(math.sin(angle))
                 + port_config.length * round(math.cos(angle))
             ),
             round(stop_z),
@@ -219,6 +226,62 @@ class Simulation:
             excite=1 if excite else 0,
         )
         self.ports.append(port)
+
+        self.mesh.AddLine("x", start[0])
+        self.mesh.AddLine("x", stop[0])
+        self.mesh.AddLine("y", start[1])
+        self.mesh.AddLine("y", stop[1])
+
+    def add_resistive_port(self, port_config: PortConfig, excite: bool = False):
+        """Add resistive port based on config."""
+        logger.debug("Adding port number %d", len(self.ports))
+
+        if port_config.position is None or port_config.direction is None:
+            logger.error("Port has no defined position or rotation, skipping")
+            return
+
+        dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
+        if int(port_config.direction) not in dir_map:
+            logger.error("Ports rotation is not a multiple of 90 degrees which is not supported, skipping")
+            return
+
+        start_z = self.get_metal_layer_offset(port_config.layer)
+        stop_z = self.get_metal_layer_offset(port_config.plane)
+
+        angle = port_config.direction / 360 * 2 * math.pi
+
+        start = [
+            round(port_config.position[0] - (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
+            round(start_z),
+        ]
+        stop = [
+            round(port_config.position[0] + (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
+            round(stop_z),
+        ]
+        logger.debug("Adding resistive port at start: %s end: %s", start, stop)
+
+        port = self.fdtd.AddLumpedPort(
+            len(self.ports),
+            port_config.impedance,
+            start,
+            stop,
+            "z",
+            excite=1 if excite else 0,
+            priority=100,
+        )
+        self.ports.append(port)
+
+        logger.debug("Port direction: %s", dir_map[int(port_config.direction)])
+        if dir_map[int(port_config.direction)] == "y":
+            self.mesh.AddLine("x", start[0])
+            self.mesh.AddLine("x", stop[0])
+            self.mesh.AddLine("y", start[1])
+        else:
+            self.mesh.AddLine("x", start[0])
+            self.mesh.AddLine("y", start[1])
+            self.mesh.AddLine("y", stop[1])
 
     def add_virtual_port(self, port_config: PortConfig) -> None:
         """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
