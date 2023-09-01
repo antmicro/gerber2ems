@@ -140,8 +140,8 @@ class Config:
         self.max_steps = get(json, ["max_steps"], (float, int), None)
         self.pcb_width: Union[float, None] = None
         self.pcb_height: Union[float, None] = None
-        self.pcb_mesh_xy = get(json, ["mesh", "pcb", "xy"], (float, int), 50)
-        self.pcb_mesh_z = get(json, ["mesh", "pcb", "z"], (float, int), 20)
+        self.pcb_mesh_xy = get(json, ["mesh", "xy"], (float, int), 50)
+        self.inter_copper_layers = get(json, ["mesh", "inter_layers"], int, 5)
         self.margin_xy = get(json, ["margin", "xy"], (float, int), 3000)
         self.margin_z = get(json, ["margin", "z"], (float, int), 3000)
         self.margin_mesh_xy = get(json, ["mesh", "margin", "xy"], (float, int), 200)

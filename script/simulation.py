@@ -90,31 +90,24 @@ class Simulation:
         #### Z Mesh
         # Min-0-Max
 
-        thickness = sum(layer.thickness for layer in Config.get().get_substrates())
-        z_lines = [
-            -thickness - Config.get().margin_z,
-            Config.get().margin_z,
-        ]
-        # PCB
-        z_lines = np.concatenate(
-            (
-                z_lines,
-                np.arange(-thickness, 0, step=Config.get().pcb_mesh_z),
-            )
-        )
+        z_lines = np.array([0])
         offset = 0
+        z_count = Config.get().inter_copper_layers
+        if z_count % 2 == 1:  # Increasing by one to always have z_line at dumpbox
+            z_count += 1
         for layer in Config.get().get_substrates():
-            z_lines = np.append(z_lines, offset)
-            z_lines = np.append(z_lines, offset - (layer.thickness / 2))
+            z_lines = np.concatenate((z_lines, np.linspace(offset - layer.thickness, offset, z_count, endpoint=False)))
             offset -= layer.thickness
-
+        z_lines = np.concatenate((z_lines, [Config.get().margin_z, offset - Config.get().margin_z]))
         z_lines = np.round(z_lines)
-        logger.debug("Mesh x lines: %s", x_lines)
-        logger.debug("Mesh y lines: %s", y_lines)
-        logger.debug("Mesh z lines: %s", z_lines)
+
         self.mesh.AddLine("z", z_lines)
         # Margin
         self.mesh.SmoothMeshLines("z", Config.get().margin_mesh_z, ratio=1.2)
+
+        logger.debug("Mesh x lines: %s", x_lines)
+        logger.debug("Mesh y lines: %s", y_lines)
+        logger.debug("Mesh z lines: %s", z_lines)
 
         xyz = [
             self.mesh.GetQtyLines("x"),
