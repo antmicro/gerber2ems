@@ -376,6 +376,10 @@ class Simulation:
             (Config.get().stop_frequency - Config.get().start_frequency) / 2,
         )
 
+    def set_sinus_excitation(self, freq):
+        logger.debug("Setting excitation to sine at %f", freq)
+        self.fdtd.SetSinusExcite(freq)
+
     def run(self):
         """Execute simulation."""
         logger.info("Starting simulation")

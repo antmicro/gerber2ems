@@ -174,6 +174,7 @@ class Postprocesor:
         header: str = "Frequency, ," + "".join(
             [f"|S_{i}{port_number}|, arg(S_{i}{port_number}), " for i, _ in enumerate(self.s_params[port_number])]
         )
+        header += f"|Z_{port_number}|, arg(Z_{port_number})"
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
         frequencies = np.transpose([self.frequencies], (1, 0))
         output_values = np.concatenate((frequencies, s_params), axis=1)
@@ -184,9 +185,11 @@ class Postprocesor:
         output = np.empty((magnitude.shape[0], (magnitude.shape[1] + angle.shape[1])), dtype=magnitude.dtype)
         output[:, 0::2] = magnitude
         output[:, 1::2] = angle
+        output = np.hstack([output, np.array(np.transpose(np.abs(self.impedances)))])
+        output = np.hstack([output, np.array(np.transpose(np.angle(self.impedances)))])
 
         file_path = f"S_x{port_number}.csv"
-        logger.debug("Saving S_x%d parameters to file: %s", port_number, file_path)
+        logger.debug("Saving S_x%d parameters and impedances to file: %s", port_number, file_path)
         np.savetxt(
             os.path.join(path, file_path),
             output,
