@@ -85,7 +85,7 @@ class Simulation:
         )
         self.mesh.AddLine("y", y_lines)
         # Margin
-        self.mesh.SmoothMeshLines("x", Config.get().margin_mesh_xy, ratio=1.2)
+        self.mesh.SmoothMeshLines("y", Config.get().margin_mesh_xy, ratio=1.2)
 
         #### Z Mesh
         # Min-0-Max
@@ -93,6 +93,7 @@ class Simulation:
         z_lines = np.array([0])
         offset = 0
         z_count = Config.get().inter_copper_layers
+        print(z_count)
         if z_count % 2 == 1:  # Increasing by one to always have z_line at dumpbox
             z_count += 1
         for layer in Config.get().get_substrates():
