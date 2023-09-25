@@ -12,7 +12,7 @@ import shutil
 import coloredlogs
 import numpy as np
 
-from constants import BASE_DIR, REPORT_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
+from constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
 from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
@@ -52,10 +52,6 @@ def main():
         logger.info("Postprocessing")
         create_dir(RESULTS_DIR, cleanup=True)
         postprocess(sim)
-    if args.report or args.all:
-        logger.info("Generating report")
-        create_dir(REPORT_DIR, cleanup=True)
-        report()
 
 
 def add_ports(sim: Simulation) -> None:
@@ -129,11 +125,6 @@ def postprocess(sim: Simulation) -> None:
     post.render_s_params()
     post.render_impedance()
     post.render_smith()
-
-
-def report() -> None:
-    """Generate human-readable report."""
-    pass
 
 
 def parse_arguments() -> Any:

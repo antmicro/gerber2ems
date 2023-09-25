@@ -7,7 +7,6 @@ BASE_DIR = "ems"
 SIMULATION_DIR = os.path.join(BASE_DIR, "simulation")
 GEOMETRY_DIR = os.path.join(BASE_DIR, "geometry")
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
-REPORT_DIR = os.path.join(BASE_DIR, "report")
 BORDER_THICKNESS = 100
 VIA_POLYGON = 8
 
