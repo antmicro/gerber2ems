@@ -1,5 +1,5 @@
 {
-    "format_version": "0.1",
+    "format_version": "1.0",
     "frequency": {
         "start": 2e9,
         "stop": 20e9
@@ -10,10 +10,8 @@
         "plating_thickness": 50
     },
     "mesh": {
-        "pcb": {
-            "xy": 50,
-            "z": 25
-        },
+        "xy": 50,
+        "inter_layers": 4,
         "margin": {
             "xy": 200,
             "z": 200
