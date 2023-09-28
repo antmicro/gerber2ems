@@ -1,5 +1,5 @@
 numpy
-matplotlib
+matplotlib==3.5
 coloredlogs
 opencv-python
 nanomesh
