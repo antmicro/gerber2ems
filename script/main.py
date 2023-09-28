@@ -27,8 +27,19 @@ def main():
     args = parse_arguments()
     setup_logging(args)
 
-    if not any([args.geometry, args.simulate, args.postprocess, args.kmake, args.report, args.all]):
-        logger.info('No steps selected. Exiting. To select steps use "-k", "-g", "-s", "-p", "-r", "-a" flags')
+    if not any(
+        [
+            args.geometry,
+            args.simulate,
+            args.postprocess,
+            args.kmake,
+            args.report,
+            args.all,
+        ]
+    ):
+        logger.info(
+            'No steps selected. Exiting. To select steps use "-k", "-g", "-s", "-p", "-r", "-a" flags'
+        )
         sys.exit(0)
 
     config = open_config(args)
@@ -39,6 +50,10 @@ def main():
 
     if args.kmake or args.all:
         logger.info("Creating prerequisites")
+        try:
+            os.remove(os.path.join(os.getcwd(), BASE_DIR, "kmake.log"))
+        except OSError:
+            pass
         kmake_interface.generate_prerequisites()
     if args.geometry or args.all:
         logger.info("Creating geometry")
@@ -111,7 +126,9 @@ def postprocess(sim: Simulation) -> None:
     if len(sim.ports) == 0:
         add_ports(sim)
 
-    frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
+    frequencies = np.linspace(
+        Config.get().start_frequency, Config.get().stop_frequency, 1001
+    )
     reflected, incident = sim.get_port_parameters(frequencies)
 
     post = Postprocesor(frequencies, len(Config.get().ports))
@@ -179,7 +196,9 @@ def parse_arguments() -> Any:
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
-    group.add_argument("-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level")
+    group.add_argument(
+        "-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level"
+    )
 
     return parser.parse_args()
 
