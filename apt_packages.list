@@ -1,5 +1,5 @@
 libgtk-3-dev libcairo2-dev libgit2-dev
 git python3 python3-pip python3-apt
 procps transfig imagemagick gerbv software-properties-common expect-dev bc ffmpeg webp xvfb zip wget curl
-build-essential cmake git libhdf5-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev vtk7 libvtk7-dev libvtk7-qt-dev
+build-essential cmake git libhdf5-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-dev libvtk9-qt-dev
 python3-numpy python3-matplotlib python3-h5py cython3
