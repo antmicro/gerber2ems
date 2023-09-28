@@ -1,6 +1,6 @@
-numpy==1.21.*
-matplotlib==3.5.*
-coloredlogs==15.0.*
-opencv-python==4.7.*
-nanomesh==0.9.*
-scikit-rf==0.28.*
+numpy
+matplotlib
+coloredlogs
+opencv-python
+nanomesh
+scikit-rf
