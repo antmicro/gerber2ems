@@ -12,6 +12,7 @@ example_gerbers/*/*
 !example_gerbers/*/*.kicad_pcb
 !example_gerbers/*/*.kicad_pcb
 !example_gerbers/*/*.kicad_pro
+!example_gerbers/*/*.kicad_sch
 !example_gerbers/*/simulation.json
 !example_gerbers/*/PCB_preparation
 
