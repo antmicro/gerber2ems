@@ -18,16 +18,28 @@ else
     apt-get -qqy install python3 python3-pip python3-venv
 fi
 
+# Create virtual enviroment
+python3 -m venv --system-site-packages .venv > /dev/null 2>&1
+
+# Install packages inside virtual enviroment
+.venv/bin/python3 -m pip install --ignore-installed -r requirements.txt
+wait
+
+
+
+
 # Create ems-kicad.sh
 WD=$(pwd)
 echo '#!/usr/bin/env bash' > ems-kicad.sh
-echo "python3 $WD/main.py \"\$@\"">> ems-kicad.sh
+echo "$WD/.venv/bin/python3 $WD/main.py \"\$@\"">> ems-kicad.sh
 
 # Make kmake.sh executable
 chmod +x ems-kicad.sh
 
-# Create kmake command in "$HOME/.local/bin/"
+# Create ems-kicad command in "$HOME/.local/bin/"
 mkdir --parents "$HOME/.local/bin/"
 ln -sf "$(pwd)/ems-kicad.sh" "$HOME/.local/bin/ems-kicad"
+
+
 
 echo "Installed successfully. Type ems-kicad everywhere you want"
