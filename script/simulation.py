@@ -474,9 +474,9 @@ class Simulation:
             sys.exit(1)
         self.csx.ReadFromXML(filename)
 
-    def get_port_parameters(self, frequencies) -> Tuple[List, List]:
+    def get_port_parameters(self, index: int, frequencies) -> Tuple[List, List]:
         """Return reflected and incident power vs frequency for each port."""
-        result_path = os.path.join(os.getcwd(), SIMULATION_DIR)
+        result_path = os.path.join(os.getcwd(), SIMULATION_DIR, str(index))
 
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []

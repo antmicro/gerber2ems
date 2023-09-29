@@ -124,14 +124,16 @@ def postprocess(sim: Simulation) -> None:
     frequencies = np.linspace(
         Config.get().start_frequency, Config.get().stop_frequency, 1001
     )
-    reflected, incident = sim.get_port_parameters(frequencies)
-
     post = Postprocesor(frequencies, len(Config.get().ports))
     impedances = np.array([p.impedance for p in Config.get().ports])
     post.add_impedances(impedances)
 
-    for i, _ in enumerate(Config.get().ports):
-        post.add_port_data(i, 0, incident[i], reflected[i])
+    for index, port in enumerate(Config.get().ports):
+        if port.excite:
+            reflected, incident = sim.get_port_parameters(index, frequencies)
+            for i, _ in enumerate(Config.get().ports):
+                post.add_port_data(i, index, incident[i], reflected[i])
+
     post.process_data()
     post.save_to_file()
     post.render_s_params()
