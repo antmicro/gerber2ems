@@ -93,6 +93,56 @@
   (net 1 "/MSL")
   (net 2 "GND")
 
+  (footprint "antmicro-footprints:Simulation-Port" (layer "F.Cu")
+    (tstamp 428855e1-4c2d-43c9-8c7c-8d99d8f8e5e4)
+    (at 146.5 103.4 180)
+    (attr board_only exclude_from_pos_files exclude_from_bom)
+    (fp_text reference "SP3" (at 0 1 180 unlocked) (layer "F.Fab")
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp d41183fa-afb1-42af-b917-5cfb4680cbf8)
+    )
+    (fp_text value "Simulation-Port" (at 0 1 180 unlocked) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 5ba3b6c7-1020-4e5a-a198-b369efa1bab0)
+    )
+    (fp_text user "width = 0.4" (at 0 10) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 0dc1e276-58e7-4430-85ea-f9e56f245ebe)
+    )
+    (fp_text user "${REFERENCE}" (at 0 2.5 180 unlocked) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 1f521de5-35b1-446b-9aae-b0c199af57a3)
+    )
+    (fp_text user "stop_layer = 1" (at 0 8.5) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 2a0f51a2-edd6-40f3-ad12-2033acd5e9d6)
+    )
+    (fp_text user "impedance = 50" (at 0 5.5) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 458b9101-63b6-460a-a97f-051276deae27)
+    )
+    (fp_text user "start_layer = 0" (at 0 7) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp d00649e8-5fa5-4a3f-8789-de7a18c182b8)
+    )
+    (fp_text user "excite = True" (at 0 11.5) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp d3555805-e42e-4638-86ae-948f8062e104)
+    )
+    (fp_text user "number = 1" (at 0 13) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp e7bcbcf5-c4d5-4e28-8c57-6978d4797bb3)
+    )
+    (fp_line (start -0.2 0) (end 0.2 0)
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp a6f99cfc-4fa8-42bf-bb8e-1fdc79e03361))
+    (fp_line (start 0 -0.5) (end -0.1 -0.4)
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 32736d32-37b4-4c20-a6ba-198f7ded741d))
+    (fp_line (start 0 -0.5) (end 0.1 -0.4)
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 189a0d78-528d-4ea8-8bd0-f6414503f98b))
+    (fp_line (start 0 0) (end 0 -0.5)
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 7ac5e42c-7a4c-41b6-83c1-a69a4fab3704))
+  )
+
   (footprint "antmicro-footprints:NetTie-2_SMD_Pad0.127mm" (layer "F.Cu")
     (tstamp 660c27ad-8821-4541-b300-67b3483c82b6)
     (at 147 112.4 90)
@@ -251,48 +301,48 @@
     (attr board_only exclude_from_pos_files exclude_from_bom)
     (fp_text reference "SP2" (at 0 1 unlocked) (layer "F.Fab")
         (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp d41183fa-afb1-42af-b917-5cfb4680cbf8)
+      (tstamp 5da91fb7-b6b4-482b-b459-a490f4f2ca94)
     )
     (fp_text value "Simulation-Port" (at 0 1 unlocked) (layer "F.Fab") hide
         (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp 5ba3b6c7-1020-4e5a-a198-b369efa1bab0)
-    )
-    (fp_text user "width = 0.4" (at 0 10) (layer "F.Fab") hide
-        (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp 0dc1e276-58e7-4430-85ea-f9e56f245ebe)
-    )
-    (fp_text user "${REFERENCE}" (at 0 2.5 unlocked) (layer "F.Fab") hide
-        (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp 1f521de5-35b1-446b-9aae-b0c199af57a3)
-    )
-    (fp_text user "stop_layer = 1" (at 0 8.5) (layer "F.Fab") hide
-        (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp 2a0f51a2-edd6-40f3-ad12-2033acd5e9d6)
-    )
-    (fp_text user "impedance = 50" (at 0 5.5) (layer "F.Fab") hide
-        (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp 458b9101-63b6-460a-a97f-051276deae27)
-    )
-    (fp_text user "start_layer = 0" (at 0 7) (layer "F.Fab") hide
-        (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp d00649e8-5fa5-4a3f-8789-de7a18c182b8)
-    )
-    (fp_text user "excite = True" (at 0 11.5) (layer "F.Fab") hide
-        (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp d3555805-e42e-4638-86ae-948f8062e104)
+      (tstamp 008443f7-ebf4-4251-b9dc-d5d71b8dc89c)
     )
     (fp_text user "number = 1" (at 0 13) (layer "F.Fab") hide
         (effects (font (size 1 1) (thickness 0.15)))
-      (tstamp e7bcbcf5-c4d5-4e28-8c57-6978d4797bb3)
+      (tstamp 1c2c32f2-8e0d-4443-b702-744cbb481c38)
+    )
+    (fp_text user "stop_layer = 1" (at 0 8.5) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 397097d4-0c8d-4b6d-806b-bee1480900c9)
+    )
+    (fp_text user "excite = True" (at 0 11.5) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 42ab4a54-5bab-4450-8d6f-c2166c6a7fa9)
+    )
+    (fp_text user "start_layer = 0" (at 0 7) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 731fb000-4d1d-48e1-9749-3b989678ad2f)
+    )
+    (fp_text user "${REFERENCE}" (at 0 2.5 unlocked) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp 83618975-f454-4282-bb65-29301238aa33)
+    )
+    (fp_text user "width = 0.4" (at 0 10) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp a55a0b89-851c-4395-9503-134a098712e2)
+    )
+    (fp_text user "impedance = 50" (at 0 5.5) (layer "F.Fab") hide
+        (effects (font (size 1 1) (thickness 0.15)))
+      (tstamp cdac34f6-8aa6-4bf3-9a8f-b1ded3f3f511)
     )
     (fp_line (start -0.2 0) (end 0.2 0)
-      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp a6f99cfc-4fa8-42bf-bb8e-1fdc79e03361))
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 7fba8b1a-7f60-4c48-b52a-2ed510a170f2))
     (fp_line (start 0 -0.5) (end -0.1 -0.4)
-      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 32736d32-37b4-4c20-a6ba-198f7ded741d))
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 978751e5-09b4-4f73-b809-f059710684e3))
     (fp_line (start 0 -0.5) (end 0.1 -0.4)
-      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 189a0d78-528d-4ea8-8bd0-f6414503f98b))
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 8ffb25df-01a1-41b4-9c4d-f521edceaba5))
     (fp_line (start 0 0) (end 0 -0.5)
-      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp 7ac5e42c-7a4c-41b6-83c1-a69a4fab3704))
+      (stroke (width 0.12) (type solid)) (layer "Dwgs.User") (tstamp fb48b63a-aa88-4d21-8063-0c24feb78650))
   )
 
   (footprint "antmicro-footprints:NetTie-2_SMD_Pad0.127mm" (layer "B.Cu")

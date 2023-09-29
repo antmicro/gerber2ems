@@ -24,6 +24,7 @@ class PortConfig:
         self.layer = get(config, ["layer"], int)
         self.plane = get(config, ["plane"], int)
         self.dB_margin = get(config, ["dB_margin"], (float, int), -15)
+        self.excite = get(config, ["excite"], bool, False)
 
 
 class LayerConfig:
@@ -78,7 +79,9 @@ def get(
             logger.error("No field %s found in config", path)
             sys.exit(1)
         else:
-            logger.warning("No field %s found in config. Using default: %s", path, str(default))
+            logger.warning(
+                "No field %s found in config. Using default: %s", path, str(default)
+            )
             return default
     if isinstance(config, kind):
         return config
@@ -118,14 +121,17 @@ class Config:
     def __init__(self, json: Any, args: Any) -> None:
         """Initialize Config based on passed json object."""
         if self.__class__._instance is not None:
-            logger.warning("Config has already beed instatiated. Use Config.get() to get the instance. Skipping")
+            logger.warning(
+                "Config has already beed instatiated. Use Config.get() to get the instance. Skipping"
+            )
             return
 
         logger.info("Parsing config")
         version = get(json, ["format_version"], str)
         if (
             version is None
-            or not version.split(".")[0] == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
+            or not version.split(".")[0]
+            == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
             or version.split(".")[1] < CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[1]
         ):
             logger.error(
@@ -147,7 +153,9 @@ class Config:
         self.margin_mesh_xy = get(json, ["mesh", "margin", "xy"], (float, int), 200)
         self.margin_mesh_z = get(json, ["mesh", "margin", "z"], (float, int), 200)
         self.via_plating = get(json, ["via", "plating_thickness"], (int, float), 50)
-        self.via_filling_epsilon = get(json, ["via", "filling_epsilon"], (int, float), 1)
+        self.via_filling_epsilon = get(
+            json, ["via", "filling_epsilon"], (int, float), 1
+        )
 
         self.arguments = args
 
@@ -166,11 +174,18 @@ class Config:
         layers = []
         for layer in stackup["layers"]:
             layers.append(LayerConfig(layer))
-        self.layers = list(filter(lambda layer: layer.kind in [LayerKind.METAL, LayerKind.SUBSTRATE], layers))
+        self.layers = list(
+            filter(
+                lambda layer: layer.kind in [LayerKind.METAL, LayerKind.SUBSTRATE],
+                layers,
+            )
+        )
 
     def get_substrates(self) -> List[LayerConfig]:
         """Return substrate layers configs."""
-        return list(filter(lambda layer: layer.kind == LayerKind.SUBSTRATE, self.layers))
+        return list(
+            filter(lambda layer: layer.kind == LayerKind.SUBSTRATE, self.layers)
+        )
 
     def get_metals(self) -> List[LayerConfig]:
         """Return metals layers configs."""

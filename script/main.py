@@ -6,7 +6,7 @@ import sys
 import json
 import argparse
 import logging
-from typing import Any
+from typing import Any, Optional
 import shutil
 
 import coloredlogs
@@ -69,16 +69,15 @@ def main():
         postprocess(sim)
 
 
-def add_ports(sim: Simulation) -> None:
+def add_ports(sim: Simulation, excited_port_number: Optional[int] = None) -> None:
     """Add ports for simulation."""
     logger.info("Adding ports")
 
+    sim.ports = []
     importer.import_port_positions()
 
-    excited = True
-    for port_config in Config.get().ports:
-        sim.add_msl_port(port_config, excited)
-        excited = False
+    for index, port_config in enumerate(Config.get().ports):
+        sim.add_msl_port(port_config, index, index == excited_port_number)
 
 
 def add_virtual_ports(sim: Simulation) -> None:
@@ -108,9 +107,13 @@ def geometry(sim: Simulation) -> None:
 
 def simulate(sim: Simulation) -> None:
     """Run the simulation."""
-    sim.load_geometry()
     sim.set_excitation()
-    sim.run()
+    for index, port in enumerate(Config.get().ports):
+        if port.excite:
+            logging.info("Simulating with excitation on port #%i", index)
+            sim.load_geometry()
+            add_ports(sim, index)
+            sim.run(index)
 
 
 def postprocess(sim: Simulation) -> None:

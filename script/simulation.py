@@ -182,7 +182,9 @@ class Simulation:
         logger.error("Hadn't found %dth metal layer", index)
         sys.exit(1)
 
-    def add_msl_port(self, port_config: PortConfig, excite: bool = False):
+    def add_msl_port(
+        self, port_config: PortConfig, port_number: int, excite: bool = False
+    ):
         """Add microstripline port based on config."""
         logger.debug("Adding port number %d", len(self.ports))
 
@@ -232,7 +234,7 @@ class Simulation:
         logger.debug("Adding port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddMSLPort(
-            len(self.ports),
+            port_number,
             self.port_material,
             start,
             stop,
@@ -448,11 +450,13 @@ class Simulation:
         logger.debug("Setting excitation to sine at %f", freq)
         self.fdtd.SetSinusExcite(freq)
 
-    def run(self):
+    def run(self, excited_port_number):
         """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
-        self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR))
+        self.fdtd.Run(
+            os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number))
+        )
         os.chdir(cwd)
 
     def save_geometry(self) -> None:

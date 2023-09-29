@@ -60,13 +60,20 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
         logger.warning("DPI is not an integer number: %f", dpi)
 
     gerbv_command = f"gerbv {gerber} {edge}"
-    gerbv_command += " --background=#ffffff --foreground=#000000ff --foreground=#ff00000f"
+    gerbv_command += (
+        " --background=#ffffff --foreground=#000000ff --foreground=#ff00000f"
+    )
     gerbv_command += f" -o {not_cropped_name}"
     gerbv_command += f" --dpi={dpi} --export=png -a"
 
-    subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
     subprocess.call(
-        f"convert {not_cropped_name} -trim {output}", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
+        gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
+    )
+    subprocess.call(
+        f"convert {not_cropped_name} -trim {output}",
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        shell=True,
     )
     os.remove(not_cropped_name)
 
@@ -76,7 +83,9 @@ def get_dimensions(input_name: str) -> Tuple[float, float]:
     image = cv2.imread(os.path.join(GEOMETRY_DIR, input_name))
     height = image.shape[0] * PIXEL_SIZE - BORDER_THICKNESS
     width = image.shape[1] * PIXEL_SIZE - BORDER_THICKNESS
-    logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
+    logger.debug(
+        "Board dimensions read from file are: height:%f width:%f", height, width
+    )
     return (width, height)
 
 
@@ -136,7 +145,9 @@ def get_vias() -> List[List[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: List[List[float]] = []
-    with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
+    with open(
+        os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8"
+    ) as drill_file:
         for line in drill_file.readlines():
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
@@ -155,7 +166,9 @@ def get_vias() -> List[List[float]]:
                         ]
                     )
                 else:
-                    logger.warning("Drill file parsing failed. Drill with specifed number wasn't found")
+                    logger.warning(
+                        "Drill file parsing failed. Drill with specifed number wasn't found"
+                    )
     logger.debug("Found %d vias", len(vias))
     return vias
 
@@ -215,9 +228,9 @@ def import_port_positions() -> None:
                     "Port #%i is defined twice on the board. Ignoring the second instance",
                     number,
                 )
-    for port in Config.get().ports:
+    for index, port in enumerate(Config.get().ports):
         if port.position is None:
-            logger.error("Port #%i is not defined on board. It will be skipped")
+            logger.error("Port #%i is not defined on board. It will be skipped", index)
 
 
 def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], float]]:
