@@ -115,16 +115,8 @@ def simulate(sim: Simulation) -> None:
 
 def postprocess(sim: Simulation) -> None:
     """Postprocess data from the simulation."""
-    # Needed to be able to add ports
-    importer.import_stackup()
-    (width, height) = importer.get_dimensions("F_Cu.png")
-    Config.get().pcb_height = height
-    Config.get().pcb_width = width
-    sim.create_materials()
-    sim.add_mesh()
-
     if len(sim.ports) == 0:
-        add_ports(sim)
+        add_virtual_ports(sim)
 
     frequencies = np.linspace(
         Config.get().start_frequency, Config.get().stop_frequency, 1001
