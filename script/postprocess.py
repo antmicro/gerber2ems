@@ -9,7 +9,7 @@ import skrf
 from config import Config
 
 
-from constants import RESULTS_DIR
+from constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +22,20 @@ class Postprocesor:
         self.frequencies = frequencies
         self.count = port_count
 
-        self.incident = np.empty([self.count, self.count, len(self.frequencies)], np.complex128)
+        self.incident = np.empty(
+            [self.count, self.count, len(self.frequencies)], np.complex128
+        )
         self.incident[:] = np.nan
-        self.reflected = np.empty([self.count, self.count, len(self.frequencies)], np.complex128)
+        self.reflected = np.empty(
+            [self.count, self.count, len(self.frequencies)], np.complex128
+        )
         self.reflected[:] = np.nan
         self.reference_zs = np.empty([self.count], np.complex128)
         self.reference_zs[:] = np.nan
 
-        self.s_params = np.empty([self.count, self.count, len(self.frequencies)], np.complex128)
+        self.s_params = np.empty(
+            [self.count, self.count, len(self.frequencies)], np.complex128
+        )
         self.s_params[:] = np.nan
         self.impedances = np.empty([self.count, len(self.frequencies)], np.complex128)
         self.impedances[:] = np.nan
@@ -53,7 +59,9 @@ class Postprocesor:
 
     def process_data(self):
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
-        logger.info("Processing all data from simulation. Calculating S-parameters and impedance")
+        logger.info(
+            "Processing all data from simulation. Calculating S-parameters and impedance"
+        )
         for i, _ in enumerate(self.incident):
             if self.is_valid(self.incident[i][i]):
                 for j, _ in enumerate(self.incident):
@@ -92,6 +100,7 @@ class Postprocesor:
     def render_s_params(self):
         """Render all S parameter plots to files."""
         logger.info("Rendering S-parameter plots")
+        plt.style.use(PLOT_STYLE)
         for i in range(self.count):
             if self.is_valid(self.s_params[i][i]):
                 fig, axes = plt.subplots()
@@ -112,13 +121,16 @@ class Postprocesor:
     def calculate_min_max_impedance(self, s11_margin, z0):
         """Calculate aproximated min-max values for impedance (it assumes phase is 0)."""
         angles = [0, np.pi]
-        reflection_coeffs = 10 ** (-s11_margin / 20) * (np.cos(angles) + 1j * np.sin(angles))
+        reflection_coeffs = 10 ** (-s11_margin / 20) * (
+            np.cos(angles) + 1j * np.sin(angles)
+        )
         impedances = z0 * (1 + reflection_coeffs) / (1 - reflection_coeffs)
         return (abs(impedances[0]), abs(impedances[1]))
 
     def render_impedance(self):
         """Render all ports impedance plots to files."""
         logger.info("Rendering impedance plots")
+        plt.style.use(PLOT_STYLE)
         for port, impedance in enumerate(self.impedances):
             if self.is_valid(impedance):
                 s11_margin = Config.get().ports[port].dB_margin
@@ -148,15 +160,29 @@ class Postprocesor:
     def render_smith(self):
         """Render port reflection smithcharts to files."""
         logger.info("Rendering smith charts")
-        net = skrf.Network(frequency=self.frequencies / 1e9, s=self.s_params.transpose(2, 0, 1))
+        plt.style.use(PLOT_STYLE)
+        net = skrf.Network(
+            frequency=self.frequencies / 1e9, s=self.s_params.transpose(2, 0, 1)
+        )
         for port in range(self.count):
             if self.is_valid(self.s_params[port][port]):
                 fig, axes = plt.subplots()
                 s11_margin = Config.get().ports[port].dB_margin
-                vswr_margin = (10 ** (s11_margin / 20) + 1) / (10 ** (s11_margin / 20) - 1)
-                net.plot_s_smith(m=port, n=port, ax=axes, draw_labels=False, show_legend=True, draw_vswr=[vswr_margin])
+                vswr_margin = (10 ** (s11_margin / 20) + 1) / (
+                    10 ** (s11_margin / 20) - 1
+                )
+                net.plot_s_smith(
+                    m=port,
+                    n=port,
+                    ax=axes,
+                    draw_labels=False,
+                    show_legend=True,
+                    draw_vswr=[vswr_margin],
+                )
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"),
+                    os.path.join(
+                        os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"
+                    ),
                     bbox_inches="tight",
                 )
 
@@ -172,7 +198,10 @@ class Postprocesor:
     def save_port_to_file(self, port_number: int, path) -> None:
         """Save S parameters from single excitation."""
         header: str = "Frequency, ," + "".join(
-            [f"|S_{i}{port_number}|, arg(S_{i}{port_number}), " for i, _ in enumerate(self.s_params[port_number])]
+            [
+                f"|S_{i}{port_number}|, arg(S_{i}{port_number}), "
+                for i, _ in enumerate(self.s_params[port_number])
+            ]
         )
         header += f"|Z_{port_number}|, arg(Z_{port_number})"
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
@@ -182,14 +211,19 @@ class Postprocesor:
         magnitude = np.abs(output_values)
         angle = np.angle(output_values)
 
-        output = np.empty((magnitude.shape[0], (magnitude.shape[1] + angle.shape[1])), dtype=magnitude.dtype)
+        output = np.empty(
+            (magnitude.shape[0], (magnitude.shape[1] + angle.shape[1])),
+            dtype=magnitude.dtype,
+        )
         output[:, 0::2] = magnitude
         output[:, 1::2] = angle
         output = np.hstack([output, np.array(np.transpose(np.abs(self.impedances)))])
         output = np.hstack([output, np.array(np.transpose(np.angle(self.impedances)))])
 
         file_path = f"S_x{port_number}.csv"
-        logger.debug("Saving S_x%d parameters and impedances to file: %s", port_number, file_path)
+        logger.debug(
+            "Saving S_x%d parameters and impedances to file: %s", port_number, file_path
+        )
         np.savetxt(
             os.path.join(path, file_path),
             output,

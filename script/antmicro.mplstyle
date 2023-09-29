@@ -1,0 +1,16 @@
+font.family : lato
+axes.titlesize : 16
+axes.facecolor : 332D37
+axes.edgecolor : c4c2c5
+axes.labelcolor : dfdfdf
+axes.labelsize : 12
+figure.facecolor : 332D37
+text.color : FFFFFF
+grid.color : c4c2c5
+xtick.labelcolor: c4c2c5
+ytick.labelcolor: c4c2c5
+xtick.color: c4c2c5
+ytick.color: c4c2c5
+axes.prop_cycle: cycler('color', ['c4c2c5', 'f15f32', '00af91', 'c0e4eb', 'e74a3c'])
+patch.edgecolor : dfdfdf
+legend.fontsize : 16
