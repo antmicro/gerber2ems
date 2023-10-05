@@ -88,10 +88,17 @@ To view simulation data in Paraview follow these steps:
 * Open Paraview
 * Load the data you are interested in (File->Open...). The files are located in `ems/simulation/<port_number>/e_field_<layer_number>_..vtr`
 * Show loaded in data. Eye symbol in `Pipeline Browser` on the left side of the window.
+
 ![](./docs/images/eye.png)
+
 * Change `Coloring` to `E-Field`. Properties window on the left side.
+
 ![](./docs/images/color.png)
+
 * Rescale to data range. Second icon bar from the top.
+
 ![](./docs/images/range.png)
+
 * Press Play to play the animation. First icon bar from the top.
+
 ![](./docs/images/play.png)
