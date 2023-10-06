@@ -1,0 +1,58 @@
+{
+    "format_version": "1.0",
+    "frequency": {
+        "start": 2e9,
+        "stop": 20e9
+    },
+    "max_steps": 1e4,
+    "via": {
+        "filling_epsilon": 1,
+        "plating_thickness": 50
+    },
+    "mesh": {
+        "xy": 100,
+        "inter_layers": 4,
+        "margin": {
+            "xy": 100,
+            "z": 100
+        }
+    },
+    "margin": {
+        "xy": 3000,
+        "z": 3000
+    },
+    "ports": [
+        {
+            "width": 500,
+            "length": 1000,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": true
+        },
+        {
+            "width": 500,
+            "length": 1000,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 500,
+            "length": 1000,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": true
+        },
+        {
+            "width": 500,
+            "length": 1000,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        }
+    ]
+}
