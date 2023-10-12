@@ -46,8 +46,6 @@ def main():
     config = Config(config, args)
     create_dir(BASE_DIR)
 
-    sim = Simulation()
-
     if args.kmake or args.all:
         logger.info("Creating prerequisites")
         try:
@@ -58,14 +56,16 @@ def main():
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
+        sim = Simulation()
         geometry(sim)
     if args.simulate or args.all:
         logger.info("Running simulation")
         create_dir(SIMULATION_DIR, cleanup=True)
-        simulate(sim)
+        simulate()
     if args.postprocess or args.all:
         logger.info("Postprocessing")
         create_dir(RESULTS_DIR, cleanup=True)
+        sim = Simulation()
         postprocess(sim)
 
 
@@ -105,13 +105,14 @@ def geometry(sim: Simulation) -> None:
     sim.save_geometry()
 
 
-def simulate(sim: Simulation) -> None:
+def simulate() -> None:
     """Run the simulation."""
-    importer.import_stackup()
-    sim.create_materials()
-    sim.set_excitation()
     for index, port in enumerate(Config.get().ports):
         if port.excite:
+            sim = Simulation()
+            importer.import_stackup()
+            sim.create_materials()
+            sim.set_excitation()
             logging.info("Simulating with excitation on port #%i", index)
             sim.load_geometry()
             add_ports(sim, index)
