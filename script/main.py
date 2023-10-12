@@ -107,6 +107,8 @@ def geometry(sim: Simulation) -> None:
 
 def simulate(sim: Simulation) -> None:
     """Run the simulation."""
+    importer.import_stackup()
+    sim.create_materials()
     sim.set_excitation()
     for index, port in enumerate(Config.get().ports):
         if port.excite:

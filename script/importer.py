@@ -240,7 +240,7 @@ def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], f
         reader = csv.reader(csvfile, delimiter=",", quotechar='"')
         next(reader, None)  # skip the headers
         for row in reader:
-            if "Simulation-Port" in row[2]:
+            if "Simulation_Port" in row[2]:
                 number = int(row[0][2:])
                 ports.append(
                     (
