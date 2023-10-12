@@ -1,6 +1,6 @@
 numpy
 matplotlib==3.5
 coloredlogs
-opencv-python
+opencv-python-headless
 nanomesh
 scikit-rf
