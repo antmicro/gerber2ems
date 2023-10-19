@@ -1,6 +1,11 @@
 numpy
-matplotlib==3.5
+matplotlib
 coloredlogs
 opencv-python-headless
 nanomesh
 scikit-rf
+
+[dev]
+mypy
+ruff
+black

@@ -1,6 +1,11 @@
 [project]
-name = "OpenEMS - Kicad PCB"
+name = "Kicad-OpenEMS"
 version = "0.0.1"
+dependencies = ["numpy", "matplotlib", "coloredlogs", "opencv-python-headless", "nanomesh", "scikit-rf"]
+scripts = {ems-kicad = "main:main"}
+
+[project.optional-dependencies]
+dev = ["mypy", "ruff", "black"]
 
 [tool.ruff]
 select = ["E", "F", "N", "B", "D", "A", "RET"]

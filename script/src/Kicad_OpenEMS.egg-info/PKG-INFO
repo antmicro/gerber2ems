@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: Kicad-OpenEMS
+Version: 0.0.1
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: coloredlogs
+Requires-Dist: opencv-python-headless
+Requires-Dist: nanomesh
+Requires-Dist: scikit-rf
+Provides-Extra: dev
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: black; extra == "dev"
