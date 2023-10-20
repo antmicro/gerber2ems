@@ -1,7 +1,7 @@
 [project]
 name = "Kicad-OpenEMS"
 version = "0.0.1"
-dependencies = ["numpy", "matplotlib", "coloredlogs", "opencv-python-headless", "nanomesh", "scikit-rf"]
+dependencies = ["numpy", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow"]
 scripts = {ems-kicad = "main:main"}
 
 [project.optional-dependencies]

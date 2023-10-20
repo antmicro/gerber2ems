@@ -4,6 +4,7 @@ coloredlogs
 opencv-python-headless
 nanomesh
 scikit-rf
+Pillow
 
 [dev]
 mypy

@@ -8,7 +8,7 @@ from typing import List, Tuple
 import sys
 import re
 
-import cv2
+import PIL.Image
 import numpy as np
 from nanomesh import Image
 from nanomesh import Mesher2D
@@ -60,15 +60,11 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
         logger.warning("DPI is not an integer number: %f", dpi)
 
     gerbv_command = f"gerbv {gerber} {edge}"
-    gerbv_command += (
-        " --background=#ffffff --foreground=#000000ff --foreground=#ff00000f"
-    )
+    gerbv_command += " --background=#ffffff --foreground=#000000ff --foreground=#ff00000f"
     gerbv_command += f" -o {not_cropped_name}"
     gerbv_command += f" --dpi={dpi} --export=png -a"
 
-    subprocess.call(
-        gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
-    )
+    subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
     subprocess.call(
         f"convert {not_cropped_name} -trim {output}",
         stdout=subprocess.DEVNULL,
@@ -80,23 +76,22 @@ def gbr_to_png(gerber: str, edge: str, output: str) -> None:
 
 def get_dimensions(input_name: str) -> Tuple[float, float]:
     """Return board dimensions based on png."""
-    image = cv2.imread(os.path.join(GEOMETRY_DIR, input_name))
-    height = image.shape[0] * PIXEL_SIZE - BORDER_THICKNESS
-    width = image.shape[1] * PIXEL_SIZE - BORDER_THICKNESS
-    logger.debug(
-        "Board dimensions read from file are: height:%f width:%f", height, width
-    )
+    path = os.path.join(GEOMETRY_DIR, input_name)
+    image = PIL.Image.open(path)
+    image_width, image_height = image.size
+    height = image_height * PIXEL_SIZE - BORDER_THICKNESS
+    width = image_width * PIXEL_SIZE - BORDER_THICKNESS
+    logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
 
 
 def get_triangles(input_name: str) -> np.ndarray:
     """Triangulate image."""
     path = os.path.join(GEOMETRY_DIR, input_name)
-    image = cv2.imread(path)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY_INV)
-
-    plane = Image(thresh)
+    image = PIL.Image.open(path)
+    gray = image.convert("L")
+    thresh = gray.point(lambda p: 255 if p < 230 else 0)
+    plane = Image(np.array(thresh))
 
     mesher = Mesher2D(plane)
     mesher.generate_contour(max_edge_dist=10000, precision=2)
@@ -145,9 +140,7 @@ def get_vias() -> List[List[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: List[List[float]] = []
-    with open(
-        os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8"
-    ) as drill_file:
+    with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
         for line in drill_file.readlines():
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
@@ -166,9 +159,7 @@ def get_vias() -> List[List[float]]:
                         ]
                     )
                 else:
-                    logger.warning(
-                        "Drill file parsing failed. Drill with specifed number wasn't found"
-                    )
+                    logger.warning("Drill file parsing failed. Drill with specifed number wasn't found")
     logger.debug("Found %d vias", len(vias))
     return vias
 

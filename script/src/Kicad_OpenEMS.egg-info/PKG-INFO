@@ -7,6 +7,7 @@ Requires-Dist: coloredlogs
 Requires-Dist: opencv-python-headless
 Requires-Dist: nanomesh
 Requires-Dist: scikit-rf
+Requires-Dist: Pillow
 Provides-Extra: dev
 Requires-Dist: mypy; extra == "dev"
 Requires-Dist: ruff; extra == "dev"
