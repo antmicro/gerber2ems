@@ -4,13 +4,16 @@
 python3 -m venv --system-site-packages .venv > /dev/null 2>&1
 
 # Install packages inside virtual enviroment
-.venv/bin/python3 -m pip install -e .
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -e .
+deactivate
 wait
 
 # Create ems-kicad.sh
 WD=$(pwd)
 echo '#!/usr/bin/env bash' > ems-kicad.sh
-echo "$WD/.venv/bin/python3 -m ems-kicad \"\$@\"">> ems-kicad.sh
+echo "$WD/.venv/bin/python3 $WD/src/main.py \"\$@\"">> ems-kicad.sh
 
 # Make kmake.sh executable
 chmod +x ems-kicad.sh
