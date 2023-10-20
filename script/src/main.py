@@ -36,20 +36,13 @@ def main():
             args.all,
         ]
     ):
-        logger.info('No steps selected. Exiting. To select steps use "-k", "-g", "-s", "-p", "-r", "-a" flags')
+        logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-a" flags')
         sys.exit(0)
 
     config = open_config(args)
     config = Config(config, args)
     create_dir(BASE_DIR)
 
-    if args.kmake or args.all:
-        logger.info("Creating prerequisites")
-        try:
-            os.remove(os.path.join(os.getcwd(), BASE_DIR, "kmake.log"))
-        except OSError:
-            pass
-        kmake_interface.generate_prerequisites()
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
@@ -166,20 +159,6 @@ def parse_arguments() -> Any:
         dest="postprocess",
         action="store_true",
         help="Pass to postprocess the data",
-    )
-    parser.add_argument(
-        "-r",
-        "--report",
-        dest="report",
-        action="store_true",
-        help="Pass to generate report",
-    )
-    parser.add_argument(
-        "-k",
-        "--kmake",
-        dest="kmake",
-        action="store_true",
-        help="Pass to generate prerequisites using kmake",
     )
     parser.add_argument(
         "-a",
