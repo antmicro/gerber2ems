@@ -17,7 +17,6 @@ from simulation import Simulation
 from postprocess import Postprocesor
 from config import Config
 import importer
-import kmake_interface
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +36,7 @@ def main():
             args.all,
         ]
     ):
-        logger.info(
-            'No steps selected. Exiting. To select steps use "-k", "-g", "-s", "-p", "-r", "-a" flags'
-        )
+        logger.info('No steps selected. Exiting. To select steps use "-k", "-g", "-s", "-p", "-r", "-a" flags')
         sys.exit(0)
 
     config = open_config(args)
@@ -124,9 +121,7 @@ def postprocess(sim: Simulation) -> None:
     if len(sim.ports) == 0:
         add_virtual_ports(sim)
 
-    frequencies = np.linspace(
-        Config.get().start_frequency, Config.get().stop_frequency, 1001
-    )
+    frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
     post = Postprocesor(frequencies, len(Config.get().ports))
     impedances = np.array([p.impedance for p in Config.get().ports])
     post.add_impedances(impedances)
@@ -196,9 +191,7 @@ def parse_arguments() -> Any:
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
-    group.add_argument(
-        "-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level"
-    )
+    group.add_argument("-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level")
 
     return parser.parse_args()
 
