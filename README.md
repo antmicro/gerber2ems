@@ -1,16 +1,35 @@
-# OpenEMS simulation with KiCAD
+# OpenEMS simulation based on Gerber files
 ## Installation
-Needed tools are:
-* `KiCAD` - editing the PCB
-* `OpenEMS` - simulation
-* `Paraview` - viewing simulation results (creating images etc.)
-* Script from this repository
+### Required dependencies
+#### 1. [OpenEMS](https://www.openems.de/)
 
-To install, first install `KiCad`, then download, compile and install `OpenEMS`: https://docs.openems.de/install.html#linux. After that install `Paraview`: https://www.paraview.org/. Finally instal the script using `install.sh`
 
-## Flow
-Simulation flow consists of multiple independent steps:
-#### PCB Preparation
+Install following packages (on Debian/Ubuntu):
+```
+build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py
+```
+Clone the repository, compile and install OpenEMS:
+```
+git clone --recursive https://github.com/thliebig/openEMS-Project.git
+cd openEMS-Project
+./update_openEMS.sh ~/opt/openEMS --python
+```
+#### 2. [Gerbv]()
+On Ubuntu/Debian:
+```
+sudo apt install gerbv
+```
+### Optional dependecies
+#### 1. [Paraview](https://www.paraview.org/)
+On Ubuntu/Debian:
+```
+sudo apt install paraview
+```
+
+
+
+## Usage
+### Project preparation
 Simulating the whole PCB is extremaly resource intensive, therefore separating the region of interest is very important. Size should be as small as possible. Uneeded traces, pours etc. should be removed. If whole layers are unneeded they can be removed in later steps.
 
 * Ports of interest should be marked using special simulation port footprint. Rotation and position should be appropriate. (It's reference number tells the simulator which port to assign to it).
@@ -21,34 +40,66 @@ Simulating the whole PCB is extremaly resource intensive, therefore separating t
 
 * For now, capacitors are not simulated and for high frequency simulation they can be aproximated by shorting them using a trace.
 
-#### `simulation.json` preparation
+### PCB Input Files preparation
+
+This script requires multiple input files for geometry creation. They should all reside in "fab" folder and are listed below:
+* Gerber files - Each simulated copper layer should have a gerber file. Name should be in the following format: "\<optional-text\>-\<name-from-stackup-file\>.gbr"
+* Stackup file - File describing PCB stackup. Name should be "stackup.json". Example format:
+```
+{
+    "layers": [
+        {
+            "name": "F.Cu",
+            "type": "copper",
+            "color": null,
+            "thickness": 0.035,
+            "material": null,
+            "epsilon": null,
+            "lossTangent": null
+        },
+        {
+            "name": "dielectric 1",
+            "type": "core",
+            "color": null,
+            "thickness": 0.2,
+            "material": "FR4",
+            "epsilon": 4.5,
+            "lossTangent": 0.02
+        }
+    ],
+    "format_version": "1.0"
+}
+```
+* Drill file - Drill file in excellon format with plated through-holes. Filename should end with "-PTH.drl"
+* Position file - File describing positions of ports. Filename should end with "-pos.csv". Example line:
+```
+# Ref     Val              Package                PosX       PosY       Rot  Side
+SP1       Simulation_Port  Simulation_Port      3.0000    11.7500  180.0000  top
+```
+
+### `simulation.json` preparation
 `simulation.json` file configures the whole simulation. Example files can be found in `example_gerbers` folder. All dimensions in this file are specified in **micrometers**. There are a few sections to this config file:
 ##### Miscellaneous
 * `format_version` - specifies with which format the config file was written. When writing a new config this should be the newest supported version (this number can be found in `constants.py` file).
-* `frequency` - `start` specifies the lowest frequency of interest and `stop` the highest.
+* `frequency` - `start` specifies the lowest frequency of interest and `stop` the highest (in MHz).
 * `max_steps` - max number of simulation steps after which the simulation will stop, no matter what.
-* `via/plating_thickness` - thickness of via plating.
+* `via/plating_thickness` - thickness of via plating (micrometers).
 * `via/filling_epsilon` - dielectric constant of the material the vias are filled in with. If they are not filled in, it should be 1.
-* `margin/xy` - margin (area added outside the board) size in x and y directions.
-* `margin/xy` - margin size in z direction.
+* `margin/xy` - margin (area added outside the board) size in x and y directions (micrometers).
+* `margin/z` - margin size in z direction (micrometers).
 ##### Mesh
-* `xy` - mesh grid size in x and y direction (micrometers).
+* `xy` - mesh grid pitch in x and y direction (micrometers).
 * `inter_layers` - number of mesh lines in z direction between neighbouring pcb layers.
-* `margin/xy` - mesh grid size in x and y direction (micrometers) outside of the board area.
-* `margin/z` - mesh grid size in z direction (micrometers) outside of the board area.
+* `margin/xy` - mesh grid pitch in x and y direction (micrometers) outside of the board area.
+* `margin/z` - mesh grid pitch in z direction (micrometers) outside of the board area.
 ##### Ports
-`ports` is a port-number to port-parameters map. Each port has multiple parameters:
-* `width` - width of the port.
-* `length` - length of the port (right now port are fragments of microstriplines. Their length should be at least 8x mesh cell size).
-* `impedance` - terminating impedance of the port (impedance of driver or receiver).
-* `layer` - layer number on which the port is.
-* `plane` - layer number on which reference plane of the microstrip is.
+`ports` is a list of ports. Each port has multiple parameters:
+* `width` - width of the port (micrometers).
+* `length` - length of the port (right now port are fragments of microstriplines. Their length should be at least 8x mesh cell size) (micrometers).
+* `impedance` - terminating impedance of the port (impedance of driver or receiver) (Ohms).
+* `layer` - copper layer number on which the port is (counting from the top).
+* `plane` - copper layer number on which reference plane of the microstrip is (counting from the top).
 * `excite` - whether simulator should use this port as an input port. (if there are multiple excited ports, they will be excited in separate simulations)
-
-### KiCAD data export
-This step is done fully automatically when `-k` flag is passed to `ems-kicad` script.
-Script calls `kmake gerber -x` to generate gerbers and drill files, `kmake pnp -v` to get positions of the ports and `kmake stackup-export` to get layer information.
-If you want to remove unneeded layers from the simulation, you should do it now, by removing them from stackup file.
 
 ### Geometry creation
 This is an automatic step done with `-g` flag.
