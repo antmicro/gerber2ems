@@ -53,25 +53,27 @@ def process_gbr():
 def gbr_to_png(gerber: str, edge: str, output: str) -> None:
     """Generate PNG from gerber file."""
     logger.debug("Generating PNG for %s", gerber)
-    not_cropped_name = os.path.join(os.getcwd(), GEOMETRY_DIR, "not_cropped.png")
+    not_cropped_name = f"{output.split('.')[0]}_not_cropped.png"
 
     dpi = 1 / (PIXEL_SIZE * UNIT / 0.0254)
     if not dpi.is_integer():
         logger.warning("DPI is not an integer number: %f", dpi)
 
     gerbv_command = f"gerbv {gerber} {edge}"
-    gerbv_command += " --background=#ffffff --foreground=#000000ff --foreground=#ff00000f"
+    gerbv_command += " --background=#000000 --foreground=#ffffffff --foreground=#0000ff"
     gerbv_command += f" -o {not_cropped_name}"
     gerbv_command += f" --dpi={dpi} --export=png -a"
 
     subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-    subprocess.call(
-        f"convert {not_cropped_name} -trim {output}",
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        shell=True,
-    )
-    os.remove(not_cropped_name)
+
+    not_cropped_image = PIL.Image.open(not_cropped_name)
+
+    # image_width, image_height = not_cropped_image.size
+    cropped_image = not_cropped_image.crop(not_cropped_image.getbbox())
+    cropped_image.save(output)
+
+    if not Config.get().arguments.debug:
+        os.remove(not_cropped_name)
 
 
 def get_dimensions(input_name: str) -> Tuple[float, float]:

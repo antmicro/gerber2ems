@@ -31,8 +31,6 @@ def main():
             args.geometry,
             args.simulate,
             args.postprocess,
-            args.kmake,
-            args.report,
             args.all,
         ]
     ):
