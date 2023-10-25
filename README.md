@@ -1,4 +1,5 @@
 # OpenEMS simulation based on Gerber files
+This project aims to streamline signal integrity simulations with Open source tools. It takes PCB production files as input (gerbers, drill files, stackup information) and using OpenEMS simulates SI performance of the traces.
 ## Installation
 ### Required dependencies
 #### 1. [OpenEMS](https://www.openems.de/)
@@ -26,9 +27,28 @@ On Ubuntu/Debian:
 sudo apt install paraview
 ```
 
-
-
 ## Usage
+For quick lookup use `ems-kicad --help`.
+To simulate a trace you need to:
+* Prepare input files and put them in `fab/` folder
+* Prepare config `simulation.json` file
+* Run `ems-kicad -a`
+
+All the result files are placed in `ems` folder.
+For more in-depth info lookup particular stage in [this section](#how-it-works)
+
+## Results
+This software returns following types of output:
+#### Impedance chart
+Plot of each excited port vs frequency
+#### S-parameter chart
+Plot of each S-parameter measured during each excitation
+#### Smith chart
+Plot of S-11 parameter for each excitation
+#### S-parameter and impedance data
+Impedance and S-parameter data gathered during the simulations. Stored in CSV format with a header.
+
+## How it works
 ### Project preparation
 Simulating the whole PCB is extremaly resource intensive, therefore separating the region of interest is very important. Size should be as small as possible. Uneeded traces, pours etc. should be removed. If whole layers are unneeded they can be removed in later steps.
 
