@@ -83,7 +83,7 @@ def geometry(sim: Simulation) -> None:
     importer.process_gbrs_to_pngs()
 
     top_layer_name = Config.get().get_metals()[0].file
-    (width, height) = importer.get_dimensions(top_layer_name)
+    (width, height) = importer.get_dimensions(top_layer_name + ".png")
     Config.get().pcb_height = height
     Config.get().pcb_width = width
 
