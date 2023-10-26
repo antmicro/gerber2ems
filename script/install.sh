@@ -15,7 +15,7 @@ WD=$(pwd)
 echo '#!/usr/bin/env bash' > ems-kicad.sh
 echo "$WD/.venv/bin/python3 $WD/src/main.py \"\$@\"">> ems-kicad.sh
 
-# Make kmake.sh executable
+# Make ems-kicad.sh executable
 chmod +x ems-kicad.sh
 
 # Create ems-kicad command in "$HOME/.local/bin/"

@@ -30,7 +30,7 @@ sudo apt install paraview
 ### Script installation
 To install the script run:
 ```
-./install.sh
+pip install .
 ```
 
 ## Usage
