@@ -26,8 +26,13 @@ from constants import (
 logger = logging.getLogger(__name__)
 
 
-def process_gbr():
-    """Process all gerber files."""
+def process_gbrs_to_pngs():
+    """Process all gerber files to PNG's.
+
+    Finds edge cuts gerber as well as copper gerbers in `fab` directory.
+    Processes copper gerbers into PNG's using edge_cuts for framing.
+    Output is saved to `ems/geometry` folder
+    """
     logger.info("Processing gerber files")
 
     files = os.listdir(os.path.join(os.getcwd(), "fab"))
@@ -50,58 +55,79 @@ def process_gbr():
         )
 
 
-def gbr_to_png(gerber: str, edge: str, output: str) -> None:
-    """Generate PNG from gerber file."""
-    logger.debug("Generating PNG for %s", gerber)
-    not_cropped_name = f"{output.split('.')[0]}_not_cropped.png"
+def gbr_to_png(gerber_filename: str, edge_filename: str, output_filename: str) -> None:
+    """Generate PNG from gerber file.
+
+    Generates PNG of a gerber using gerbv.
+    Edge cuts gerber is used to crop the image correctly.
+    Output DPI is based on PIXEL_SIZE constant.
+    """
+    logger.debug("Generating PNG for %s", gerber_filename)
+    not_cropped_name = f"{output_filename.split('.')[0]}_not_cropped.png"
 
     dpi = 1 / (PIXEL_SIZE * UNIT / 0.0254)
     if not dpi.is_integer():
         logger.warning("DPI is not an integer number: %f", dpi)
 
-    gerbv_command = f"gerbv {gerber} {edge}"
+    gerbv_command = f"gerbv {gerber_filename} {edge_filename}"
     gerbv_command += " --background=#000000 --foreground=#ffffffff --foreground=#0000ff"
     gerbv_command += f" -o {not_cropped_name}"
     gerbv_command += f" --dpi={dpi} --export=png -a"
 
-    subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+    subprocess.call(
+        gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
+    )
 
     not_cropped_image = PIL.Image.open(not_cropped_name)
 
     # image_width, image_height = not_cropped_image.size
     cropped_image = not_cropped_image.crop(not_cropped_image.getbbox())
-    cropped_image.save(output)
+    cropped_image.save(output_filename)
 
     if not Config.get().arguments.debug:
         os.remove(not_cropped_name)
 
 
-def get_dimensions(input_name: str) -> Tuple[float, float]:
-    """Return board dimensions based on png."""
-    path = os.path.join(GEOMETRY_DIR, input_name)
+def get_dimensions(input_filename: str) -> Tuple[float, float]:
+    """Return board dimensions based on png.
+
+    Opens PNG found in `ems/geometry` directory,
+    gets it's size and subtracts border thickness to get board dimensions
+    """
+    path = os.path.join(GEOMETRY_DIR, input_filename)
     image = PIL.Image.open(path)
     image_width, image_height = image.size
     height = image_height * PIXEL_SIZE - BORDER_THICKNESS
     width = image_width * PIXEL_SIZE - BORDER_THICKNESS
-    logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
+    logger.debug(
+        "Board dimensions read from file are: height:%f width:%f", height, width
+    )
     return (width, height)
 
 
-def get_triangles(input_name: str) -> np.ndarray:
-    """Triangulate image."""
-    path = os.path.join(GEOMETRY_DIR, input_name)
+def get_triangles(input_filename: str) -> np.ndarray:
+    """Triangulate image.
+
+    Processes file from `ems/geometry`.
+    Converts to grayscale, thresholds it to remove border
+    and then uses Nanomesh to create a triangular mesh of the copper.
+    Returns a list of triangles, where each triangle consists of coordinates for each vertex.
+    """
+    path = os.path.join(GEOMETRY_DIR, input_filename)
     image = PIL.Image.open(path)
     gray = image.convert("L")
     thresh = gray.point(lambda p: 255 if p < 230 else 0)
-    plane = Image(np.array(thresh))
+    copper = Image(np.array(thresh))
 
-    mesher = Mesher2D(plane)
+    mesher = Mesher2D(copper)
+    # These constans are set so there won't be to many triangles.
+    # If in some case triangles are too coarse they should be adjusted
     mesher.generate_contour(max_edge_dist=10000, precision=2)
     mesher.plot_contour()
     mesh = mesher.triangulate(opts="a100000")
 
     if Config.get().arguments.debug:
-        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, input_name + "_mesh.png")
+        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, input_filename + "_mesh.png")
         logger.debug("Saving mesh to file: %s", filename)
         mesh.plot_mpl()
         plt.savefig(filename, dpi=300)
@@ -121,7 +147,7 @@ def get_triangles(input_name: str) -> np.ndarray:
     # Selecting only triangles that represent copper
     mask = kinds == 2.0
 
-    logger.debug("Found %d triangles for %s", len(triangles[mask]), input_name)
+    logger.debug("Found %d triangles for %s", len(triangles[mask]), input_filename)
 
     return triangles[mask]
 
@@ -132,7 +158,11 @@ def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
 
 
 def get_vias() -> List[List[float]]:
-    """Get via information from excellon file."""
+    """Get via information from excellon file.
+
+    Looks for excellon file in `fab` directory. Its filename should end with `-PTH.drl`
+    It then processes it to find all vias.
+    """
     files = os.listdir(os.path.join(os.getcwd(), "fab"))
     drill_filename = next(filter(lambda name: "-PTH.drl" in name, files), None)
     if drill_filename is None:
@@ -142,36 +172,42 @@ def get_vias() -> List[List[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: List[List[float]] = []
-    with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
+    with open(
+        os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8"
+    ) as drill_file:
         for line in drill_file.readlines():
+            # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
-                drills[int(match.group(1))] = float(match.group(2)) * 1000
+                drills[int(match.group(1))] = float(match.group(2)) / 1000 * UNIT
+
+            # Regex for finding drill switches (in mm)
             match = re.fullmatch("T([0-9]+)\\n", line)
             if match is not None:
                 current_drill = int(match.group(1))
+
+            # Regex for finding hole positions (in mm)
             match = re.fullmatch("X([0-9]+.[0-9]+)Y([0-9]+.[0-9]+)\\n", line)
             if match is not None:
                 if current_drill in drills:
                     vias.append(
                         [
-                            float(match.group(1)) * 1000,
-                            float(match.group(2)) * 1000,
+                            float(match.group(1)) / 1000 * UNIT,
+                            float(match.group(2)) / 1000 * UNIT,
                             drills[current_drill],
                         ]
                     )
                 else:
-                    logger.warning("Drill file parsing failed. Drill with specifed number wasn't found")
+                    logger.warning(
+                        "Drill file parsing failed. Drill with specifed number wasn't found"
+                    )
     logger.debug("Found %d vias", len(vias))
     return vias
 
 
 def import_stackup():
-    """Import stackup information from json file and load it into configuration."""
+    """Import stackup information from `fab/stackup.json` file and load it into config object."""
     filename = "fab/stackup.json"
-    if "stackup" in Config.get().arguments:
-        filename = Config.get().arguments["stackup"]
-
     with open(filename, "r", encoding="utf-8") as file:
         try:
             stackup = json.load(file)
@@ -200,15 +236,15 @@ def import_stackup():
 
 
 def import_port_positions() -> None:
-    """Import port positions from PnP .csv files."""
+    """Import port positions from PnP .csv files.
+
+    Looks for all PnP files in `fab` folder (files ending with `-pos.csv`)
+    Parses them to find port footprints and inserts their position information to config object.
+    """
     ports: List[Tuple[int, Tuple[float, float], float]] = []
-    if "pnp" in Config.get().arguments:
-        filename = Config.get().arguments["pnp"]
-        ports += get_ports_from_file(filename)
-    else:
-        for filename in os.listdir(os.path.join(os.getcwd(), "fab")):
-            if filename.endswith("-pos.csv"):
-                ports += get_ports_from_file(os.path.join(os.getcwd(), "fab", filename))
+    for filename in os.listdir(os.path.join(os.getcwd(), "fab")):
+        if filename.endswith("-pos.csv"):
+            ports += get_ports_from_file(os.path.join(os.getcwd(), "fab", filename))
 
     for number, position, direction in ports:
         if len(Config.get().ports) > number:
@@ -227,7 +263,7 @@ def import_port_positions() -> None:
 
 
 def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], float]]:
-    """Parse pnp CSV files and return all ports in format (number, (x, y), direction)."""
+    """Parse pnp CSV file and return all ports in format (number, (x, y), direction)."""
     ports: List[Tuple[int, Tuple[float, float], float]] = []
     with open(filename, "r", encoding="utf-8") as csvfile:
         reader = csv.reader(csvfile, delimiter=",", quotechar='"')
