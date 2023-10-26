@@ -41,10 +41,16 @@ For more in-depth info lookup particular stage in [this section](#how-it-works)
 This software returns following types of output:
 #### Impedance chart
 Plot of each excited port vs frequency
+
+![](./docs/images/Z_1.png)
 #### S-parameter chart
 Plot of each S-parameter measured during each excitation
+
+![](./docs/images/S_x1.png)
 #### Smith chart
 Plot of S-11 parameter for each excitation
+
+![](./docs/images/S_11_smith.png)
 #### S-parameter and impedance data
 Impedance and S-parameter data gathered during the simulations. Stored in CSV format with a header.
 
