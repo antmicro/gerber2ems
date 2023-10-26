@@ -27,15 +27,20 @@ On Ubuntu/Debian:
 sudo apt install paraview
 ```
 
+### Script installation
+To install the script run:
+```
+./install.sh
+```
+
 ## Usage
 For quick lookup use `ems-kicad --help`.
 To simulate a trace you need to:
-* Prepare input files and put them in `fab/` folder
-* Prepare config `simulation.json` file
-* Run `ems-kicad -a`
+* Prepare input files and put them in `fab/` folder (described in detail [here](#pcb-input-files-preparation))
+* Prepare config `simulation.json` file (described in detail [here](#config-preparation))
+* Run `ems-kicad -a` (what happens during described [here](#geometry-creation))
+* View the results in `ems/results` (described in detail [here](#results))
 
-All the result files are placed in `ems` folder.
-For more in-depth info lookup particular stage in [this section](#how-it-works)
 
 ## Results
 This software returns following types of output:
@@ -103,7 +108,7 @@ This script requires multiple input files for geometry creation. They should all
 SP1       Simulation_Port  Simulation_Port      3.0000    11.7500  180.0000  top
 ```
 
-### `simulation.json` preparation
+### Config preparation
 `simulation.json` file configures the whole simulation. Example files can be found in `example_gerbers` folder. All dimensions in this file are specified in **micrometers**. There are a few sections to this config file:
 ##### Miscellaneous
 * `format_version` - specifies with which format the config file was written. When writing a new config this should be the newest supported version (this number can be found in `constants.py` file).
