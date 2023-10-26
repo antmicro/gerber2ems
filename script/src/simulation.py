@@ -1,6 +1,7 @@
 """Module containing Simulation class used for interacting with openEMS."""
 import logging
 import os
+import re
 import sys
 import math
 from typing import Tuple, List, Any
@@ -464,6 +465,14 @@ class Simulation:
         filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
         logger.info("Saving geometry to %s", filename)
         self.csx.Write2XML(filename)
+
+        # Replacing , with . for numerals in the file
+        # (openEMS bug mitigation for locale that uses , as decimal separator)
+        with open(filename, "r") as f:
+            content = f.read()
+        new_content = re.sub(r"([0-9]+),([0-9]+e)", r"\g<1>.\g<2>", content)
+        with open(filename, "w") as f:
+            f.write(new_content)
 
     def load_geometry(self) -> None:
         """Load geometry from file."""
