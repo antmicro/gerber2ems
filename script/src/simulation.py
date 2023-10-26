@@ -139,7 +139,7 @@ class Simulation:
         """Add metal from all gerber files."""
         logger.info("Adding copper from gerber files")
 
-        importer.process_gbr()
+        importer.process_gbrs_to_pngs()
 
         offset = 0
         index = 0
