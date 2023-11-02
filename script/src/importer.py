@@ -179,7 +179,7 @@ def get_vias() -> List[List[float]]:
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
-                drills[int(match.group(1))] = float(match.group(2)) / 1000 * UNIT
+                drills[int(match.group(1))] = float(match.group(2)) / 1000 / UNIT
 
             # Regex for finding drill switches (in mm)
             match = re.fullmatch("T([0-9]+)\\n", line)
@@ -190,10 +190,13 @@ def get_vias() -> List[List[float]]:
             match = re.fullmatch("X([0-9]+.[0-9]+)Y([0-9]+.[0-9]+)\\n", line)
             if match is not None:
                 if current_drill in drills:
+                    logger.debug(
+                        f"Adding via at: X:{float(match.group(1)) / 1000 / UNIT} Y:{float(match.group(2)) / 1000 / UNIT}"
+                    )
                     vias.append(
                         [
-                            float(match.group(1)) / 1000 * UNIT,
-                            float(match.group(2)) / 1000 * UNIT,
+                            float(match.group(1)) / 1000 / UNIT,
+                            float(match.group(2)) / 1000 / UNIT,
                             drills[current_drill],
                         ]
                     )
