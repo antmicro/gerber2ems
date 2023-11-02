@@ -1,0 +1,138 @@
+{
+    "format_version": "1.0",
+    "frequency": {
+        "start": 2e9,
+        "stop": 10e9
+    },
+    "max_steps": 8e4,
+    "via": {
+        "filling_epsilon": 1,
+        "plating_thickness": 50
+    },
+    "mesh": {
+        "xy": 50,
+        "inter_layers": 6,
+        "margin": {
+            "xy": 200,
+            "z": 200
+        }
+    },
+    "margin": {
+        "xy": 500,
+        "z": 500
+    },
+    "ports": [
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": true
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        },
+        {
+            "width": 125,
+            "length": 400,
+            "impedance": 50,
+            "layer": 0,
+            "plane": 1,
+            "excite": false
+        }
+    ]
+}
