@@ -93,7 +93,7 @@
 
   (footprint "footprints:Simulation_Port" (layer "F.Cu")
     (tstamp 597a53de-cfda-4a20-8617-e90a6aa3fbb2)
-    (at 144.1 84.3 180)
+    (at 144.1 84.25 180)
     (descr "Place where port in the simulation should be located. Set it's reference to SPx, where x is port number")
     (attr board_only exclude_from_pos_files exclude_from_bom)
     (fp_text reference "SP2" (at 0 1 180 unlocked) (layer "F.Fab")
@@ -120,7 +120,7 @@
 
   (footprint "footprints:Simulation_Port" (layer "F.Cu")
     (tstamp e2f470f3-0f71-4cc6-b849-fdab60b8701f)
-    (at 142.5 97.85)
+    (at 142.525 97.85)
     (descr "Place where port in the simulation should be located. Set it's reference to SPx, where x is port number")
     (attr board_only exclude_from_pos_files exclude_from_bom)
     (fp_text reference "SP1" (at 0 1 unlocked) (layer "F.Fab")
