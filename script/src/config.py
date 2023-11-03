@@ -61,6 +61,24 @@ class DifferentialPairConfig:
             self.correct = False
 
 
+class TraceConfig:
+    """Class representing and parsing differential pair config."""
+
+    def __init__(self, config: Any, port_count: int) -> None:
+        """Initialize DifferentialPairConfig based on passed json object."""
+        self.start = get(config, ["start"], int)
+        self.stop = get(config, ["stop"], int)
+        self.name = get(config, ["name"], str, f"{self.start}{self.stop}")
+        self.correct = True
+
+        if self.start >= port_count:
+            logger.warning(f"Trace {self.name} is defined to use not existing port number {self.start} as start")
+            self.correct = False
+        if self.stop >= port_count:
+            logger.warning(f"Trace {self.name} is defined to use not existing port number {self.stop} as stop")
+            self.correct = False
+
+
 class LayerConfig:
     """Class representing and parsing layer config."""
 
@@ -197,6 +215,12 @@ class Config:
         for diff_pair in diff_pairs:
             self.diff_pairs.append(DifferentialPairConfig(diff_pair, len(self.ports)))
         logger.debug(f"Found {len(self.diff_pairs)} differential pairs")
+
+        traces = get(json, ["traces"], list, [])
+        self.traces: List[TraceConfig] = []
+        for trace in traces:
+            self.traces.append(TraceConfig(trace, len(self.ports)))
+        logger.debug(f"Found {len(self.traces)} traces")
 
         self.layers: List[LayerConfig] = []
 
