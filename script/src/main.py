@@ -6,6 +6,7 @@ import sys
 import json
 import argparse
 import logging
+from turtle import pos
 from typing import Any, Optional
 import shutil
 
@@ -34,9 +35,7 @@ def main():
             args.all,
         ]
     ):
-        logger.info(
-            'No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-a" flags'
-        )
+        logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-a" flags')
         sys.exit(0)
 
     config = open_config(args)
@@ -117,9 +116,7 @@ def postprocess(sim: Simulation) -> None:
     if len(sim.ports) == 0:
         add_virtual_ports(sim)
 
-    frequencies = np.linspace(
-        Config.get().start_frequency, Config.get().stop_frequency, 1001
-    )
+    frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
     post = Postprocesor(frequencies, len(Config.get().ports))
     impedances = np.array([p.impedance for p in Config.get().ports])
     post.add_impedances(impedances)
@@ -135,6 +132,8 @@ def postprocess(sim: Simulation) -> None:
     post.render_s_params()
     post.render_impedance()
     post.render_smith()
+    post.render_diff_pair_s_params()
+    post.render_diff_impedance()
 
 
 def parse_arguments() -> Any:
@@ -175,9 +174,7 @@ def parse_arguments() -> Any:
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
-    group.add_argument(
-        "-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level"
-    )
+    group.add_argument("-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level")
 
     return parser.parse_args()
 

@@ -19,9 +19,7 @@ class Postprocesor:
 
     def __init__(self, frequencies: np.ndarray, port_count: int) -> None:
         """Initialize postprocessor."""
-        self.frequencies = (
-            frequencies  # Frequency list for whitch parameters are calculated
-        )
+        self.frequencies = frequencies  # Frequency list for whitch parameters are calculated
         self.count = port_count  # Number of ports
 
         self.incident = np.empty(
@@ -64,9 +62,7 @@ class Postprocesor:
 
     def process_data(self):
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
-        logger.info(
-            "Processing all data from simulation. Calculating S-parameters and impedance"
-        )
+        logger.info("Processing all data from simulation. Calculating S-parameters and impedance")
         for i, _ in enumerate(self.incident):
             if self.is_valid(self.incident[i][i]):
                 for j, _ in enumerate(self.incident):
@@ -123,12 +119,102 @@ class Postprocesor:
                 axes.grid(True)
                 fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"))
 
+    def render_diff_pair_s_params(self):
+        """Render differential pair S parameter plots to files."""
+        logger.info("Rendering differential pair S-parameter plots")
+        plt.style.use(PLOT_STYLE)
+        for pair in Config.get().diff_pairs:
+            if (
+                pair.correct
+                and self.is_valid(self.s_params[pair.start_p][pair.start_p])
+                and self.is_valid(self.s_params[pair.start_n][pair.start_n])
+            ):
+                fig, axes = plt.subplots()
+                s_param = 0.5 * (
+                    self.s_params[pair.start_p][pair.start_p]
+                    - self.s_params[pair.start_n][pair.start_p]
+                    - self.s_params[pair.start_p][pair.start_n]
+                    + self.s_params[pair.start_n][pair.start_n]
+                )
+                if self.is_valid(s_param):
+                    axes.plot(
+                        self.frequencies / 1e9,
+                        20 * np.log10(np.abs(s_param)),
+                        label=pair.name + " $SDD_{11}$",
+                    )
+                s_param = 0.5 * (
+                    self.s_params[pair.stop_p][pair.start_p]
+                    - self.s_params[pair.stop_p][pair.start_n]
+                    - self.s_params[pair.stop_n][pair.start_p]
+                    + self.s_params[pair.stop_n][pair.start_n]
+                )
+                if self.is_valid(s_param):
+                    axes.plot(
+                        self.frequencies / 1e9,
+                        20 * np.log10(np.abs(s_param)),
+                        label=pair.name + " $SDD_{21}$",
+                    )
+                axes.legend()
+                axes.set_xlabel("Frequency, f [GHz]")
+                axes.set_ylabel("Magnitude, [dB]")
+                axes.grid(True)
+                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"SDD_{pair.name}"))
+
+    def render_diff_impedance(self):
+        """Render differential pair impedance plots to files."""
+        logger.info("Rendering differential pair impedance plots")
+        plt.style.use(PLOT_STYLE)
+        for pair in Config.get().diff_pairs:
+            if (
+                pair.correct
+                and self.is_valid(self.s_params[pair.start_p][pair.start_p])
+                and self.is_valid(self.s_params[pair.start_n][pair.start_n])
+            ):
+                fig, axes = plt.subplots()
+                s11 = self.s_params[pair.start_p][pair.start_p]
+                s21 = self.s_params[pair.start_n][pair.start_p]
+                s12 = self.s_params[pair.start_p][pair.start_n]
+                s22 = self.s_params[pair.start_n][pair.start_n]
+                gamma = ((2 * s11 - s21) * (1 - s22 - s12) + (1 - s11 - s21) * (1 + s22 - 2 * s12)) / (
+                    (2 - s21) * (1 - s22 - s12) + (1 - s11 - s21) * (1 + s22)
+                )
+                if (
+                    self.reference_zs[pair.start_p]
+                    == self.reference_zs[pair.start_n]
+                    == self.reference_zs[pair.stop_p]
+                    == self.reference_zs[pair.stop_n]
+                ):
+                    z0 = self.reference_zs[pair.start_p]
+                    impedance = z0 * (1 + gamma) / (1 - gamma)
+
+                    fig, axs = plt.subplots(2)
+                    axs[0].plot(self.frequencies / 1e9, np.abs(impedance))
+                    axs[1].plot(
+                        self.frequencies / 1e9,
+                        np.angle(impedance, deg=True),
+                        linestyle="dashed",
+                        color="orange",
+                    )
+
+                    axs[0].set_ylabel(f"Magnitude, {pair.name} |Z| [\Omega]$")
+                    axs[1].set_ylabel(f"Angle, {pair.name} arg(Z) [^\circ]$")
+                    axs[1].set_xlabel("Frequency, f [GHz]")
+                    axs[0].grid(True)
+                    axs[1].grid(True)
+
+                    fig.savefig(
+                        os.path.join(os.getcwd(), RESULTS_DIR, f"Z_diff_{pair.name}.png"),
+                        bbox_inches="tight",
+                    )
+                else:
+                    logger.error(
+                        f"Reference impedances for ports in differential pair {pair.name} are not all equal. Cannot calculate impedance"  # noqa: E501
+                    )
+
     def calculate_min_max_impedance(self, s11_margin, z0):
         """Calculate aproximated min-max values for impedance (it assumes phase is 0)."""
         angles = [0, np.pi]
-        reflection_coeffs = 10 ** (-s11_margin / 20) * (
-            np.cos(angles) + 1j * np.sin(angles)
-        )
+        reflection_coeffs = 10 ** (-s11_margin / 20) * (np.cos(angles) + 1j * np.sin(angles))
         impedances = z0 * (1 + reflection_coeffs) / (1 - reflection_coeffs)
         return (abs(impedances[0]), abs(impedances[1]))
 
@@ -170,16 +256,12 @@ class Postprocesor:
         """Render port reflection smithcharts to files."""
         logger.info("Rendering smith charts")
         plt.style.use(PLOT_STYLE)
-        net = skrf.Network(
-            frequency=self.frequencies / 1e9, s=self.s_params.transpose(2, 0, 1)
-        )
+        net = skrf.Network(frequency=self.frequencies / 1e9, s=self.s_params.transpose(2, 0, 1))
         for port in range(self.count):
             if self.is_valid(self.s_params[port][port]):
                 fig, axes = plt.subplots()
                 s11_margin = Config.get().ports[port].dB_margin
-                vswr_margin = (10 ** (s11_margin / 20) + 1) / (
-                    10 ** (s11_margin / 20) - 1
-                )
+                vswr_margin = (10 ** (s11_margin / 20) + 1) / (10 ** (s11_margin / 20) - 1)
                 net.plot_s_smith(
                     m=port,
                     n=port,
@@ -189,9 +271,7 @@ class Postprocesor:
                     draw_vswr=[vswr_margin],
                 )
                 fig.savefig(
-                    os.path.join(
-                        os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"
-                    ),
+                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"),
                     bbox_inches="tight",
                 )
 
@@ -207,10 +287,7 @@ class Postprocesor:
     def save_port_to_file(self, port_number: int, path) -> None:
         """Save S parameters from single excitation."""
         header: str = "Frequency, ," + "".join(
-            [
-                f"|S_{i}{port_number}|, arg(S_{i}{port_number}), "
-                for i, _ in enumerate(self.s_params[port_number])
-            ]
+            [f"|S_{i}{port_number}|, arg(S_{i}{port_number}), " for i, _ in enumerate(self.s_params[port_number])]
         )
         header += f"|Z_{port_number}|, arg(Z_{port_number})"
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
@@ -230,9 +307,7 @@ class Postprocesor:
         output = np.hstack([output, np.array(np.transpose(np.angle(self.impedances)))])
 
         file_path = f"S_x{port_number}.csv"
-        logger.debug(
-            "Saving S_x%d parameters and impedances to file: %s", port_number, file_path
-        )
+        logger.debug("Saving S_x%d parameters and impedances to file: %s", port_number, file_path)
         np.savetxt(
             os.path.join(path, file_path),
             output,
