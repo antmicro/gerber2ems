@@ -275,6 +275,33 @@ class Postprocesor:
                     bbox_inches="tight",
                 )
 
+    def render_trace_delays(self):
+        """Render all trace delay plots to files."""
+        logger.info("Rendering trace delay plots")
+        plt.style.use(PLOT_STYLE)
+        for trace in Config.get().traces:
+            if trace.correct and self.is_valid(self.s_params[trace.start][trace.start]):
+                fig, axes = plt.subplots()
+                phase = np.unwrap(np.angle(self.s_params[trace.stop][trace.start]))
+                group_delay = -(
+                    np.convolve(phase, [1, -1], mode="same")
+                    / np.convolve(self.frequencies, [1, -1], mode="same")
+                    / 2
+                    / np.pi
+                )
+
+                if self.is_valid(group_delay):
+                    axes.plot(
+                        self.frequencies[1:-1] / 1e9,
+                        group_delay[1:-1] * 1e9,
+                        label=f"{trace.name} delay",
+                    )
+                axes.legend()
+                axes.set_xlabel("Frequency, f [GHz]")
+                axes.set_ylabel("Trace delay, [ns]")
+                axes.grid(True)
+                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"))
+
     def save_to_file(self) -> None:
         """Save S parameters to files."""
         logger.info("Saving S parameters")
