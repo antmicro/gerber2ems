@@ -79,9 +79,7 @@ def get(
             logger.error("No field %s found in config", path)
             sys.exit(1)
         else:
-            logger.warning(
-                "No field %s found in config. Using default: %s", path, str(default)
-            )
+            logger.warning("No field %s found in config. Using default: %s", path, str(default))
             return default
     if isinstance(config, kind):
         return config
@@ -121,17 +119,14 @@ class Config:
     def __init__(self, json: Any, args: Any) -> None:
         """Initialize Config based on passed json object."""
         if self.__class__._instance is not None:
-            logger.warning(
-                "Config has already beed instatiated. Use Config.get() to get the instance. Skipping"
-            )
+            logger.warning("Config has already beed instatiated. Use Config.get() to get the instance. Skipping")
             return
 
         logger.info("Parsing config")
         version = get(json, ["format_version"], str)
         if (
             version is None
-            or not version.split(".")[0]
-            == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
+            or not version.split(".")[0] == CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[0]
             or version.split(".")[1] < CONFIG_FORMAT_VERSION.split(".", maxsplit=1)[1]
         ):
             logger.error(
@@ -141,21 +136,19 @@ class Config:
             )
             sys.exit()
 
-        self.start_frequency = get(json, ["frequency", "start"], (float, int), 500e3)
-        self.stop_frequency = get(json, ["frequency", "stop"], (float, int), 10e6)
-        self.max_steps = get(json, ["max_steps"], (float, int), None)
-        self.pcb_width: Union[float, None] = None
-        self.pcb_height: Union[float, None] = None
-        self.pcb_mesh_xy = get(json, ["mesh", "xy"], (float, int), 50)
-        self.inter_copper_layers = get(json, ["mesh", "inter_layers"], int, 5)
-        self.margin_xy = get(json, ["margin", "xy"], (float, int), 3000)
-        self.margin_z = get(json, ["margin", "z"], (float, int), 3000)
-        self.margin_mesh_xy = get(json, ["mesh", "margin", "xy"], (float, int), 200)
-        self.margin_mesh_z = get(json, ["mesh", "margin", "z"], (float, int), 200)
-        self.via_plating = get(json, ["via", "plating_thickness"], (int, float), 50)
-        self.via_filling_epsilon = get(
-            json, ["via", "filling_epsilon"], (int, float), 1
-        )
+        self.start_frequency = int(get(json, ["frequency", "start"], (float, int), 500e3))
+        self.stop_frequency = int(get(json, ["frequency", "stop"], (float, int), 10e6))
+        self.max_steps = int(get(json, ["max_steps"], (float, int), None))
+        self.pcb_width: Union[int, None] = None
+        self.pcb_height: Union[int, None] = None
+        self.pcb_mesh_xy = int(get(json, ["mesh", "xy"], (float, int), 50))
+        self.inter_copper_layers = int(get(json, ["mesh", "inter_layers"], int, 5))
+        self.margin_xy = int(get(json, ["margin", "xy"], (float, int), 3000))
+        self.margin_z = int(get(json, ["margin", "z"], (float, int), 3000))
+        self.margin_mesh_xy = int(get(json, ["mesh", "margin", "xy"], (float, int), 200))
+        self.margin_mesh_z = int(get(json, ["mesh", "margin", "z"], (float, int), 200))
+        self.via_plating = int(get(json, ["via", "plating_thickness"], (int, float), 50))
+        self.via_filling_epsilon = float(get(json, ["via", "filling_epsilon"], (int, float), 1))
 
         self.arguments = args
 
@@ -183,9 +176,7 @@ class Config:
 
     def get_substrates(self) -> List[LayerConfig]:
         """Return substrate layers configs."""
-        return list(
-            filter(lambda layer: layer.kind == LayerKind.SUBSTRATE, self.layers)
-        )
+        return list(filter(lambda layer: layer.kind == LayerKind.SUBSTRATE, self.layers))
 
     def get_metals(self) -> List[LayerConfig]:
         """Return metals layers configs."""

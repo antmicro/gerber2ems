@@ -74,9 +74,7 @@ def gbr_to_png(gerber_filename: str, edge_filename: str, output_filename: str) -
     gerbv_command += f" -o {not_cropped_name}"
     gerbv_command += f" --dpi={dpi} --export=png -a"
 
-    subprocess.call(
-        gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
-    )
+    subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
 
     not_cropped_image = PIL.Image.open(not_cropped_name)
 
@@ -88,7 +86,7 @@ def gbr_to_png(gerber_filename: str, edge_filename: str, output_filename: str) -
         os.remove(not_cropped_name)
 
 
-def get_dimensions(input_filename: str) -> Tuple[float, float]:
+def get_dimensions(input_filename: str) -> Tuple[int, int]:
     """Return board dimensions based on png.
 
     Opens PNG found in `ems/geometry` directory,
@@ -99,9 +97,7 @@ def get_dimensions(input_filename: str) -> Tuple[float, float]:
     image_width, image_height = image.size
     height = image_height * PIXEL_SIZE - BORDER_THICKNESS
     width = image_width * PIXEL_SIZE - BORDER_THICKNESS
-    logger.debug(
-        "Board dimensions read from file are: height:%f width:%f", height, width
-    )
+    logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
 
 
@@ -172,9 +168,7 @@ def get_vias() -> List[List[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: List[List[float]] = []
-    with open(
-        os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8"
-    ) as drill_file:
+    with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
         for line in drill_file.readlines():
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
@@ -201,9 +195,7 @@ def get_vias() -> List[List[float]]:
                         ]
                     )
                 else:
-                    logger.warning(
-                        "Drill file parsing failed. Drill with specifed number wasn't found"
-                    )
+                    logger.warning("Drill file parsing failed. Drill with specifed number wasn't found")
     logger.debug("Found %d vias", len(vias))
     return vias
 

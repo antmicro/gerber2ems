@@ -41,33 +41,36 @@ class Simulation:
         self.plane_material = self.csx.AddMetal("Plane")
         self.port_material = self.csx.AddMetal("Port")
         self.via_material = self.csx.AddMetal("Via")
-        self.via_filling_material = self.csx.AddMaterial(
-            "ViaFilling", epsilon=Config.get().via_filling_epsilon
-        )
+        self.via_filling_material = self.csx.AddMaterial("ViaFilling", epsilon=Config.get().via_filling_epsilon)
 
     def create_materials(self) -> None:
         """Create materials required for simulation."""
         for i, _ in enumerate(Config.get().get_metals()):
             self.gerber_materials.append(self.csx.AddMetal(f"Gerber_{i}"))
         for i, layer in enumerate(Config.get().get_substrates()):
-            self.substrate_materials.append(
-                self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon)
-            )
+            self.substrate_materials.append(self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon))
 
     def add_mesh(self) -> None:
         """Add mesh to simulation."""
+        pcb_width = Config.get().pcb_width
+        pcb_height = Config.get().pcb_height
+        if pcb_width is None or pcb_height is None:
+            logger.error("PCB dimensions are not set")
+            sys.exit(1)
         #### X Mesh
         # Min-Max
-        x_lines = [
-            -Config.get().margin_xy,
-            Config.get().pcb_width + Config.get().margin_xy,
-        ]
+        x_lines = np.array(
+            (
+                -Config.get().margin_xy,
+                pcb_width + Config.get().margin_xy,
+            )
+        )
         # PCB
         mesh = Config.get().pcb_mesh_xy
         x_lines = np.concatenate(
             (
                 x_lines,
-                np.arange(0 - mesh / 2, Config.get().pcb_width + mesh / 2, step=mesh),
+                np.arange(0 - mesh / 2, pcb_width + mesh / 2, step=mesh),
             )
         )
         self.mesh.AddLine("x", x_lines)
@@ -76,17 +79,19 @@ class Simulation:
 
         #### Y Mesh
         # Min-Max
-        y_lines = [
-            -Config.get().margin_xy,
-            Config.get().pcb_height + Config.get().margin_xy,
-        ]
+        y_lines = np.array(
+            (
+                -Config.get().margin_xy,
+                pcb_height + Config.get().margin_xy,
+            )
+        )
         # PCB
         mesh = Config.get().pcb_mesh_xy
         y_lines = np.concatenate(
-            (
+            [
                 y_lines,
-                np.arange(0 - mesh / 2, Config.get().pcb_height + mesh / 2, step=mesh),
-            )
+                np.arange(0 - mesh / 2, pcb_height + mesh / 2, step=mesh),
+            ]
         )
         self.mesh.AddLine("y", y_lines)
         # Margin
@@ -104,15 +109,11 @@ class Simulation:
             z_lines = np.concatenate(
                 (
                     z_lines,
-                    np.linspace(
-                        offset - layer.thickness, offset, z_count, endpoint=False
-                    ),
+                    np.linspace(offset - layer.thickness, offset, z_count, endpoint=False),
                 )
             )
             offset -= layer.thickness
-        z_lines = np.concatenate(
-            (z_lines, [Config.get().margin_z, offset - Config.get().margin_z])
-        )
+        z_lines = np.concatenate([z_lines, [Config.get().margin_z, offset - Config.get().margin_z]])
         z_lines = np.round(z_lines)
 
         self.mesh.AddLine("z", z_lines)
@@ -153,9 +154,7 @@ class Simulation:
                 self.add_contours(contours, offset, index)
                 index += 1
 
-    def add_contours(
-        self, contours: np.ndarray, z_height: float, layer_index: int
-    ) -> None:
+    def add_contours(self, contours: np.ndarray, z_height: float, layer_index: int) -> None:
         """Add contours as flat polygons on specified z-height."""
         logger.debug("Adding contours on z=%f", z_height)
         for contour in contours:
@@ -165,9 +164,7 @@ class Simulation:
                 points[0].append((point[1]))
                 points[1].append(Config.get().pcb_height - point[0])
 
-            self.gerber_materials[layer_index].AddPolygon(
-                points, "z", z_height, priority=1
-            )
+            self.gerber_materials[layer_index].AddPolygon(points, "z", z_height, priority=1)
 
     def get_metal_layer_offset(self, index: int) -> float:
         """Get z offset of nth metal layer."""
@@ -183,9 +180,7 @@ class Simulation:
         logger.error("Hadn't found %dth metal layer", index)
         sys.exit(1)
 
-    def add_msl_port(
-        self, port_config: PortConfig, port_number: int, excite: bool = False
-    ):
+    def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False):
         """Add microstripline port based on config."""
         logger.debug("Adding port number %d", len(self.ports))
 
@@ -198,9 +193,7 @@ class Simulation:
 
         dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
         if int(port_config.direction) not in dir_map:
-            logger.error(
-                "Ports rotation is not a multiple of 90 degrees which is not supported, skipping"
-            )
+            logger.error("Ports rotation is not a multiple of 90 degrees which is not supported, skipping")
             return
 
         start_z = self.get_metal_layer_offset(port_config.layer)
@@ -209,14 +202,8 @@ class Simulation:
         angle = port_config.direction / 360 * 2 * math.pi
 
         start = [
-            round(
-                port_config.position[0]
-                - (port_config.width / 2) * round(math.cos(angle))
-            ),
-            round(
-                port_config.position[1]
-                - (port_config.width / 2) * round(math.sin(angle))
-            ),
+            round(port_config.position[0] - (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
             round(start_z),
         ]
         stop = [
@@ -262,9 +249,7 @@ class Simulation:
 
         dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
         if int(port_config.direction) not in dir_map:
-            logger.error(
-                "Ports rotation is not a multiple of 90 degrees which is not supported, skipping"
-            )
+            logger.error("Ports rotation is not a multiple of 90 degrees which is not supported, skipping")
             return
 
         start_z = self.get_metal_layer_offset(port_config.layer)
@@ -273,25 +258,13 @@ class Simulation:
         angle = port_config.direction / 360 * 2 * math.pi
 
         start = [
-            round(
-                port_config.position[0]
-                - (port_config.width / 2) * round(math.cos(angle))
-            ),
-            round(
-                port_config.position[1]
-                - (port_config.width / 2) * round(math.sin(angle))
-            ),
+            round(port_config.position[0] - (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
             round(start_z),
         ]
         stop = [
-            round(
-                port_config.position[0]
-                + (port_config.width / 2) * round(math.cos(angle))
-            ),
-            round(
-                port_config.position[1]
-                - (port_config.width / 2) * round(math.sin(angle))
-            ),
+            round(port_config.position[0] + (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
             round(stop_z),
         ]
         logger.debug("Adding resistive port at start: %s end: %s", start, stop)
@@ -361,9 +334,7 @@ class Simulation:
                 ],
                 priority=-i,
             )
-            logger.debug(
-                "Added substrate from %f to %f", offset, offset - layer.thickness
-            )
+            logger.debug("Added substrate from %f to %f", offset, offset - layer.thickness)
             offset -= layer.thickness
 
     def add_vias(self):
@@ -382,26 +353,14 @@ class Simulation:
         for i in range(VIA_POLYGON):
             x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
             y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
-        self.via_filling_material.AddLinPoly(
-            [x_coords, y_coords], "z", -thickness, thickness, priority=51
-        )
+        self.via_filling_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=51)
 
         x_coords = []
         y_coords = []
         for i in range(VIA_POLYGON)[::-1]:
-            x_coords.append(
-                x_pos
-                + np.sin(i / VIA_POLYGON * 2 * np.pi)
-                * (diameter / 2 + Config.get().via_plating)
-            )
-            y_coords.append(
-                y_pos
-                + np.cos(i / VIA_POLYGON * 2 * np.pi)
-                * (diameter / 2 + Config.get().via_plating)
-            )
-        self.via_material.AddLinPoly(
-            [x_coords, y_coords], "z", -thickness, thickness, priority=50
-        )
+            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + Config.get().via_plating))
+            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + Config.get().via_plating))
+        self.via_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=50)
 
     def add_dump_boxes(self):
         """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate."""
@@ -428,9 +387,7 @@ class Simulation:
         """Add boundary conditions. MUR for fast simulation, PML for more accurate."""
         if pml:
             logger.info("Adding perfectly matched layer boundary condition")
-            self.fdtd.SetBoundaryCond(
-                ["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"]
-            )
+            self.fdtd.SetBoundaryCond(["PML_8", "PML_8", "PML_8", "PML_8", "PML_8", "PML_8"])
         else:
             logger.info("Adding MUR boundary condition")
             self.fdtd.SetBoundaryCond(["MUR", "MUR", "MUR", "MUR", "MUR", "MUR"])
@@ -455,9 +412,7 @@ class Simulation:
         """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
-        self.fdtd.Run(
-            os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number))
-        )
+        self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)))
         os.chdir(cwd)
 
     def save_geometry(self) -> None:
@@ -494,9 +449,7 @@ class Simulation:
                 port.CalcPort(result_path, frequencies)
                 logger.debug("Found data for port %d", index)
             except IOError:
-                logger.error(
-                    "Port data files do not exist. Did you run simulation step?"
-                )
+                logger.error("Port data files do not exist. Did you run simulation step?")
                 sys.exit(1)
             incident.append(port.uf_inc)
             reflected.append(port.uf_ref)
