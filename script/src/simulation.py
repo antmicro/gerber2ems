@@ -405,6 +405,7 @@ class Simulation:
         )
 
     def set_sinus_excitation(self, freq):
+        """Set sinus excitation at specified frequency."""
         logger.debug("Setting excitation to sine at %f", freq)
         self.fdtd.SetSinusExcite(freq)
 

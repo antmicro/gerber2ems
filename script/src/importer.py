@@ -185,7 +185,7 @@ def get_vias() -> List[List[float]]:
             if match is not None:
                 if current_drill in drills:
                     logger.debug(
-                        f"Adding via at: X:{float(match.group(1)) / 1000 / UNIT} Y:{float(match.group(2)) / 1000 / UNIT}"
+                        f"Adding via at: X{float(match.group(1)) / 1000 / UNIT}Y{float(match.group(2)) / 1000 / UNIT}"
                     )
                     vias.append(
                         [
