@@ -6,7 +6,6 @@ import sys
 import json
 import argparse
 import logging
-from turtle import pos
 from typing import Any, Optional
 import shutil
 
