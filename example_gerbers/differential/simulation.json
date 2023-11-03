@@ -1,5 +1,5 @@
 {
-    "format_version": "1.0",
+    "format_version": "1.1",
     "frequency": {
         "start": 2e9,
         "stop": 20e9
@@ -53,6 +53,15 @@
             "layer": 0,
             "plane": 1,
             "excite": false
+        }
+    ],
+    "differential_pairs": [
+        {
+            "start_p": 0,
+            "stop_p": 1,
+            "start_n": 2,
+            "stop_n": 3,
+            "name": "A"
         }
     ]
 }
