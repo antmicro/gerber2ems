@@ -27,6 +27,40 @@ class PortConfig:
         self.excite = get(config, ["excite"], bool, False)
 
 
+class DifferentialPairConfig:
+    """Class representing and parsing differential pair config."""
+
+    def __init__(self, config: Any, port_count: int) -> None:
+        """Initialize DifferentialPairConfig based on passed json object."""
+        self.start_p = get(config, ["start_p"], int)
+        self.stop_p = get(config, ["stop_p"], int)
+        self.start_n = get(config, ["start_n"], int)
+        self.stop_n = get(config, ["stop_n"], int)
+        self.name = get(config, ["name"], str, f"{self.start_p}{self.stop_p}{self.start_n}{self.stop_n}")
+        self.correct = True
+
+        if self.start_p >= port_count:
+            logger.warning(
+                f"Differential pair {self.name} is defined to use not existing port number {self.start_p} as start_p"
+            )
+            self.correct = False
+        if self.stop_p >= port_count:
+            logger.warning(
+                f"Differential pair {self.name} is defined to use not existing port number {self.stop_p} as stop_p"
+            )
+            self.correct = False
+        if self.start_n >= port_count:
+            logger.warning(
+                f"Differential pair {self.name} is defined to use not existing port number {self.start_n} as start_n"
+            )
+            self.correct = False
+        if self.stop_n >= port_count:
+            logger.warning(
+                f"Differential pair {self.name} is defined to use not existing port number {self.stop_n} as stop_n"
+            )
+            self.correct = False
+
+
 class LayerConfig:
     """Class representing and parsing layer config."""
 
@@ -157,6 +191,12 @@ class Config:
         for port in ports:
             self.ports.append(PortConfig(port))
         logger.debug("Found %d ports", len(self.ports))
+
+        diff_pairs = get(json, ["differential_pairs"], list, [])
+        self.diff_pairs: List[DifferentialPairConfig] = []
+        for diff_pair in diff_pairs:
+            self.diff_pairs.append(DifferentialPairConfig(diff_pair, len(self.ports)))
+        logger.debug(f"Found {len(self.diff_pairs)} differential pairs")
 
         self.layers: List[LayerConfig] = []
 
