@@ -32,6 +32,25 @@ To install the script run:
 ```
 pip install .
 ```
+inside the repostiory
+#### Virtual environment
+If you want to install the script together with it's python dependencies inside a virtual environment follow these steps:
+* Create virtual environment: `python -m venv .venv --system-site-packages`
+* Activate the environment: `source .venv/bin/activate`
+* Install script and it's python dependencies: `pip install .`
+* Deactivate the environment: `deactivate`
+
+If you still want the script to be accessible globally without having to manually enable the virtual environment create a bash script with following contents:
+```
+#!/usr/bin/env bash
+/path/to/repository/.venv/bin/python3 /path/to/repository/src/main.py "$@"
+```
+Then:
+* Mark it executable: `chmod +x ems-kicad.sh`
+* Put it on yout PATH, e.g. `ln -sf "$(pwd)/ems-kicad.sh" "$HOME/.local/bin/ems-kicad"`
+
+After that to run the script you can just call `ems-kicad` wherever you want to.
+
 
 ## Usage
 For quick lookup use `ems-kicad --help`.
