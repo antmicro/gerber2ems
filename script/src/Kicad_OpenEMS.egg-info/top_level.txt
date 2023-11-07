@@ -1,6 +1,0 @@
-config
-constants
-importer
-main
-postprocess
-simulation
