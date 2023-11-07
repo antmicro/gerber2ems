@@ -40,7 +40,7 @@ class Postprocesor:
         self.impedances = np.empty([self.count, len(self.frequencies)], np.complex128)
         self.impedances[:] = np.nan
         self.delays = np.empty(
-            [self.count, self.count, len(self.frequencies) - 1], np.complex128
+            [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
 
     def add_port_data(
@@ -88,6 +88,7 @@ class Postprocesor:
                             / 2
                             / np.pi
                         )
+                        group_delay = np.append(group_delay, group_delay[-1])
                         self.delays[j][i] = group_delay
 
     def get_impedance(self, port: int) -> Union[np.ndarray, None]:
@@ -299,7 +300,7 @@ class Postprocesor:
             if trace.correct and self.is_valid(self.delays[trace.stop][trace.start]):
                 fig, axes = plt.subplots()
                 axes.plot(
-                    self.frequencies[:-1] / 1e9,
+                    self.frequencies / 1e9,
                     self.delays[trace.stop][trace.start] * 1e9,
                     label=f"{trace.name} delay",
                 )
@@ -317,12 +318,12 @@ class Postprocesor:
             ):
                 fig, axes = plt.subplots()
                 axes.plot(
-                    self.frequencies[:-1] / 1e9,
+                    self.frequencies / 1e9,
                     self.delays[pair.stop_p][pair.start_n] * 1e9,
                     label=f"{pair.name} n delay",
                 )
                 axes.plot(
-                    self.frequencies[:-1] / 1e9,
+                    self.frequencies / 1e9,
                     self.delays[pair.stop_n][pair.start_p] * 1e9,
                     label=f"{pair.name} p delay",
                 )
@@ -333,45 +334,38 @@ class Postprocesor:
                 fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{pair.name}_delay.png"))
 
     def save_to_file(self) -> None:
-        """Save S parameters to files."""
-        logger.info("Saving S parameters")
-        s_param_path = os.path.join(RESULTS_DIR, "S-parameters")
-        os.mkdir(s_param_path)
+        """Save all parameters to files."""
         for i, _ in enumerate(self.s_params):
             if self.is_valid(self.s_params[i][i]):
-                self.save_port_to_file(i, s_param_path)
+                self.save_port_to_file(i, RESULTS_DIR)
 
     def save_port_to_file(self, port_number: int, path) -> None:
-        """Save S parameters from single excitation."""
-        header: str = "Frequency, ," + "".join(
-            [f"|S_{i}{port_number}|, arg(S_{i}{port_number}), " for i, _ in enumerate(self.s_params[port_number])]
-        )
-        header += f"|Z_{port_number}|, arg(Z_{port_number})"
+        """Save all parameters from single excitation."""
+        frequencies = np.transpose([self.frequencies])
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
-        frequencies = np.transpose([self.frequencies], (1, 0))
-        output_values = np.concatenate((frequencies, s_params), axis=1)
+        delays = np.transpose(self.delays[:, port_number, :], (1, 0))
+        impedances = np.transpose([self.impedances[port_number]])
 
-        magnitude = np.abs(output_values)
-        angle = np.angle(output_values)
+        header: str = "Frequency [Hz], "
+        header += "".join([f"|S{i}{port_number}| [-], " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Arg(S{i}{port_number}) [-], " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
+        header += f"|Z{port_number}| [Ohm] , "
+        header += f"Arg(Z{port_number}) [-]"
 
-        output = np.empty(
-            (magnitude.shape[0], (magnitude.shape[1] + angle.shape[1])),
-            dtype=magnitude.dtype,
+        output = np.hstack(
+            [
+                frequencies,
+                np.abs(s_params),
+                np.angle(s_params),
+                delays,
+                np.abs(impedances),
+                np.angle(impedances),
+            ]
         )
-        output[:, 0::2] = magnitude
-        output[:, 1::2] = angle
-        output = np.hstack([output, np.array(np.transpose(np.abs(self.impedances)))])
-        output = np.hstack([output, np.array(np.transpose(np.angle(self.impedances)))])
-
-        file_path = f"S_x{port_number}.csv"
-        logger.debug("Saving S_x%d parameters and impedances to file: %s", port_number, file_path)
-        np.savetxt(
-            os.path.join(path, file_path),
-            output,
-            fmt="%e",
-            delimiter=",",
-            header=header,
-        )
+        file_path = f"Port_{port_number}_data.csv"
+        logger.debug("Saving port no. %d parameters to file: %s", port_number, file_path)
+        np.savetxt(os.path.join(path, file_path), output, fmt="%e", delimiter=", ", header=header, comments="")
 
     @staticmethod
     def is_valid(array: np.ndarray):
