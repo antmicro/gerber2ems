@@ -89,7 +89,8 @@ def geometry(sim: Simulation) -> None:
     sim.add_gerbers()
     sim.add_mesh()
     sim.add_substrates()
-    sim.add_dump_boxes()
+    if Config.get().arguments.export_field:
+        sim.add_dump_boxes()
     sim.set_boundary_conditions(pml=False)
     sim.add_vias()
     add_ports(sim)
@@ -148,28 +149,36 @@ def parse_arguments() -> Any:
         "--geometry",
         dest="geometry",
         action="store_true",
-        help="Pass to create geometry",
+        help="Create geometry",
     )
     parser.add_argument(
         "-s",
         "--simulate",
         dest="simulate",
         action="store_true",
-        help="Pass to run simulation",
+        help="Run simulation",
     )
     parser.add_argument(
         "-p",
         "--postprocess",
         dest="postprocess",
         action="store_true",
-        help="Pass to postprocess the data",
+        help="Postprocess the data",
     )
     parser.add_argument(
         "-a",
         "--all",
         dest="all",
         action="store_true",
-        help="Pass to execute all steps (geometry, simulation, postprocessing)",
+        help="Execute all steps (geometry, simulation, postprocessing)",
+    )
+
+    parser.add_argument(
+        "--export-field",
+        "--ef",
+        dest="export_field",
+        action="store_true",
+        help="Export electric field data from the simulation",
     )
 
     group = parser.add_mutually_exclusive_group()
