@@ -1,14 +1,18 @@
+[build-system]
+requires = ["setuptools >= 65", "wheel >= 0.38"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "Kicad-OpenEMS"
+name = "ems_kicad"
 version = "0.0.1"
 dependencies = ["numpy", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow"]
-scripts = {ems-kicad = "main:main"}
+scripts = {ems-kicad = "ems_kicad.main:main"}
+
+[tool.setuptools.package-data]
+ems_kicad = ["*.mplstyle"]
 
 [project.optional-dependencies]
 dev = ["mypy", "ruff", "black"]
-
-[tool.setuptools.package-data]
-'src' = ['*.mplstyle']
 
 [tool.ruff]
 select = ["E", "F", "N", "B", "D", "A", "RET"]

@@ -6,10 +6,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import skrf
-from config import Config
 
-
-from constants import RESULTS_DIR, PLOT_STYLE
+from ems_kicad.config import Config
+from ems_kicad.constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
 

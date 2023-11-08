@@ -13,9 +13,9 @@ import numpy as np
 from nanomesh import Image
 from nanomesh import Mesher2D
 import matplotlib.pyplot as plt
-from config import Config
 
-from constants import (
+from ems_kicad.config import Config
+from ems_kicad.constants import (
     GEOMETRY_DIR,
     UNIT,
     PIXEL_SIZE,

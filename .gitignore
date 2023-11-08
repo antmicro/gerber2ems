@@ -11,3 +11,4 @@ __pycache__/
 ems-kicad.sh
 .venv
 *.egg-info/
+build/
