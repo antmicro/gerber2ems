@@ -7,6 +7,9 @@ scripts = {ems-kicad = "main:main"}
 [project.optional-dependencies]
 dev = ["mypy", "ruff", "black"]
 
+[tool.setuptools.package-data]
+'src' = ['*.mplstyle']
+
 [tool.ruff]
 select = ["E", "F", "N", "B", "D", "A", "RET"]
 line-length = 120
