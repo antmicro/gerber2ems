@@ -12,11 +12,11 @@ import shutil
 import coloredlogs
 import numpy as np
 
-from ems_kicad.constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
-from ems_kicad.simulation import Simulation
-from ems_kicad.postprocess import Postprocesor
-from ems_kicad.config import Config
-import ems_kicad.importer as importer
+from gerber2ems.constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
+from gerber2ems.simulation import Simulation
+from gerber2ems.postprocess import Postprocesor
+from gerber2ems.config import Config
+import gerber2ems.importer as importer
 
 logger = logging.getLogger(__name__)
 

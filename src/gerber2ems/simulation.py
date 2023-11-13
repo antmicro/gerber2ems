@@ -10,14 +10,14 @@ import CSXCAD
 import openEMS
 import numpy as np
 
-from ems_kicad.config import Config, PortConfig, LayerKind
-from ems_kicad.constants import (
+from gerber2ems.config import Config, PortConfig, LayerKind
+from gerber2ems.constants import (
     UNIT,
     SIMULATION_DIR,
     GEOMETRY_DIR,
     VIA_POLYGON,
 )
-import ems_kicad.importer as importer
+import gerber2ems.importer as importer
 
 logger = logging.getLogger(__name__)
 

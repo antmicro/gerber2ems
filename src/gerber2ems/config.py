@@ -6,7 +6,7 @@ import logging
 from typing import Any, List, Optional, Union, Tuple, Dict
 from enum import Enum
 
-from ems_kicad.constants import CONFIG_FORMAT_VERSION, UNIT
+from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT
 
 logger = logging.getLogger(__name__)
 

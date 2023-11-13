@@ -1,4 +1,4 @@
-# OpenEMS simulation based on Gerber files
+# gerber2ems - OpenEMS simulation based on Gerber files
 This project aims to streamline signal integrity simulations with Open source tools. It takes PCB production files as input (gerbers, drill files, stackup information) and using OpenEMS simulates SI performance of the traces.
 ## Installation
 ### Required dependencies
@@ -43,21 +43,23 @@ If you want to install the script together with it's python dependencies inside 
 If you still want the script to be accessible globally without having to manually enable the virtual environment create a bash script with following contents:
 ```
 #!/usr/bin/env bash
-/path/to/repository/.venv/bin/python3 /path/to/repository/src/main.py "$@"
+source /path/to/repository/.venv/bin/activate
+python3 /path/to/repository/src/main.py "$@"
+deactivate
 ```
 Then:
-* Mark it executable: `chmod +x ems-kicad.sh`
-* Put it on yout PATH, e.g. `ln -sf "$(pwd)/ems-kicad.sh" "$HOME/.local/bin/ems-kicad"`
+* Mark it executable: `chmod +x gerber2ems.sh`
+* Put it on yout PATH, e.g. `ln -sf "$(pwd)/gerber2ems.sh" "$HOME/.local/bin/gerber2ems"`
 
-After that to run the script you can just call `ems-kicad` wherever you want to.
+After that to run the script you can just call `gerber2ems` wherever you want to.
 
 
 ## Usage
-For quick lookup use `ems-kicad --help`.
+For quick lookup use `gerber2ems --help`.
 To simulate a trace you need to:
 * Prepare input files and put them in `fab/` folder (described in detail [here](#pcb-input-files-preparation))
 * Prepare config `simulation.json` file (described in detail [here](#config-preparation))
-* Run `ems-kicad -a` (what happens during described [here](#geometry-creation))
+* Run `gerber2ems -a` (what happens during described [here](#geometry-creation))
 * View the results in `ems/results` (described in detail [here](#results))
 
 

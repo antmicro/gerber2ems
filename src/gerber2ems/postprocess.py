@@ -7,8 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import skrf
 
-from ems_kicad.config import Config
-from ems_kicad.constants import RESULTS_DIR, PLOT_STYLE
+from gerber2ems.config import Config
+from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
 

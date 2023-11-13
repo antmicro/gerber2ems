@@ -3,13 +3,13 @@ requires = ["setuptools >= 65", "wheel >= 0.38"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ems_kicad"
-version = "0.0.1"
+name = "gerber2ems"
+version = "0.99.0"
 dependencies = ["numpy", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow"]
-scripts = {ems-kicad = "ems_kicad.main:main"}
+scripts = {gerber2ems = "gerber2ems.main:main"}
 
 [tool.setuptools.package-data]
-ems_kicad = ["*.mplstyle"]
+gerber2ems = ["*.mplstyle"]
 
 [project.optional-dependencies]
 dev = ["mypy", "ruff", "black"]
