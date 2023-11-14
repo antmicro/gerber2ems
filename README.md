@@ -62,7 +62,7 @@ To install the script along with its Python dependencies inside a virtual enviro
     ```bash
     source .venv/bin/activate
     ```
-* Install script and it's python dependencies: 
+* Install the script and its python dependencies: 
     ```
     pip install .
     ```
@@ -229,7 +229,7 @@ If they are not filled in, it should be 1
 ### Geometry creation
 
 This is an automatic step done with the `-g` flag.
-A script locates all the files needed for creating the geometry (Gerbers, drill files, pnp files, stackup file, simulation config file).
+The script locates all the files needed for creating the geometry (Gerbers, drill files, pnp files, stackup file, simulation config file).
 Then it converts Gerber files to PNG using gerbv.
 The PNG's are then processed into triangles and input into the geometry.
 This also adds via geometries as well as port geometries.
@@ -240,7 +240,7 @@ You can view the generated geometry which is saved to `ems/geometry/geometry.xml
 ### Simulation
 
 This is an automatic step commenced with the `-s` flag.
-Script loads the geometry and config files. 
+The script loads the geometry and config files. 
 It inputs all the information into the engine and starts the simulations, iterating over every "excited" port.
 
 At this step, the user should verify if the indicated number of timesteps is enough. 
@@ -274,7 +274,7 @@ After the simulation finishes, the user can verify the data using `Paraview` (de
 ### Postprocessing
 
 This is an automatic step commenced with the `-p` flag.
-Scripts are loaded in the simulator data for each excited port. 
+The script is loaded in the simulator data for each excited port. 
 It then computes an FFT to get data in the frequency domain. 
 It then converts the incident and reflected wave data to impedance and S parameters. 
 These are saved in CSV format in the `ems/results/S-parameters` folder. 
