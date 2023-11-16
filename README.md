@@ -134,7 +134,7 @@ Simulating the whole PCB is extremely resource-intensive, so it is important to 
 Uneeded traces, pours etc., should be removed. 
 If entire layers are redundant, they can be removed in later steps.
 
-Ports of interest should be marked by a virtual component in positions files. Their designator should begin with "SP" and be followed by port number. Neutral orientation (0 degree) is looking towards decreasing y coordinate and the coordinates are centered at the begining of the port.
+Ports of interest should be marked by a virtual component in positions files. Their designator should begin with "SP" and be followed by port number. 
 
 Origin point for drill files should be placed in bottom-left corner.
 
