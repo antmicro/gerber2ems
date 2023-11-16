@@ -1,5 +1,7 @@
 # gerber2ems - openEMS simulation based on Gerber files
 
+Copyright (c) 2023 [Antmicro](https://www.antmicro.com) 
+
 This project aims to streamline signal integrity simulations using open source tools.
 It takes PCB production files as input (Gerber, drill files, stackup information) and simulates trace SI performance using openEMS - a free and open electromagnetic field solver that uses the FDTD method.
 
@@ -97,7 +99,6 @@ To simulate a trace, follow these steps:
 * Prepare the config `simulation.json` file (described in detail [here](#config-preparation))
 * Run `gerber2ems -a` (process described [here](#geometry-creation))
 * View the results in `ems/results` (described in detail [here](#results))
-
 
 ## Results
 
@@ -301,3 +302,7 @@ The files are located in `ems/simulation/<port_number>/e_field_<layer_number>_..
 * Press Play to play the animation - first icon bar from the top
 
 ![](./docs/images/play.png)
+
+## Licensing
+
+This project is published under the [Apache-2.0](LICENSE) license.
