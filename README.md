@@ -45,21 +45,27 @@ sudo apt install paraview
 ```
 
 ### Script installation
-
-To install the script, run the command below in the repository:
+It is suggested to update Pip before installation.
+```bash
+python3 -m pip install pip -U
+```
+To install the script, run the commands below:
 
 ```bash
+git clone https://github.com/antmicro/gerber2ems.git
+cd ./gerber2ems
 pip install .
 ```
 
-#### Virtual environment
+### Virtual environment
 
 To install the script along with its Python dependencies inside a virtual environment, follow these steps:
 
 * Create a virtual environment: 
     ```bash
     python -m venv .venv --system-site-packages
-    ``` 
+    ```
+    `--system-site-packages` is passed to be able to access system-wide openems installation
 * Activate the environment: 
     ```bash
     source .venv/bin/activate
@@ -73,7 +79,7 @@ To install the script along with its Python dependencies inside a virtual enviro
     deactivate
     ```
 
-For the script to be accessible globally without the need to manually enable the virtual environment, you can create a bash script as follows:
+For the script **installed inside virtual environment** to be accessible globally without the need to manually enable the virtual environment, you can create a bash script as follows:
 
 ```bash
 #!/usr/bin/env bash
