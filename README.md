@@ -45,7 +45,8 @@ sudo apt install paraview
 ```
 
 ### Script installation
-It is suggested to update Pip before installation.
+
+It is suggested to update pip before installation.
 ```bash
 python3 -m pip install pip -U
 ```
