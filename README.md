@@ -15,7 +15,7 @@ It takes PCB production files as input (Gerber, drill files, stackup information
 Install the following packages (on Debian/Ubuntu):
 
 ```bash
-build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py
+sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py
 ```
 
 Clone the repository, compile and install OpenEMS:
