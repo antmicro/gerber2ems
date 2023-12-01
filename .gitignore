@@ -1,9 +1,17 @@
 examples/*/*
+examples/*/fab/*
 !examples/*/*.kicad_pcb
 !examples/*/*.kicad_pcb
 !examples/*/*.kicad_pro
 !examples/*/*.kicad_sch
+!examples/*/fab
+!examples/*/fab/*_Cu.gbr
+!examples/*/fab/*_Cuts.gbr
+!examples/*/fab/stackup.json
+!examples/*/fab/*-PTH.drl
+!examples/*/fab/*-pos.csv
 !examples/*/simulation.json
+!examples/*/job-simulation-part/fab/jetson-orin-baseboard-In1_Cu.gbr
 
 .vscode/
 .mypy_cache/
