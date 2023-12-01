@@ -1,0 +1,9 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"NT1","NetTie_2","NetTie-2_SMD_Pad0.5mm",1.650000,2.000000,-90.000000,top
+"NT2","NetTie_2","NetTie-2_SMD_Pad0.5mm",1.650000,14.000000,-90.000000,top
+"NT3","NetTie_2","NetTie-2_SMD_Pad0.5mm",2.350000,2.000000,-90.000000,top
+"NT4","NetTie_2","NetTie-2_SMD_Pad0.5mm",2.350000,14.000000,-90.000000,top
+"SP0","Simulation_Port","Simulation_Port",1.650000,1.250000,0.000000,top
+"SP1","Simulation_Port","Simulation_Port",1.650000,14.750000,180.000000,top
+"SP2","Simulation_Port","Simulation_Port",2.350000,1.250000,0.000000,top
+"SP3","Simulation_Port","Simulation_Port",2.350000,14.750000,180.000000,top

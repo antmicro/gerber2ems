@@ -1,0 +1,4 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"SP1","Simulation_Port","Simulation_Port",0.825000,0.850000,0.000000,top
+"SP2","Simulation_Port","Simulation_Port",2.400000,14.450000,180.000000,top
+"TP1","TP_0.75mm_SMD","TP_SMD_0.75mm",7.075000,2.775000,0.000000,top

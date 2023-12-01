@@ -1,0 +1,32 @@
+{
+    "layers": [
+        {
+            "name": "F.Cu",
+            "type": "copper",
+            "color": null,
+            "thickness": 0.035,
+            "material": null,
+            "epsilon": null,
+            "lossTangent": null
+        },
+        {
+            "name": "dielectric 1",
+            "type": "core",
+            "color": null,
+            "thickness": 0.2,
+            "material": "FR4",
+            "epsilon": 4.5,
+            "lossTangent": 0.02
+        },
+        {
+            "name": "B.Cu",
+            "type": "copper",
+            "color": null,
+            "thickness": 0.035,
+            "material": null,
+            "epsilon": null,
+            "lossTangent": null
+        }
+    ],
+    "format_version": "1.0"
+}
