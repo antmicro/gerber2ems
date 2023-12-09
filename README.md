@@ -62,9 +62,17 @@ pip install .
 
 To install the script along with its Python dependencies inside a virtual environment, follow these steps:
 
+* Check which version of python3 is installed:
+    ```bash
+    python3 --version
+    ```
+* Install the relevant version of venv. For example, for python3.11.x:
+    ```bash
+    sudo apt install python3.11-venv
+    ```
 * Create a virtual environment: 
     ```bash
-    python -m venv .venv --system-site-packages
+    python3 -m venv .venv --system-site-packages
     ```
     `--system-site-packages` is passed to be able to access system-wide openems installation
 * Activate the environment: 
@@ -85,7 +93,7 @@ For the script **installed inside virtual environment** to be accessible globall
 ```bash
 #!/usr/bin/env bash
 source /path/to/repository/.venv/bin/activate
-python3 /path/to/repository/src/main.py "$@"
+python3 /path/to/repository/src/gerber2ems/main.py "$@"
 deactivate
 ```
 
