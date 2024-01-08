@@ -60,15 +60,11 @@ pip install .
 
 ### Virtual environment
 
-To install the script along with its Python dependencies inside a virtual environment, follow these steps:
+To install the script along with its Python dependencies inside a virtual environment on Debian/Ubuntu you can follow these steps:
 
-* Check which version of python3 is installed:
+* Install the virutalenv package with:
     ```bash
-    python3 --version
-    ```
-* Install the relevant version of venv. For example, for python3.11.x:
-    ```bash
-    sudo apt install python3.11-venv
+    sudo apt install python3-venv
     ```
 * Create a virtual environment: 
     ```bash
