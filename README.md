@@ -106,6 +106,7 @@ To simulate a trace, follow these steps:
 * Prepare the config `simulation.json` file (described in detail [here](#config-preparation))
 * Run `gerber2ems -a` (process described [here](#geometry-creation))
 * View the results in `ems/results` (described in detail [here](#results))
+* Run `gerber2ems -a --export-field` and use Paraview to view an animation of the E-field (described in detail [here](#paraview))
 
 ## Results
 
@@ -291,6 +292,7 @@ This data is also automatically plotted and the plots are saved to `ems/results`
 
 To view simulation data in Paraview, follow these steps:
 
+* Run `gerber2ems -a --export-field`
 * Open Paraview
 * Load the data you are interested in (File->Open...)
 The files are located in `ems/simulation/<port_number>/e_field_<layer_number>_..vtr`
