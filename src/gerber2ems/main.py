@@ -49,7 +49,7 @@ def main():
     if args.simulate or args.all:
         logger.info("Running simulation")
         create_dir(SIMULATION_DIR, cleanup=True)
-        simulate()
+        simulate(threads=args.threads)
     if args.postprocess or args.all:
         logger.info("Postprocessing")
         create_dir(RESULTS_DIR, cleanup=True)
@@ -97,7 +97,7 @@ def geometry(sim: Simulation) -> None:
     sim.save_geometry()
 
 
-def simulate() -> None:
+def simulate(threads: None | int = None) -> None:
     """Run the simulation."""
     for index, port in enumerate(Config.get().ports):
         if port.excite:
@@ -108,7 +108,7 @@ def simulate() -> None:
             logging.info("Simulating with excitation on port #%i", index)
             sim.load_geometry()
             add_ports(sim, index)
-            sim.run(index)
+            sim.run(index, threads=threads)
 
 
 def postprocess(sim: Simulation) -> None:
@@ -180,6 +180,8 @@ def parse_arguments() -> Any:
         action="store_true",
         help="Export electric field data from the simulation",
     )
+
+    parser.add_argument("--threads", dest="threads", help="Number of threads to run the simulation on")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
