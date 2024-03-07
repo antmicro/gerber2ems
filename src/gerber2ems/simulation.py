@@ -413,9 +413,11 @@ class Simulation:
         """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
-        self.fdtd.Run(
-            os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)), numThreads=threads, verbose=3
-        )
+        if threads is not None:
+            self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)), numThreads=threads)
+        else:
+            self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)))
+
         os.chdir(cwd)
 
     def save_geometry(self) -> None:
