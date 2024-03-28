@@ -200,9 +200,8 @@ def get_vias() -> List[List[float]]:
     return vias
 
 
-def import_stackup():
+def import_stackup(filename = "fab/stackup.json"):
     """Import stackup information from `fab/stackup.json` file and load it into config object."""
-    filename = "fab/stackup.json"
     with open(filename, "r", encoding="utf-8") as file:
         try:
             stackup = json.load(file)
