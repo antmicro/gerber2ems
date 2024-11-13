@@ -74,7 +74,7 @@ class Postprocesor:
         for i, reference_z in enumerate(self.reference_zs):
             s_param = self.s_params[i][i]
             if self.is_valid(reference_z) and self.is_valid(s_param):
-                self.impedances[i] = reference_z * (1 - s_param) / (1 + s_param)
+                self.impedances[i] = reference_z * (1 + s_param) / (1 - s_param)
 
         for i in range(self.count):
             if self.is_valid(self.incident[i][i]):
