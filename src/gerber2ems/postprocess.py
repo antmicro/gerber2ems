@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import skrf
 
-from gerber2ems.config import Config
+from gerber2ems.config import Config, OutputConfig
 from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
@@ -18,9 +18,14 @@ class Postprocesor:
     def save_figure(self, fig, name, **kwargs):
         """Abstraction level to save figure"""
         dst = os.path.join(os.getcwd(), RESULTS_DIR, name)
-        fig.savefig(dst, format="png", **kwargs)
+        dst = f"{dst}.{self.out_cfg.format}"
 
-    def __init__(self, frequencies: np.ndarray, port_count: int) -> None:
+        if self.out_cfg.dpi:
+            fig.savefig(dst, format=self.out_cfg.format, dpi=self.out_cfg.dpi, **kwargs)
+        else:
+            fig.savefig(dst, format=self.out_cfg.format, **kwargs)
+
+    def __init__(self, frequencies: np.ndarray, port_count: int, output_config: OutputConfig) -> None:
         """Initialize postprocessor."""
         self.frequencies = frequencies  # Frequency list for whitch parameters are calculated
         self.count = port_count  # Number of ports
@@ -45,6 +50,8 @@ class Postprocesor:
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
+
+        self.out_cfg = output_config
 
     def add_port_data(
         self,

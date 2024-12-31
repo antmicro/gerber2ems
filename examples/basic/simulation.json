@@ -21,6 +21,10 @@
         "xy": 3000,
         "z": 3000
     },
+    "output": {
+        "format": "tiff",
+        "dpi": 800
+    },
     "ports": [
         {
             "width": 400,
