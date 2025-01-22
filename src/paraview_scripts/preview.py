@@ -1,41 +1,38 @@
+#!/bin/python
 import os
-from paraview.simple import *
+import argparse
+from pathlib import Path
+
+parser = argparse.ArgumentParser(prog="gerber2ems-preview")
+parser.add_argument("-l", "--layer", help="select PCB layer")
+parser.add_argument("-L", "--list-layers", help="list all simulated layers", action="store_true")
 
 
-def get_sim_results(layer: str) -> list[str]:
-    path = os.getcwd() + "/ems/simulation/" + layer
-    files = os.listdir(path)
-
-    files = [path + "/" + file for file in files if file[-4:] == ".vtr"]
-    return files
+def get_layers() -> list[str]:
+    path = os.getcwd() + "/ems/simulation/"
+    layers = os.listdir(path)
+    return layers
 
 
-def run_preview(files: list[str]) -> None:
-    paraview.simple._DisableFirstRenderCameraReset()
-
-    e_field = XMLRectilinearGridReader(registrationName="e_field", FileName=files)
-    e_field.PointArrayStatus = ["E-Field"]
-
-    animationScene = GetAnimationScene()
-
-    animationScene.UpdateAnimationUsingDataTimeSteps()
-
-    renderView = GetActiveViewOrCreate("RenderView")
-
-    e_field_vtrDisplay = Show(e_field, renderView, "UniformGridRepresentation")
-
-    ColorBy(e_field_vtrDisplay, ("POINTS", "E-Field", "Magnitude"))
-
-    e_field_vtrDisplay.RescaleTransferFunctionToDataRange(True, False)
-
-    e_field_vtrDisplay.SetScalarBarVisibility(renderView, True)
-
-    renderView.Update()
-
-    renderView.ResetCamera(False)
-
-    animationScene.Play()
+def run(layer: str) -> None:
+    path = Path(__file__)
+    path = path.parent / "paraview_preview.py"
+    os.system(f'GERBER2EMS_PREVIEW_LAYER="{layer}" paraview --script={path}')
 
 
-files = get_sim_results("0")
-run_preview(files)
+if __name__ == "__main__":
+    args = parser.parse_args()
+    layers = get_layers()
+    if args.list_layers:
+        print("Simulated layers:")
+        for layer in layers:
+            print(layer)
+        exit()
+    if args.layer in layers:
+        run(str(args.layer))
+    elif args.layer is None:
+        print("Layer is not specified")
+        exit()
+    else:
+        print(f"Layer {args.layer} not found")
+        exit()
