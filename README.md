@@ -301,6 +301,10 @@ To view simulation data in Paraview, follow these steps:
 ```bash
 <path to repo>/paraview_scripts/preview.py -l <layer number>
 ```
+* List of all available layers can showed by following command:
+```bash
+<path to repo>/paraview_scripts/preview.py -L
+```
 
 
 ## Licensing
