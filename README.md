@@ -297,24 +297,11 @@ This data is also automatically plotted and the plots are saved to `ems/results`
 To view simulation data in Paraview, follow these steps:
 
 * Run `gerber2ems -a --export-field`
-* Open Paraview
-* Load the data you are interested in (File->Open...)
-The files are located in `ems/simulation/<port_number>/e_field_<layer_number>_..vtr`
-* Display the data using the eye symbol in the "Pipeline Browser" on the left side of the window
+* Run following script
+```bash
+<path to repo>/paraview_scripts/preview.py -l <layer number>
+```
 
-![](./docs/images/eye.png)
-
-* Change `Coloring` to `E-Field` in the "Properties" window on the left side
-
-![](./docs/images/color.png)
-
-* Rescale to data range using an icon in the second bar from the top
-
-![](./docs/images/range.png)
-
-* Press Play to play the animation - first icon bar from the top
-
-![](./docs/images/play.png)
 
 ## Licensing
 
