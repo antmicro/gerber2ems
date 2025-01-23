@@ -1,4 +1,4 @@
-#!/usr/bin/pvpython
+#!/usr/bin/env python3
 import os
 import sys
 
@@ -47,9 +47,4 @@ def run() -> None:
     run_preview(files)
 
 
-if __name__ == "__main__":
-    layer = os.environ["GERBER2EMS_PREVIEW_LAYER"]
-
-    files = get_sim_results(layer)
-    run_preview(files)
-
+run()
