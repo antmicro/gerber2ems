@@ -9,18 +9,21 @@ parser.add_argument("-l", "--list-layers", help="list all simulated layers", act
 
 
 def get_ports() -> list[str]:
+    """Get all the simulated ports"""
     path = os.getcwd() + "/ems/simulation/"
     layers = os.listdir(path)
     return layers
 
 
-def run(layer: str) -> None:
+def run_paraview(layer: str) -> None:
+    """Run paraview"""
     path = Path(__file__)
     path = path.parent / "paraview_preview.py"
     os.system(f'GERBER2EMS_PORT="{layer}" paraview --script={path}')
 
 
-if __name__ == "__main__":
+def main():
+    """Run the script"""
     args = parser.parse_args()
     ports = get_ports()
     if args.list_layers:
@@ -30,7 +33,7 @@ if __name__ == "__main__":
         exit()
 
     if args.port in ports:
-        run(str(args.port))
+        run_paraview(str(args.port))
     elif args.port is None:
         print("Port not specified")
         exit()

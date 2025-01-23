@@ -5,11 +5,12 @@ from pathlib import Path
 from paraview.simple import *
 
 
-def get_sim_results(layer: str) -> list[str]:
+def get_sim_results(port: str) -> list[str]:
+    """Get path to simulation result files, from specified port"""
     # path = Path.cwd() / "ems" / "simulation" / port
     # return list(path.glob("*.vtr"))
 
-    path = os.getcwd() + "/ems/simulation/" + layer
+    path = os.getcwd() + "/ems/simulation/" + port
     files = os.listdir(path)
 
     files = [path + "/" + file for file in files if file[-4:] == ".vtr"]
@@ -18,10 +19,8 @@ def get_sim_results(layer: str) -> list[str]:
 
 
 def run_preview(files: list[str]) -> None:
+    """Setup and run preview"""
     paraview.simple._DisableFirstRenderCameraReset()
-
-    #    for file in files:
-    #   print(file)
 
     e_field = XMLRectilinearGridReader(registrationName="e_field", FileName=files)
     e_field.PointArrayStatus = ["E-Field"]

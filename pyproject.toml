@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "gerber2ems"
 version = "0.99.0"
 dependencies = ["numpy", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow"]
-scripts = {gerber2ems = "gerber2ems.main:main"}
+scripts = {gerber2ems = "gerber2ems.main:main", ems2paraview = "ems2paraview.main:main"}
 
 [tool.setuptools.package-data]
 gerber2ems = ["*.mplstyle"]
