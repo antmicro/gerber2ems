@@ -297,16 +297,10 @@ This data is also automatically plotted and the plots are saved to `ems/results`
 To view simulation data in Paraview, follow these steps:
 
 * Run `gerber2ems -a --export-field`
-* Run following script
-```bash
-ems2paraview <port number>
-```
-Where:
-- `<port number>` - is a number of simulated port, defined in the `simulation.json`, 
-to list of all available ports use this command:
-```bash
-ems2paraview -l
-```
+* Run `ems2paraview <port number>`
+
+The `<port number>`  is a number of simulated port, defined in the `simulation.json`,
+to list of all available ports use this command: `ems2paraview -l`
 
 
 ## Licensing
