@@ -299,13 +299,13 @@ To view simulation data in Paraview, follow these steps:
 * Run `gerber2ems -a --export-field`
 * Run following script
 ```bash
-<path to repo>/paraview_scripts/preview.py <port number>
+ems2paraview <port number>
 ```
 Where:
 - `<port number>` - is a number of simulated port, defined in the `simulation.json`, 
 to list of all available ports use this command:
 ```bash
-<path to repo>/paraview_scripts/preview.py -l
+ems2paraview -l
 ```
 
 
