@@ -7,15 +7,8 @@ from paraview.simple import *
 
 def get_sim_results(port: str) -> list[str]:
     """Get path to simulation result files, from specified port"""
-    # path = Path.cwd() / "ems" / "simulation" / port
-    # return list(path.glob("*.vtr"))
-
-    path = os.getcwd() + "/ems/simulation/" + port
-    files = os.listdir(path)
-
-    files = [path + "/" + file for file in files if file[-4:] == ".vtr"]
-
-    return files
+    path = Path.cwd() / "ems" / "simulation" / port
+    return [str(p) for p in path.glob("*.vtr")]
 
 
 def run_preview(files: list[str]) -> None:
