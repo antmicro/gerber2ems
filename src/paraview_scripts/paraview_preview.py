@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
 import os
-import sys
+from pathlib import Path
 
 from paraview.simple import *
 
 
 def get_sim_results(layer: str) -> list[str]:
+    # path = Path.cwd() / "ems" / "simulation" / port
+    # return list(path.glob("*.vtr"))
+
     path = os.getcwd() + "/ems/simulation/" + layer
     files = os.listdir(path)
 
     files = [path + "/" + file for file in files if file[-4:] == ".vtr"]
+
     return files
 
 
 def run_preview(files: list[str]) -> None:
     paraview.simple._DisableFirstRenderCameraReset()
+
+    #    for file in files:
+    #   print(file)
 
     e_field = XMLRectilinearGridReader(registrationName="e_field", FileName=files)
     e_field.PointArrayStatus = ["E-Field"]
@@ -41,7 +48,7 @@ def run_preview(files: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    layer = os.environ["GERBER2EMS_PREVIEW_LAYER"]
+    port = os.environ["GERBER2EMS_PORT"]
 
-    files = get_sim_results(layer)
+    files = get_sim_results(port)
     run_preview(files)
