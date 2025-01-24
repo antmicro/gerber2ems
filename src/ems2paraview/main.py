@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import argparse
+import subprocess
 from pathlib import Path
 
 parser = argparse.ArgumentParser(prog="gerber2ems-preview")
@@ -15,11 +16,11 @@ def get_ports() -> list[str]:
     return ports
 
 
-def run_paraview(layer: str) -> None:
+def run_paraview(port: str) -> None:
     """Run paraview"""
     path = Path(__file__)
     path = path.parent / "paraview_preview.py"
-    os.system(f'GERBER2EMS_PORT="{layer}" paraview --script={path}')
+    subprocess.run(["paraview", "--script", path], env=dict(os.environ, GERBER2EMS_PORT=port))
 
 
 def main():
