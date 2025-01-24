@@ -11,8 +11,8 @@ parser.add_argument("-l", "--list-layers", help="list all simulated layers", act
 def get_ports() -> list[str]:
     """Get all the simulated ports"""
     path = os.getcwd() + "/ems/simulation/"
-    layers = os.listdir(path)
-    return layers
+    ports = os.listdir(path)
+    return ports
 
 
 def run_paraview(layer: str) -> None:
