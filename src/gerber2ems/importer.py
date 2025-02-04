@@ -26,7 +26,7 @@ from gerber2ems.constants import (
 logger = logging.getLogger(__name__)
 
 
-def process_gbrs_to_pngs():
+def process_gbrs_to_pngs(fab_file_dir: str = "", geometry_dir: str = ""):
     """Process all gerber files to PNG's.
 
     Finds edge cuts gerber as well as copper gerbers in `fab` directory.
@@ -34,8 +34,9 @@ def process_gbrs_to_pngs():
     Output is saved to `ems/geometry` folder
     """
     logger.info("Processing gerber files")
-
-    files = os.listdir(os.path.join(os.getcwd(), "fab"))
+    if len(fab_file_dir) == 0:
+        fab_file_dir = os.path.join(os.getcwd(), "fab")
+    files = os.listdir(fab_file_dir)
 
     edge = next(filter(lambda name: "Edge_Cuts.gbr" in name, files), None)
     if edge is None:
@@ -45,13 +46,14 @@ def process_gbrs_to_pngs():
     layers = list(filter(lambda name: "_Cu.gbr" in name, files))
     if len(layers) == 0:
         logger.warning("No copper gerbers found")
-
+    if len(geometry_dir) == 0:
+        geometry_dir = os.path.join(os.getcwd(), GEOMETRY_DIR)
     for name in layers:
         output = name.split("-")[-1].split(".")[0] + ".png"
         gbr_to_png(
-            os.path.join(os.getcwd(), "fab", name),
-            os.path.join(os.getcwd(), "fab", edge),
-            os.path.join(os.getcwd(), GEOMETRY_DIR, output),
+            os.path.join(fab_file_dir, name),
+            os.path.join(fab_file_dir, edge),
+            os.path.join(geometry_dir, output),
         )
 
 
@@ -153,13 +155,16 @@ def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
     return (point * PIXEL_SIZE) - [BORDER_THICKNESS / 2, BORDER_THICKNESS / 2]
 
 
-def get_vias() -> List[List[float]]:
+def get_vias(file_dir: str = "") -> List[List[float]]:
     """Get via information from excellon file.
 
     Looks for excellon file in `fab` directory. Its filename should end with `-PTH.drl`
     It then processes it to find all vias.
     """
-    files = os.listdir(os.path.join(os.getcwd(), "fab"))
+    if len(file_dir) == 0:
+        file_dir = os.path.join(os.getcwd(), "fab")
+    
+    files = os.listdir(file_dir)
     drill_filename = next(filter(lambda name: "-PTH.drl" in name, files), None)
     if drill_filename is None:
         logger.error("Couldn't find drill file")
@@ -168,7 +173,7 @@ def get_vias() -> List[List[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: List[List[float]] = []
-    with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
+    with open(os.path.join(file_dir, drill_filename), "r", encoding="utf-8") as drill_file:
         for line in drill_file.readlines():
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
@@ -200,9 +205,9 @@ def get_vias() -> List[List[float]]:
     return vias
 
 
-def import_stackup():
+def import_stackup(filename = "fab/stackup.json"):
     """Import stackup information from `fab/stackup.json` file and load it into config object."""
-    filename = "fab/stackup.json"
+    
     with open(filename, "r", encoding="utf-8") as file:
         try:
             stackup = json.load(file)
