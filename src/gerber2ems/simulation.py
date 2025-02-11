@@ -409,14 +409,11 @@ class Simulation:
         logger.debug("Setting excitation to sine at %f", freq)
         self.fdtd.SetSinusExcite(freq)
 
-    def run(self, excited_port_number, threads: None | int = None):
+    def run(self, excited_port_number):
         """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
-        if threads is not None:
-            self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)), numThreads=threads)
-        else:
-            self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)))
+        self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)))
 
         os.chdir(cwd)
 
