@@ -117,7 +117,7 @@ def postprocess(sim: Simulation) -> None:
         add_virtual_ports(sim)
 
     frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
-    post = Postprocesor(frequencies, len(Config.get().ports))
+    post = Postprocesor(frequencies, len(Config.get().ports), Config.get().output_cfg)
     impedances = np.array([p.impedance for p in Config.get().ports])
     post.add_impedances(impedances)
 

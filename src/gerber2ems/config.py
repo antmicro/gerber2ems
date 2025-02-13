@@ -155,6 +155,12 @@ def get(
         return default
 
 
+class OutputConfig:
+    def __init__(self, format, dpi):
+        self.format = format
+        self.dpi = dpi
+
+
 class Config:
     """Class representing and parsing config."""
 
@@ -203,6 +209,9 @@ class Config:
         self.via_plating = int(get(json, ["via", "plating_thickness"], (int, float), 50))
         self.via_filling_epsilon = float(get(json, ["via", "filling_epsilon"], (int, float), 1))
 
+        format = get(json, ["output", "format"], str, "png")
+        dpi = get(json, ["output", "dpi"], int, 600)
+        self.output_cfg = OutputConfig(format, dpi)
         self.arguments = args
 
         ports = get(json, ["ports"], list)

@@ -21,6 +21,9 @@
         "xy": 3000,
         "z": 3000
     },
+    "output": {
+        "format": "svg"
+    },
     "ports": [
         {
             "width": 500,
