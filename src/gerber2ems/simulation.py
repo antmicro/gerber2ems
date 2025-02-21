@@ -39,7 +39,6 @@ class Simulation:
         self.gerber_materials: List[Any] = []
         self.substrate_materials: List[Any] = []
         self.plane_material = self.csx.AddMetal("Plane")
-        self.port_material = self.csx.AddMetal("Port")
         self.via_material = self.csx.AddMetal("Via")
         self.via_filling_material = self.csx.AddMaterial("ViaFilling", epsilon=Config.get().via_filling_epsilon)
 
@@ -223,7 +222,7 @@ class Simulation:
 
         port = self.fdtd.AddMSLPort(
             port_number,
-            self.port_material,
+            self.csx.AddMetal(f"Port_{port_number}"),
             start,
             stop,
             dir_map[int(port_config.direction)],
@@ -300,7 +299,7 @@ class Simulation:
         self.mesh.AddLine("z", 10)
         port = self.fdtd.AddMSLPort(
             len(self.ports),
-            self.port_material,
+            self.csx.AddMetal(f"VirtualPort_{len(self.ports)}"),
             [0, 0, 0],
             [10, 10, 10],
             "x",
