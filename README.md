@@ -227,6 +227,11 @@ If they are not filled in, it should be 1
 * `margin/xy` - mesh grid pitch in x and y direction (micrometers) outside of the board area
 * `margin/z` - mesh grid pitch in z direction (micrometers) outside of the board area.
 
+##### Output
+`Output` set format of output image (Not mandatory)
+* `format` - Set image output format [png, svg, tiff] (default: png)
+* `dpi` - Set DPI of output image (default: 600)
+
 ##### Ports
 
 `ports` is a list of ports. Each port has the following parameters:

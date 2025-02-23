@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import skrf
 
-from gerber2ems.config import Config
+from gerber2ems.config import Config, OutputConfig
 from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
@@ -15,8 +15,17 @@ logger = logging.getLogger(__name__)
 
 class Postprocesor:
     """Class used to postprocess and display simulation data."""
+    def save_figure(self, fig, name, **kwargs):
+        """Abstraction level to save figure"""
+        dst = os.path.join(os.getcwd(), RESULTS_DIR, name)
+        dst = f"{dst}.{self.out_cfg.format}"
 
-    def __init__(self, frequencies: np.ndarray, port_count: int) -> None:
+        if self.out_cfg.dpi:
+            fig.savefig(dst, format=self.out_cfg.format, dpi=self.out_cfg.dpi, **kwargs)
+        else:
+            fig.savefig(dst, format=self.out_cfg.format, **kwargs)
+
+    def __init__(self, frequencies: np.ndarray, port_count: int, output_config: OutputConfig) -> None:
         """Initialize postprocessor."""
         self.frequencies = frequencies  # Frequency list for whitch parameters are calculated
         self.count = port_count  # Number of ports
@@ -41,6 +50,8 @@ class Postprocesor:
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
+
+        self.out_cfg = output_config
 
     def add_port_data(
         self,
@@ -133,7 +144,7 @@ class Postprocesor:
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Magnitude, [dB]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"))
+                self.save_figure(fig, f"S_x{i+1}")
 
     def render_diff_pair_s_params(self):
         """Render differential pair S parameter plots to files."""
@@ -174,7 +185,7 @@ class Postprocesor:
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Magnitude, [dB]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"SDD_{pair.name}"))
+                self.save_figure(fig, f"SDD_{pair.name}")
 
     def render_diff_impedance(self):
         """Render differential pair impedance plots to files."""
@@ -218,10 +229,7 @@ class Postprocesor:
                     axs[0].grid(True)
                     axs[1].grid(True)
 
-                    fig.savefig(
-                        os.path.join(os.getcwd(), RESULTS_DIR, f"Z_diff_{pair.name}.png"),
-                        bbox_inches="tight",
-                    )
+                    self.save_figure(fig, f"Z_diff_{pair.name}", bbox_inches="tight")
                 else:
                     logger.error(
                         f"Reference impedances for ports in differential pair {pair.name} are not all equal. Cannot calculate impedance"  # noqa: E501
@@ -263,10 +271,7 @@ class Postprocesor:
                     axs[0].axhline(np.real(min_z), color="red")
                     axs[0].axhline(np.real(max_z), color="red")
 
-                fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"Z_{port+1}.png"),
-                    bbox_inches="tight",
-                )
+                self.save_figure(fig, f"Z_{port+1}", bbox_inches="tight")
 
     def render_smith(self):
         """Render port reflection smithcharts to files."""
@@ -286,10 +291,7 @@ class Postprocesor:
                     show_legend=True,
                     draw_vswr=[vswr_margin],
                 )
-                fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"),
-                    bbox_inches="tight",
-                )
+                self.save_figure(fig, f"S_{port+1}{port+1}_smith", bbox_inches="tight")
 
     def render_trace_delays(self):
         """Render all trace delay plots to files."""
@@ -307,7 +309,7 @@ class Postprocesor:
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Trace delay, [ns]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"))
+                self.save_figure(fig, f"{trace.name}_delay")
 
         for pair in Config.get().diff_pairs:
             if (
@@ -330,7 +332,7 @@ class Postprocesor:
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Trace delay, [ns]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{pair.name}_delay.png"))
+                self.save_figure(fig, f"{pair.name}_delay")
 
     def save_to_file(self) -> None:
         """Save all parameters to files."""
