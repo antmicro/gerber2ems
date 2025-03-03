@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Main script."""
+
 import os
 import argparse
 import subprocess
@@ -10,21 +12,20 @@ parser.add_argument("-l", "--list-layers", help="list all simulated layers", act
 
 
 def get_ports() -> list[str]:
-    """Get all the simulated ports"""
+    """Get all the simulated ports."""
     path = os.getcwd() + "/ems/simulation/"
-    ports = os.listdir(path)
-    return ports
+    return os.listdir(path)
 
 
 def run_paraview(port: str) -> None:
-    """Run paraview"""
+    """Run paraview."""
     path = Path(__file__)
     path = path.parent / "paraview_preview.py"
     subprocess.run(["paraview", "--script", path], env=dict(os.environ, GERBER2EMS_PORT=port))
 
 
-def main():
-    """Run the script"""
+def main() -> None:
+    """Run the script."""
     args = parser.parse_args()
     ports = get_ports()
     if args.list_layers:

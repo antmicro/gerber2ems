@@ -1,5 +1,6 @@
-"""Module contains functions usefull for postprocessing data."""
-from typing import Union
+"""Module contains functions useful for postprocessing data."""
+
+from typing import Union, Tuple, Optional
 import logging
 import os
 
@@ -11,6 +12,7 @@ from gerber2ems.config import Config
 from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
+cfg = Config()
 
 
 class Postprocesor:
@@ -48,7 +50,7 @@ class Postprocesor:
         excited_port: int,
         incident: np.ndarray,
         reflected: np.ndarray,
-    ):
+    ) -> None:
         """Add port data to postprocessor.
 
         Data consists of incident and reflected phasor data in relation to frequency
@@ -58,11 +60,11 @@ class Postprocesor:
         self.incident[port][excited_port] = incident
         self.reflected[port][excited_port] = reflected
 
-    def add_impedances(self, impedances: np.ndarray):
+    def add_impedances(self, impedances: np.ndarray) -> None:
         """Add port reference impedances."""
         self.reference_zs = impedances
 
-    def process_data(self):
+    def process_data(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating S-parameters and impedance")
         for i, _ in enumerate(self.incident):
@@ -100,7 +102,7 @@ class Postprocesor:
             return None
         return self.impedances[port]
 
-    def get_s_param(self, output_port, input_port):
+    def get_s_param(self, output_port: int, input_port: int) -> Optional[np.ndarray]:
         """Return specified S parameter."""
         if output_port >= self.count:
             logger.error("Port no. %d doesn't exist", output_port)
@@ -114,7 +116,7 @@ class Postprocesor:
         logger.error("S%d%d wasn't calculated", output_port, input_port)
         return None
 
-    def render_s_params(self):
+    def render_s_params(self) -> None:
         """Render all S parameter plots to files."""
         logger.info("Rendering S-parameter plots")
         plt.style.use(PLOT_STYLE)
@@ -135,11 +137,11 @@ class Postprocesor:
                 axes.grid(True)
                 fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"))
 
-    def render_diff_pair_s_params(self):
+    def render_diff_pair_s_params(self) -> None:
         """Render differential pair S parameter plots to files."""
         logger.info("Rendering differential pair S-parameter plots")
         plt.style.use(PLOT_STYLE)
-        for pair in Config.get().diff_pairs:
+        for pair in cfg.diff_pairs:
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -174,13 +176,13 @@ class Postprocesor:
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Magnitude, [dB]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"SDD_{pair.name}"))
+                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"SDD_{pair.name}.png"))
 
-    def render_diff_impedance(self):
+    def render_diff_impedance(self) -> None:
         """Render differential pair impedance plots to files."""
         logger.info("Rendering differential pair impedance plots")
         plt.style.use(PLOT_STYLE)
-        for pair in Config.get().diff_pairs:
+        for pair in cfg.diff_pairs:
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -227,14 +229,14 @@ class Postprocesor:
                         f"Reference impedances for ports in differential pair {pair.name} are not all equal. Cannot calculate impedance"  # noqa: E501
                     )
 
-    def calculate_min_max_impedance(self, s11_margin, z0):
+    def calculate_min_max_impedance(self, s11_margin: np.ndarray, z0: float) -> Tuple[float, float]:
         """Calculate aproximated min-max values for impedance (it assumes phase is 0)."""
         angles = [0, np.pi]
         reflection_coeffs = 10 ** (-s11_margin / 20) * (np.cos(angles) + 1j * np.sin(angles))
         impedances = z0 * (1 + reflection_coeffs) / (1 - reflection_coeffs)
         return (abs(impedances[0]), abs(impedances[1]))
 
-    def render_impedance(self, include_margins=False):
+    def render_impedance(self, include_margins: bool = False) -> None:
         """Render all ports impedance plots to files."""
         logger.info("Rendering impedance plots")
         plt.style.use(PLOT_STYLE)
@@ -256,8 +258,8 @@ class Postprocesor:
                 axs[1].grid(True)
 
                 if include_margins:
-                    s11_margin = Config.get().ports[port].dB_margin
-                    z0 = Config.get().ports[port].impedance
+                    s11_margin = cfg.ports[port].dB_margin
+                    z0 = cfg.ports[port].impedance
                     min_z, max_z = self.calculate_min_max_impedance(s11_margin, z0)
 
                     axs[0].axhline(np.real(min_z), color="red")
@@ -268,7 +270,7 @@ class Postprocesor:
                     bbox_inches="tight",
                 )
 
-    def render_smith(self):
+    def render_smith(self) -> None:
         """Render port reflection smithcharts to files."""
         logger.info("Rendering smith charts")
         plt.style.use(PLOT_STYLE)
@@ -276,7 +278,7 @@ class Postprocesor:
         for port in range(self.count):
             if self.is_valid(self.s_params[port][port]):
                 fig, axes = plt.subplots()
-                s11_margin = Config.get().ports[port].dB_margin
+                s11_margin = cfg.ports[port].dB_margin
                 vswr_margin = (10 ** (s11_margin / 20) + 1) / (10 ** (s11_margin / 20) - 1)
                 net.plot_s_smith(
                     m=port,
@@ -291,11 +293,11 @@ class Postprocesor:
                     bbox_inches="tight",
                 )
 
-    def render_trace_delays(self):
+    def render_trace_delays(self) -> None:
         """Render all trace delay plots to files."""
         logger.info("Rendering trace delay plots")
         plt.style.use(PLOT_STYLE)
-        for trace in Config.get().traces:
+        for trace in cfg.traces:
             if trace.correct and self.is_valid(self.delays[trace.stop][trace.start]):
                 fig, axes = plt.subplots()
                 axes.plot(
@@ -309,7 +311,7 @@ class Postprocesor:
                 axes.grid(True)
                 fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"))
 
-        for pair in Config.get().diff_pairs:
+        for pair in cfg.diff_pairs:
             if (
                 pair.correct
                 and self.is_valid(self.delays[pair.stop_p][pair.start_n])
@@ -338,7 +340,7 @@ class Postprocesor:
             if self.is_valid(self.s_params[i][i]):
                 self.save_port_to_file(i, RESULTS_DIR)
 
-    def save_port_to_file(self, port_number: int, path) -> None:
+    def save_port_to_file(self, port_number: int, path: str) -> None:
         """Save all parameters from single excitation."""
         frequencies = np.transpose([self.frequencies])
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
@@ -367,6 +369,6 @@ class Postprocesor:
         np.savetxt(os.path.join(path, file_path), output, fmt="%e", delimiter=", ", header=header, comments="")
 
     @staticmethod
-    def is_valid(array: np.ndarray):
+    def is_valid(array: np.ndarray) -> bool:
         """Check if array doesn't have any NaN's."""
         return not np.any(np.isnan(array))

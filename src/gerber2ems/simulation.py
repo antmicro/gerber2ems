@@ -1,10 +1,12 @@
 """Module containing Simulation class used for interacting with openEMS."""
+
 import logging
 import os
 import re
 import sys
 import math
 from typing import Tuple, List, Any
+from multiprocessing import Pool
 
 import CSXCAD
 import openEMS
@@ -18,8 +20,11 @@ from gerber2ems.constants import (
     VIA_POLYGON,
 )
 import gerber2ems.importer as importer
+from gerber2ems.grid_gen import GridGenerator
+from gerber2ems.gerber_io import Pad, ApertureRect, Aperture, Position
 
 logger = logging.getLogger(__name__)
+cfg = Config()
 
 
 class Simulation:
@@ -28,10 +33,10 @@ class Simulation:
     def __init__(self) -> None:
         """Initialize simulation object."""
         self.csx = CSXCAD.ContinuousStructure()
-        self.fdtd = openEMS.openEMS(NrTS=Config.get().max_steps)
+        self.fdtd = openEMS.openEMS(NrTS=cfg.max_steps)
         self.fdtd.SetCSX(self.csx)
-        self.mesh = self.csx.GetGrid()
-        self.mesh.SetDeltaUnit(UNIT)
+        self.grid = self.csx.GetGrid()
+        self.grid.SetDeltaUnit(UNIT)
 
         self.ports: List[openEMS.ports.MSLPort] = []
 
@@ -40,117 +45,83 @@ class Simulation:
         self.substrate_materials: List[Any] = []
         self.plane_material = self.csx.AddMetal("Plane")
         self.via_material = self.csx.AddMetal("Via")
-        self.via_filling_material = self.csx.AddMaterial("ViaFilling", epsilon=Config.get().via_filling_epsilon)
+        self.via_filling_material = self.csx.AddMaterial("ViaFilling", epsilon=cfg.via.filling_epsilon)
 
     def create_materials(self) -> None:
         """Create materials required for simulation."""
-        for i, _ in enumerate(Config.get().get_metals()):
+        for i, _ in enumerate(cfg.get_metals()):
             self.gerber_materials.append(self.csx.AddMetal(f"Gerber_{i}"))
-        for i, layer in enumerate(Config.get().get_substrates()):
+        for i, layer in enumerate(cfg.get_substrates()):
             self.substrate_materials.append(self.csx.AddMaterial(f"Substrate_{i}", epsilon=layer.epsilon))
 
-    def add_mesh(self) -> None:
-        """Add mesh to simulation."""
-        pcb_width = Config.get().pcb_width
-        pcb_height = Config.get().pcb_height
-        if pcb_width is None or pcb_height is None:
-            logger.error("PCB dimensions are not set")
-            sys.exit(1)
-        #### X Mesh
-        # Min-Max
-        x_lines = np.array(
-            (
-                -Config.get().margin_xy,
-                pcb_width + Config.get().margin_xy,
-            )
-        )
-        # PCB
-        mesh = Config.get().pcb_mesh_xy
-        x_lines = np.concatenate(
-            (
-                x_lines,
-                np.arange(0 - mesh / 2, pcb_width + mesh / 2, step=mesh),
-            )
-        )
-        self.mesh.AddLine("x", x_lines)
-        # Margin
-        self.mesh.SmoothMeshLines("x", Config.get().margin_mesh_xy, ratio=1.2)
+    def print_grid_stats(self) -> None:
+        """Print stats about grid: line count, minimal spacing, positions."""
+        logger.debug("Grid x lines: %s", self.grid.GetLines("x"))
+        logger.debug("Grid y lines: %s", self.grid.GetLines("y"))
+        logger.debug("Grid z lines: %s", self.grid.GetLines("z"))
 
-        #### Y Mesh
-        # Min-Max
-        y_lines = np.array(
-            (
-                -Config.get().margin_xy,
-                pcb_height + Config.get().margin_xy,
-            )
-        )
-        # PCB
-        mesh = Config.get().pcb_mesh_xy
-        y_lines = np.concatenate(
-            [
-                y_lines,
-                np.arange(0 - mesh / 2, pcb_height + mesh / 2, step=mesh),
-            ]
-        )
-        self.mesh.AddLine("y", y_lines)
-        # Margin
-        self.mesh.SmoothMeshLines("y", Config.get().margin_mesh_xy, ratio=1.2)
+        def get_stat(lines: List[float]) -> List[float]:
+            msize = math.inf
+            mscale = -math.inf
+            prev = lines[1]
+            prev_size = abs((lines[0] - lines[1]))
+            for line in lines:
+                size = abs(prev - line)
+                msize = min(size, msize)
+                scale = prev_size / size
+                scale = scale if scale > 1 else 1 / scale
+                mscale = max(scale, mscale)
+                prev = line
+                prev_size = size
+            return [msize, mscale]
 
-        #### Z Mesh
-        # Min-0-Max
-
-        z_lines = np.array([0])
-        offset = 0
-        z_count = Config.get().inter_copper_layers
-        if z_count % 2 == 1:  # Increasing by one to always have z_line at dumpbox
-            z_count += 1
-        for layer in Config.get().get_substrates():
-            z_lines = np.concatenate(
-                (
-                    z_lines,
-                    np.linspace(offset - layer.thickness, offset, z_count, endpoint=False),
-                )
-            )
-            offset -= layer.thickness
-        z_lines = np.concatenate([z_lines, [Config.get().margin_z, offset - Config.get().margin_z]])
-        z_lines = np.round(z_lines)
-
-        self.mesh.AddLine("z", z_lines)
-        # Margin
-        self.mesh.SmoothMeshLines("z", Config.get().margin_mesh_z, ratio=1.2)
-
-        logger.debug("Mesh x lines: %s", x_lines)
-        logger.debug("Mesh y lines: %s", y_lines)
-        logger.debug("Mesh z lines: %s", z_lines)
-
+        sx = get_stat(self.grid.GetLines("x"))
+        sy = get_stat(self.grid.GetLines("y"))
+        sz = get_stat(self.grid.GetLines("z"))
         xyz = [
-            self.mesh.GetQtyLines("x"),
-            self.mesh.GetQtyLines("y"),
-            self.mesh.GetQtyLines("z"),
+            self.grid.GetQtyLines("x"),
+            self.grid.GetQtyLines("y"),
+            self.grid.GetQtyLines("z"),
         ]
         logger.info(
-            "Mesh line count, x: %d, y: %d z: %d. Total number of cells: ~%.2fM",
+            "Grid line count, x: %d, y: %d z: %d. Total number of cells: ~%.2fM",
             xyz[0],
             xyz[1],
             xyz[2],
             xyz[0] * xyz[1] * xyz[2] / 1.0e6,
         )
+        logger.info("Minimal cell size, x: %f, y: %f z: %f [um]", sx[0], sy[0], sz[0])
+        logger.info("Max cell size ratio, x: %f, y: %f z: %f ", sx[1], sy[1], sz[1])
+
+    def add_grid(self) -> None:
+        """Add grid to simulation."""
+        self.grid_gen = GridGenerator()
+        self.add_port_grid()
+        logger.info("Compiling grid")
+        self.grid = self.grid_gen.generate(self.grid)
+
+        self.print_grid_stats()
 
     def add_gerbers(self) -> None:
         """Add metal from all gerber files."""
         logger.info("Adding copper from gerber files")
 
-        importer.process_gbrs_to_pngs()
-
         offset = 0
         index = 0
-        for layer in Config.get().layers:
+        contours = []
+        with Pool() as p:
+            contours = p.map(
+                importer.get_triangles,
+                [lc.file + ".png" for lc in cfg.layers if lc.kind == LayerKind.METAL],
+            )
+
+        icontours = iter(contours)
+        for layer in cfg.layers:
             if layer.kind == LayerKind.SUBSTRATE:
                 offset -= layer.thickness
             elif layer.kind == LayerKind.METAL:
-                logger.info("Adding contours for %s", layer.file)
-                contours = importer.get_triangles(layer.file + ".png")
-                self.add_contours(contours, offset, index)
+                logger.info("Adding metal mesh for %s", layer.file)
+                self.add_contours(next(icontours), offset, index)
                 index += 1
 
     def add_contours(self, contours: np.ndarray, z_height: float, layer_index: int) -> None:
@@ -161,7 +132,7 @@ class Simulation:
             for point in contour:
                 # Half of the border thickness is subtracted as image is shifted by it
                 points[0].append((point[1]))
-                points[1].append(Config.get().pcb_height - point[0])
+                points[1].append(cfg.pcb_height - point[0])
 
             self.gerber_materials[layer_index].AddPolygon(points, "z", z_height, priority=1)
 
@@ -169,7 +140,7 @@ class Simulation:
         """Get z offset of nth metal layer."""
         current_metal_index = -1
         offset = 0
-        for layer in Config.get().layers:
+        for layer in cfg.layers:
             if layer.kind == LayerKind.METAL:
                 current_metal_index += 1
                 if current_metal_index == index:
@@ -179,7 +150,39 @@ class Simulation:
         logger.error("Hadn't found %dth metal layer", index)
         sys.exit(1)
 
-    def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False):
+    def add_port_grid(self) -> None:
+        """Add grid around ports for simulation."""
+        logger.info("Adding ports grid")
+
+        importer.import_port_positions()
+
+        for port_config in cfg.ports:
+            if port_config.position is None or port_config.direction is None:
+                logger.error("Port has no defined position or rotation, skipping")
+                return
+            angle = port_config.direction / 360 * 2 * math.pi
+            ap = f"PORT{len(self.grid_gen.add_apertures) + 1}"
+            (w, h) = ((port_config.width), (port_config.length))
+            (width, height) = (
+                w * round(math.cos(angle)) - h * round(math.sin(angle)),
+                w * round(math.sin(angle)) + h * round(math.cos(angle)),
+            )
+            self.grid_gen.add_pads.append(
+                Pad(
+                    ap,
+                    "PORT",
+                    Position(
+                        port_config.position[0] + self.grid_gen.xmin + width / 2,
+                        port_config.position[1] + self.grid_gen.ymin,
+                    ),
+                )
+            )
+            self.grid_gen.add_apertures[ap] = Aperture(
+                "",
+                ApertureRect(width, height),
+            )
+
+    def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
         """Add microstripline port based on config."""
         logger.debug("Adding port number %d", len(self.ports))
 
@@ -233,12 +236,7 @@ class Simulation:
         )
         self.ports.append(port)
 
-        self.mesh.AddLine("x", start[0])
-        self.mesh.AddLine("x", stop[0])
-        self.mesh.AddLine("y", start[1])
-        self.mesh.AddLine("y", stop[1])
-
-    def add_resistive_port(self, port_config: PortConfig, excite: bool = False):
+    def add_resistive_port(self, port_config: PortConfig, excite: bool = False) -> None:
         """Add resistive port based on config."""
         logger.debug("Adding port number %d", len(self.ports))
 
@@ -279,24 +277,14 @@ class Simulation:
         )
         self.ports.append(port)
 
-        logger.debug("Port direction: %s", dir_map[int(port_config.direction)])
-        if dir_map[int(port_config.direction)] == "y":
-            self.mesh.AddLine("x", start[0])
-            self.mesh.AddLine("x", stop[0])
-            self.mesh.AddLine("y", start[1])
-        else:
-            self.mesh.AddLine("x", start[0])
-            self.mesh.AddLine("y", start[1])
-            self.mesh.AddLine("y", stop[1])
-
     def add_virtual_port(self, port_config: PortConfig) -> None:
         """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
         logger.debug("Adding virtual port number %d", len(self.ports))
         for i in range(11):
-            self.mesh.AddLine("x", i)
-            self.mesh.AddLine("y", i)
-        self.mesh.AddLine("z", 0)
-        self.mesh.AddLine("z", 10)
+            self.grid.AddLine("x", i)
+            self.grid.AddLine("y", i)
+        self.grid.AddLine("z", 0)
+        self.grid.AddLine("z", 10)
         port = self.fdtd.AddMSLPort(
             len(self.ports),
             self.csx.AddMetal(f"VirtualPort_{len(self.ports)}"),
@@ -310,25 +298,25 @@ class Simulation:
         )
         self.ports.append(port)
 
-    def add_plane(self, z_height):
+    def add_plane(self, z_height: float) -> None:
         """Add metal plane in whole bounding box of the PCB."""
         self.plane_material.AddBox(
             [0, 0, z_height],
-            [Config.get().pcb_width, Config.get().pcb_height, z_height],
+            [cfg.pcb_width, cfg.pcb_height, z_height],
             priority=1,
         )
 
-    def add_substrates(self):
+    def add_substrates(self) -> None:
         """Add substrate in whole bounding box of the PCB."""
         logger.info("Adding substrates")
 
         offset = 0
-        for i, layer in enumerate(Config.get().get_substrates()):
+        for i, layer in enumerate(cfg.get_substrates()):
             self.substrate_materials[i].AddBox(
                 [0, 0, offset],
                 [
-                    Config.get().pcb_width,
-                    Config.get().pcb_height,
+                    cfg.pcb_width,
+                    cfg.pcb_height,
                     offset - layer.thickness,
                 ],
                 priority=-i,
@@ -336,16 +324,16 @@ class Simulation:
             logger.debug("Added substrate from %f to %f", offset, offset - layer.thickness)
             offset -= layer.thickness
 
-    def add_vias(self):
+    def add_vias(self) -> None:
         """Add all vias from excellon file."""
         logger.info("Adding vias from excellon file")
         vias = importer.get_vias()
         for via in vias:
             self.add_via(via[0], via[1], via[2])
 
-    def add_via(self, x_pos, y_pos, diameter):
+    def add_via(self, x_pos: float, y_pos: float, diameter: float) -> None:
         """Add via at specified position with specified diameter."""
-        thickness = sum(layer.thickness for layer in Config.get().get_substrates())
+        thickness = sum(layer.thickness for layer in cfg.get_substrates())
 
         x_coords = []
         y_coords = []
@@ -357,32 +345,32 @@ class Simulation:
         x_coords = []
         y_coords = []
         for i in range(VIA_POLYGON)[::-1]:
-            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + Config.get().via_plating))
-            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + Config.get().via_plating))
+            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + cfg.via.plating_thickness))
+            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + cfg.via.plating_thickness))
         self.via_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=50)
 
-    def add_dump_boxes(self):
+    def add_dump_boxes(self) -> None:
         """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate."""
         logger.info("Adding dump box for each dielectic")
         offset = 0
-        for i, layer in enumerate(Config.get().get_substrates()):
+        for i, layer in enumerate(cfg.get_substrates()):
             height = offset - layer.thickness / 2
             logger.debug("Adding dump box at %f", height)
             dump = self.csx.AddDump(f"e_field_{i}", sub_sampling=[1, 1, 1])
             start = [
-                -Config.get().margin_xy,
-                -Config.get().margin_xy,
+                -cfg.grid.margin.xy,
+                -cfg.grid.margin.xy,
                 height,
             ]
             stop = [
-                Config.get().pcb_width + Config.get().margin_xy,
-                Config.get().pcb_height + Config.get().margin_xy,
+                cfg.pcb_width + cfg.grid.margin.xy,
+                cfg.pcb_height + cfg.grid.margin.xy,
                 height,
             ]
             dump.AddBox(start, stop)
             offset -= layer.thickness
 
-    def set_boundary_conditions(self, pml=False):
+    def set_boundary_conditions(self, pml: bool = False) -> None:
         """Add boundary conditions. MUR for fast simulation, PML for more accurate."""
         if pml:
             logger.info("Adding perfectly matched layer boundary condition")
@@ -391,24 +379,24 @@ class Simulation:
             logger.info("Adding MUR boundary condition")
             self.fdtd.SetBoundaryCond(["MUR", "MUR", "MUR", "MUR", "MUR", "MUR"])
 
-    def set_excitation(self):
+    def set_excitation(self) -> None:
         """Set gauss excitation according to config."""
         logger.debug(
             "Setting excitation to gaussian pulse from %f to %f",
-            Config.get().start_frequency,
-            Config.get().stop_frequency,
+            cfg.frequency.start,
+            cfg.frequency.stop,
         )
         self.fdtd.SetGaussExcite(
-            (Config.get().start_frequency + Config.get().stop_frequency) / 2,
-            (Config.get().stop_frequency - Config.get().start_frequency) / 2,
+            (cfg.frequency.start + cfg.frequency.stop) / 2,
+            (cfg.frequency.stop - cfg.frequency.start) / 2,
         )
 
-    def set_sinus_excitation(self, freq):
+    def set_sinus_excitation(self, freq: float) -> None:
         """Set sinus excitation at specified frequency."""
         logger.debug("Setting excitation to sine at %f", freq)
         self.fdtd.SetSinusExcite(freq)
 
-    def run(self, excited_port_number):
+    def run(self, excited_port_number: int) -> None:
         """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
@@ -438,8 +426,9 @@ class Simulation:
             logger.error("Geometry file does not exist. Did you run geometry step?")
             sys.exit(1)
         self.csx.ReadFromXML(filename)
+        self.grid = self.csx.GetGrid()
 
-    def get_port_parameters(self, index: int, frequencies) -> Tuple[List, List]:
+    def get_port_parameters(self, index: int, frequencies: np.ndarray) -> Tuple[List, List]:
         """Return reflected and incident power vs frequency for each port."""
         result_path = os.path.join(os.getcwd(), SIMULATION_DIR, str(index))
 

@@ -1,42 +1,43 @@
 #!/usr/bin/env python3
+"""Script running within Paraview."""
+
 import os
 from pathlib import Path
-
-from paraview.simple import *
+from paraview.simple import *  # type: ignore #noqa: F403
 
 
 def get_sim_results(port: str) -> list[str]:
-    """Get path to simulation result files, from specified port"""
+    """Get path to simulation result files, from specified port."""
     path = Path.cwd() / "ems" / "simulation" / port
     return [str(p) for p in path.glob("*.vtr")]
 
 
 def run_preview(files: list[str]) -> None:
-    """Setup and run preview"""
-    paraview.simple._DisableFirstRenderCameraReset()
+    """Set up and run preview."""
+    paraview.simple._DisableFirstRenderCameraReset()  # type: ignore #noqa: F405
 
-    e_field = XMLRectilinearGridReader(registrationName="e_field", FileName=files)
+    e_field = XMLRectilinearGridReader(registrationName="e_field", FileName=files)  # type: ignore #noqa: F405
     e_field.PointArrayStatus = ["E-Field"]
 
-    animationScene = GetAnimationScene()
+    animation_scene = Getanimation_scene()  # type: ignore #noqa: F405
 
-    animationScene.UpdateAnimationUsingDataTimeSteps()
+    animation_scene.UpdateAnimationUsingDataTimeSteps()
 
-    renderView = GetActiveViewOrCreate("RenderView")
+    render_view = GetActiveViewOrCreate("render_view")  # type: ignore #noqa: F405
 
-    e_field_vtrDisplay = Show(e_field, renderView, "UniformGridRepresentation")
+    e_field_vtr_display = Show(e_field, render_view, "UniformGridRepresentation")  # type: ignore #noqa: F405
 
-    ColorBy(e_field_vtrDisplay, ("POINTS", "E-Field", "Magnitude"))
+    ColorBy(e_field_vtr_display, ("POINTS", "E-Field", "Magnitude"))  # type: ignore #noqa: F405
 
-    e_field_vtrDisplay.RescaleTransferFunctionToDataRange(True, False)
+    e_field_vtr_display.RescaleTransferFunctionToDataRange(True, False)
 
-    e_field_vtrDisplay.SetScalarBarVisibility(renderView, True)
+    e_field_vtr_display.SetScalarBarVisibility(render_view, True)
 
-    renderView.Update()
+    render_view.Update()
 
-    renderView.ResetCamera(False)
+    render_view.ResetCamera(False)
 
-    animationScene.Play()
+    animation_scene.Play()
 
 
 if __name__ == "__main__":

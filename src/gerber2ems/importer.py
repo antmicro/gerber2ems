@@ -1,4 +1,5 @@
 """Module containing functions for importing gerbers."""
+
 import csv
 import json
 import subprocess
@@ -7,7 +8,9 @@ import logging
 from typing import List, Tuple
 import sys
 import re
-
+from functools import partial
+from multiprocessing import Pool
+from pathlib import Path
 import PIL.Image
 import numpy as np
 from nanomesh import Image
@@ -18,63 +21,70 @@ from gerber2ems.config import Config
 from gerber2ems.constants import (
     GEOMETRY_DIR,
     UNIT,
-    PIXEL_SIZE,
     BORDER_THICKNESS,
     STACKUP_FORMAT_VERSION,
 )
 
 logger = logging.getLogger(__name__)
 
+PIL.Image.MAX_IMAGE_PIXELS = None
+cfg = Config()
 
-def process_gbrs_to_pngs():
+
+def process_gbrs_to_pngs() -> None:
     """Process all gerber files to PNG's.
 
     Finds edge cuts gerber as well as copper gerbers in `fab` directory.
     Processes copper gerbers into PNG's using edge_cuts for framing.
     Output is saved to `ems/geometry` folder
     """
-    logger.info("Processing gerber files")
+    logger.info("Processing gerber files (may take a while for larger boards)")
 
-    files = os.listdir(os.path.join(os.getcwd(), "fab"))
-
-    edge = next(filter(lambda name: "Edge_Cuts.gbr" in name, files), None)
+    fab = Path.cwd() / "fab"
+    edge = next(fab.glob("*Edge_Cuts.gbr"), None)
     if edge is None:
         logger.error("No edge_cuts gerber found")
         sys.exit(1)
 
-    layers = list(filter(lambda name: "_Cu.gbr" in name, files))
+    layers = list(fab.glob("*_Cu.gbr"))
     if len(layers) == 0:
         logger.warning("No copper gerbers found")
 
-    for name in layers:
-        output = name.split("-")[-1].split(".")[0] + ".png"
-        gbr_to_png(
-            os.path.join(os.getcwd(), "fab", name),
-            os.path.join(os.getcwd(), "fab", edge),
-            os.path.join(os.getcwd(), GEOMETRY_DIR, output),
-        )
+    with Pool() as p:
+        p.map(partial(gbr_to_png, edge), layers)
 
 
-def gbr_to_png(gerber_filename: str, edge_filename: str, output_filename: str) -> None:
+def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
     """Generate PNG from gerber file.
 
     Generates PNG of a gerber using gerbv.
     Edge cuts gerber is used to crop the image correctly.
-    Output DPI is based on PIXEL_SIZE constant.
+    Output DPI is based on config.pixel_size constant.
     """
-    logger.debug("Generating PNG for %s", gerber_filename)
-    not_cropped_name = f"{output_filename.split('.')[0]}_not_cropped.png"
+    output_filename = Path.cwd() / GEOMETRY_DIR / gerber_filename.with_suffix(".png").name.rpartition("-")[2]
 
-    dpi = 1 / (PIXEL_SIZE * UNIT / 0.0254)
+    dpi = 1 / (cfg.pixel_size * UNIT / 0.0254)
+    logger.debug("Generating PNG (DPI: %d) for %s", dpi, gerber_filename)
+
+    not_cropped_name = output_filename.with_stem(output_filename.stem + "_not_cropped")
     if not dpi.is_integer():
         logger.warning("DPI is not an integer number: %f", dpi)
+    gerbv_command = [
+        "gerbv",
+        gerber_filename,
+        edge_filename,
+        "--background=#000000",
+        "--foreground=#ffffffff",
+        "--foreground=#0000ff",
+        "-o",
+        not_cropped_name,
+        "--dpi",
+        f"{dpi}",
+        "--export=png",
+        "-a",
+    ]
 
-    gerbv_command = f"gerbv {gerber_filename} {edge_filename}"
-    gerbv_command += " --background=#000000 --foreground=#ffffffff --foreground=#0000ff"
-    gerbv_command += f" -o {not_cropped_name}"
-    gerbv_command += f" --dpi={dpi} --export=png -a"
-
-    subprocess.call(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+    subprocess.run(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     not_cropped_image = PIL.Image.open(not_cropped_name)
 
@@ -82,7 +92,7 @@ def gbr_to_png(gerber_filename: str, edge_filename: str, output_filename: str) -
     cropped_image = not_cropped_image.crop(not_cropped_image.getbbox())
     cropped_image.save(output_filename)
 
-    if not Config.get().arguments.debug:
+    if not cfg.arguments.debug:
         os.remove(not_cropped_name)
 
 
@@ -92,11 +102,12 @@ def get_dimensions(input_filename: str) -> Tuple[int, int]:
     Opens PNG found in `ems/geometry` directory,
     gets it's size and subtracts border thickness to get board dimensions
     """
+    pixel_size = cfg.pixel_size
     path = os.path.join(GEOMETRY_DIR, input_filename)
     image = PIL.Image.open(path)
     image_width, image_height = image.size
-    height = image_height * PIXEL_SIZE - BORDER_THICKNESS
-    width = image_width * PIXEL_SIZE - BORDER_THICKNESS
+    height = image_height * pixel_size - BORDER_THICKNESS
+    width = image_width * pixel_size - BORDER_THICKNESS
     logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
 
@@ -118,15 +129,17 @@ def get_triangles(input_filename: str) -> np.ndarray:
     mesher = Mesher2D(copper)
     # These constans are set so there won't be to many triangles.
     # If in some case triangles are too coarse they should be adjusted
-    mesher.generate_contour(max_edge_dist=10000, precision=2)
+    max_edge_dist = int(60000 / (cfg.pixel_size**2 / 25))
+    mesher.generate_contour(max_edge_dist=max_edge_dist, precision=1)
     mesher.plot_contour()
-    mesh = mesher.triangulate(opts="a100000")
+    mesh = mesher.triangulate(opts=f"epAq15a{max_edge_dist}")
 
-    if Config.get().arguments.debug:
+    if cfg.arguments.debug:
         filename = os.path.join(os.getcwd(), GEOMETRY_DIR, input_filename + "_mesh.png")
         logger.debug("Saving mesh to file: %s", filename)
-        mesh.plot_mpl()
-        plt.savefig(filename, dpi=300)
+        mesh.plot_mpl(linewidth=0.05)
+        plt.savefig(filename, dpi=2400)
+        plt.close()
 
     points = mesh.get("triangle").points
     cells = mesh.get("triangle").cells
@@ -150,7 +163,7 @@ def get_triangles(input_filename: str) -> np.ndarray:
 
 def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
     """Transform point coordinates from image to board coordinates."""
-    return (point * PIXEL_SIZE) - [BORDER_THICKNESS / 2, BORDER_THICKNESS / 2]
+    return (point * cfg.pixel_size) - [BORDER_THICKNESS / 2, BORDER_THICKNESS / 2]
 
 
 def get_vias() -> List[List[float]]:
@@ -200,7 +213,7 @@ def get_vias() -> List[List[float]]:
     return vias
 
 
-def import_stackup():
+def import_stackup() -> None:
     """Import stackup information from `fab/stackup.json` file and load it into config object."""
     filename = "fab/stackup.json"
     with open(filename, "r", encoding="utf-8") as file:
@@ -220,7 +233,7 @@ def import_stackup():
             and ver.split(".")[0] == STACKUP_FORMAT_VERSION.split(".", maxsplit=1)[0]
             and ver.split(".")[1] >= STACKUP_FORMAT_VERSION.split(".", maxsplit=1)[1]
         ):
-            Config.get().load_stackup(stackup)
+            cfg.load_stackup(stackup)
         else:
             logger.error(
                 "Stackup format (%s) is not supported (supported: %s)",
@@ -242,17 +255,17 @@ def import_port_positions() -> None:
             ports += get_ports_from_file(os.path.join(os.getcwd(), "fab", filename))
 
     for number, position, direction in ports:
-        if len(Config.get().ports) > number:
-            port = Config.get().ports[number]
+        if len(cfg.ports) > number:
+            port = cfg.ports[number]
             if port.position is None:
-                Config.get().ports[number].position = position
-                Config.get().ports[number].direction = direction
+                cfg.ports[number].position = position
+                cfg.ports[number].direction = direction
             else:
                 logger.warning(
                     "Port #%i is defined twice on the board. Ignoring the second instance",
                     number,
                 )
-    for index, port in enumerate(Config.get().ports):
+    for index, port in enumerate(cfg.ports):
         if port.position is None:
             logger.error("Port #%i is not defined on board. It will be skipped", index)
 
@@ -264,7 +277,7 @@ def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], f
         reader = csv.reader(csvfile, delimiter=",", quotechar='"')
         next(reader, None)  # skip the headers
         for row in reader:
-            if "Simulation_Port" in row[2]:
+            if "Simulation_Port" in row[2] or "Simulation-Port" in row[2]:
                 number = int(row[0][2:])
                 ports.append(
                     (

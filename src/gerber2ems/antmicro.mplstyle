@@ -1,10 +1,10 @@
 font.family : lato
 axes.titlesize : 16
-axes.facecolor : 332D37
+axes.facecolor : 2E303E
 axes.edgecolor : c4c2c5
 axes.labelcolor : dfdfdf
 axes.labelsize : 12
-figure.facecolor : 332D37
+figure.facecolor : 2E303E
 text.color : FFFFFF
 grid.color : c4c2c5
 xtick.labelcolor: c4c2c5

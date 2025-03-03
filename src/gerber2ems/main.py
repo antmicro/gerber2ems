@@ -3,7 +3,6 @@
 """Main module of EM-Simulator."""
 import os
 import sys
-import json
 import argparse
 import logging
 from typing import Any, Optional
@@ -19,12 +18,16 @@ from gerber2ems.config import Config
 import gerber2ems.importer as importer
 
 logger = logging.getLogger(__name__)
+cfg = Config()
 
 
-def main():
+def main() -> None:
     """Run the script."""
     args = parse_arguments()
+    Config.load(args)
     setup_logging(args)
+    if args.update_config:
+        exit(0)
 
     if not any(
         [
@@ -37,8 +40,6 @@ def main():
         logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-a" flags')
         sys.exit(0)
 
-    config = open_config(args)
-    config = Config(config, args)
     create_dir(BASE_DIR)
 
     if args.geometry or args.all:
@@ -64,14 +65,14 @@ def add_ports(sim: Simulation, excited_port_number: Optional[int] = None) -> Non
     sim.ports = []
     importer.import_port_positions()
 
-    for index, port_config in enumerate(Config.get().ports):
+    for index, port_config in enumerate(cfg.ports):
         sim.add_msl_port(port_config, index, index == excited_port_number)
 
 
 def add_virtual_ports(sim: Simulation) -> None:
     """Add virtual ports needed for data postprocessing due to openEMS api design."""
     logger.info("Adding virtual ports")
-    for port_config in Config.get().ports:
+    for port_config in cfg.ports:
         sim.add_virtual_port(port_config)
 
 
@@ -80,16 +81,16 @@ def geometry(sim: Simulation) -> None:
     importer.import_stackup()
     importer.process_gbrs_to_pngs()
 
-    top_layer_name = Config.get().get_metals()[0].file
+    top_layer_name = cfg.get_metals()[0].file
     (width, height) = importer.get_dimensions(top_layer_name + ".png")
-    Config.get().pcb_height = height
-    Config.get().pcb_width = width
+    cfg.pcb_height = height
+    cfg.pcb_width = width
 
     sim.create_materials()
     sim.add_gerbers()
-    sim.add_mesh()
+    sim.add_grid()
     sim.add_substrates()
-    if Config.get().arguments.export_field:
+    if cfg.arguments.export_field:
         sim.add_dump_boxes()
     sim.set_boundary_conditions(pml=False)
     sim.add_vias()
@@ -99,7 +100,7 @@ def geometry(sim: Simulation) -> None:
 
 def simulate() -> None:
     """Run the simulation."""
-    for index, port in enumerate(Config.get().ports):
+    for index, port in enumerate(cfg.ports):
         if port.excite:
             sim = Simulation()
             importer.import_stackup()
@@ -116,15 +117,15 @@ def postprocess(sim: Simulation) -> None:
     if len(sim.ports) == 0:
         add_virtual_ports(sim)
 
-    frequencies = np.linspace(Config.get().start_frequency, Config.get().stop_frequency, 1001)
-    post = Postprocesor(frequencies, len(Config.get().ports))
-    impedances = np.array([p.impedance for p in Config.get().ports])
+    frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
+    post = Postprocesor(frequencies, len(cfg.ports))
+    impedances = np.array([p.impedance for p in cfg.ports])
     post.add_impedances(impedances)
 
-    for index, port in enumerate(Config.get().ports):
+    for index, port in enumerate(cfg.ports):
         if port.excite:
             reflected, incident = sim.get_port_parameters(index, frequencies)
-            for i, _ in enumerate(Config.get().ports):
+            for i, _ in enumerate(cfg.ports):
                 post.add_port_data(i, index, incident[i], reflected[i])
 
     post.process_data()
@@ -137,48 +138,24 @@ def postprocess(sim: Simulation) -> None:
     post.render_trace_delays()
 
 
-def parse_arguments() -> Any:
+def parse_arguments() -> argparse.Namespace:
     """Parse commandline arguments."""
     parser = argparse.ArgumentParser(
         prog="EM-Simulator",
-        description="This application allows to perform EM simulations for PCB's created with KiCAD",
-    )
-    parser.add_argument("-c", "--config", dest="config", metavar="CONFIG_FILE")
-    parser.add_argument(
-        "-g",
-        "--geometry",
-        dest="geometry",
-        action="store_true",
-        help="Create geometry",
+        description="This application allows to perform EM simulations based on standard PCB production files (gerber)",
     )
     parser.add_argument(
-        "-s",
-        "--simulate",
-        dest="simulate",
-        action="store_true",
-        help="Run simulation",
+        "-c", "--config", metavar="CONFIG_FILE", help="Path to config file [default: `./simulation.json`]"
+    )
+    parser.add_argument("--update-config", action="store_true", help="Add missing fields to config file")
+    parser.add_argument("-g", "--geometry", action="store_true", help="Create geometry")
+    parser.add_argument("-s", "--simulate", action="store_true", help="Run simulation")
+    parser.add_argument("-p", "--postprocess", action="store_true", help="Postprocess the data")
+    parser.add_argument(
+        "-a", "--all", action="store_true", help="Execute all steps (geometry, simulation, postprocessing)"
     )
     parser.add_argument(
-        "-p",
-        "--postprocess",
-        dest="postprocess",
-        action="store_true",
-        help="Postprocess the data",
-    )
-    parser.add_argument(
-        "-a",
-        "--all",
-        dest="all",
-        action="store_true",
-        help="Execute all steps (geometry, simulation, postprocessing)",
-    )
-
-    parser.add_argument(
-        "--export-field",
-        "--ef",
-        dest="export_field",
-        action="store_true",
-        help="Export electric field data from the simulation",
+        "--export-field", "--ef", action="store_true", help="Export electric field data from the simulation"
     )
 
     group = parser.add_mutually_exclusive_group()
@@ -211,36 +188,10 @@ def setup_logging(args: Any) -> None:
             logger=logger,
         )
 
-    # Temporary fix to disable logging from other libraries
     to_disable = ["PIL", "matplotlib"]
     for name in to_disable:
         disabled_logger = logging.getLogger(name)
         disabled_logger.setLevel(logging.ERROR)
-
-
-def open_config(args: Any) -> None:
-    """Try to open and parse config as json."""
-    file_name = args.config
-    if file_name is None:  # If filename is not supplied fallback to default
-        file_name = "./simulation.json"
-    file_name = os.path.abspath(file_name)
-    if not os.path.isfile(file_name):
-        logger.error("Config file doesn't exist: %s", file_name)
-        sys.exit(1)
-
-    with open(file_name, "r", encoding="utf-8") as file:
-        try:
-            config = json.load(file)
-        except json.JSONDecodeError as error:
-            logger.error(
-                "JSON decoding failed at %d:%d: %s",
-                error.lineno,
-                error.colno,
-                error.msg,
-            )
-            sys.exit(1)
-
-    return config
 
 
 def create_dir(path: str, cleanup: bool = False) -> None:
