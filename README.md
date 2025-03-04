@@ -189,17 +189,27 @@ Example format:
 }
 ```
 
-* Drill file - Drill file in excellon format with plated through-holes. 
+* Drill file - Drill file in excellon format with plated through-holes.
 Filename should end with "-PTH.drl"
 
-* Position file - File describing positions of ports. 
-Filename should end with "-pos.csv". (coordinates should be given in relation to bottom left corner)
-Example line:
+* Position file - File describing positions of ports.
+  * Filename should end with "-pos.csv"
+  * Coordinates should be given in relation to bottom left corner
+  * The area of the port is calculated using the formulas in the table below, based on the `Width` and `Length` values from the `simulation.json` file:
 
-```
-# Ref     Val              Package                PosX       PosY       Rot  Side
-SP1       Simulation_Port  Simulation_Port      3.0000    11.7500  180.0000  top
-```
+    | Rotation [°] | `X` span                       | `Y` span                       | Wave travel direction |
+    | ------------ | ------------------------------ | ------------------------------ | --------------------- |
+    | 0            | `(PosX-Width/2, PosX+Width/2)` | `(PosY, PosY+Length)`          | Along `Y`             |
+    | 90           | `(PosX-Length, PosX)`          | `(PosY-Width/2, PosY+Width/2)` | Opposite to `X`       |
+    | 180          | `(PosX-Width/2, PosX+Width/2)` | `(PosY-Length, PosY)`          | Opposite to `Y`       |
+    | 270          | `(PosX, PosX+Length)`          | `(PosY-Width/2, PosY+Width/2)` | Along `X`             |
+
+  * Example file:
+
+    ```
+    # Ref     Val              Package                PosX       PosY       Rot  Side
+    SP1       Simulation_Port  Simulation_Port      3.0000    11.7500  180.0000  top
+    ```
 
 ### Config preparation
 
