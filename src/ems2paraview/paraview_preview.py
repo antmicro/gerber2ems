@@ -19,11 +19,11 @@ def run_preview(files: list[str]) -> None:
     e_field = XMLRectilinearGridReader(registrationName="e_field", FileName=files)  # type: ignore #noqa: F405
     e_field.PointArrayStatus = ["E-Field"]
 
-    animation_scene = Getanimation_scene()  # type: ignore #noqa: F405
+    animation_scene = GetAnimationScene()  # type: ignore #noqa: F405
 
     animation_scene.UpdateAnimationUsingDataTimeSteps()
 
-    render_view = GetActiveViewOrCreate("render_view")  # type: ignore #noqa: F405
+    render_view = GetActiveViewOrCreate("RenderView")  # type: ignore #noqa: F405
 
     e_field_vtr_display = Show(e_field, render_view, "UniformGridRepresentation")  # type: ignore #noqa: F405
 
