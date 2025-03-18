@@ -19,7 +19,6 @@ from math import atan2, pi, floor, log, inf
 import logging
 import sys
 from copy import deepcopy
-from gerber2ems.constants import BORDER_THICKNESS
 from scipy.optimize import fsolve
 import numpy as np
 from functools import partial
@@ -67,16 +66,11 @@ class GridGenerator:
             exit(1)
         edge_cuts = GerberFile(edge_cuts_path[0])
         [self.xmin, self.xmax, self.ymin, self.ymax] = [inf, -inf, inf, -inf]
-        border = BORDER_THICKNESS / 2
         for seg in edge_cuts.traces["no-net"].segments:
             self.xmin = min(seg.start.x, seg.stop.x, self.xmin)
             self.ymin = min(seg.start.y, seg.stop.y, self.ymin)
             self.xmax = max(seg.start.x, seg.stop.x, self.xmax)
             self.ymax = max(seg.start.y, seg.stop.y, self.ymax)
-        self.xmin -= border
-        self.ymin -= border
-        self.xmax += border
-        self.ymax += border
 
     def generate_z(self) -> List[float]:
         """Generate grid in Z axis."""

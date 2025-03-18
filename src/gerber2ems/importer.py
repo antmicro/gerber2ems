@@ -21,7 +21,6 @@ from gerber2ems.config import Config
 from gerber2ems.constants import (
     GEOMETRY_DIR,
     UNIT,
-    BORDER_THICKNESS,
     STACKUP_FORMAT_VERSION,
 )
 
@@ -75,11 +74,12 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
         edge_filename,
         "--background=#000000",
         "--foreground=#ffffffff",
-        "--foreground=#0000ff",
+        "--foreground=#00007f",
         "-o",
         not_cropped_name,
         "--dpi",
         f"{dpi}",
+        "--border=0",
         "--export=png",
         "-a",
     ]
@@ -88,8 +88,19 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
 
     not_cropped_image = PIL.Image.open(not_cropped_name)
 
-    # image_width, image_height = not_cropped_image.size
-    cropped_image = not_cropped_image.crop(not_cropped_image.getbbox())
+    edge_width = 0
+    v_probe = not_cropped_image.height / 2
+    px_access = not_cropped_image.load()
+    for i in range(not_cropped_image.width):
+        px = px_access[i, v_probe]
+        if 0xBF > px[2] > 0x3F:
+            # px belongs to edge
+            edge_width += 1
+            continue
+        if edge_width != 0:
+            break
+    ew2 = int(edge_width / 2)
+    cropped_image = not_cropped_image.crop((ew2, ew2, not_cropped_image.width - ew2, not_cropped_image.height - ew2))
     cropped_image.save(output_filename)
 
     if not cfg.arguments.debug:
@@ -106,8 +117,8 @@ def get_dimensions(input_filename: str) -> Tuple[int, int]:
     path = os.path.join(GEOMETRY_DIR, input_filename)
     image = PIL.Image.open(path)
     image_width, image_height = image.size
-    height = image_height * pixel_size - BORDER_THICKNESS
-    width = image_width * pixel_size - BORDER_THICKNESS
+    height = image_height * pixel_size
+    width = image_width * pixel_size
     logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
 
@@ -163,7 +174,7 @@ def get_triangles(input_filename: str) -> np.ndarray:
 
 def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
     """Transform point coordinates from image to board coordinates."""
-    return (point * cfg.pixel_size) - [BORDER_THICKNESS / 2, BORDER_THICKNESS / 2]
+    return point * cfg.pixel_size
 
 
 def get_vias() -> List[List[float]]:
