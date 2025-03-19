@@ -131,11 +131,17 @@ class Postprocesor:
                             20 * np.log10(np.abs(s_param)),
                             label="$S_{" + f"{j+1}{i+1}" + "}$",
                         )
-                axes.legend()
+                axes.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Magnitude, [dB]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"))
+                bottom, top = axes.get_ylim()
+                axes.set_ylim([min(bottom, -60), max(top, 5)])
+                fig.savefig(
+                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"),
+                    bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
+                )
 
     def render_diff_pair_s_params(self) -> None:
         """Render differential pair S parameter plots to files."""
@@ -158,7 +164,7 @@ class Postprocesor:
                     axes.plot(
                         self.frequencies / 1e9,
                         20 * np.log10(np.abs(s_param)),
-                        label=pair.name + " $SDD_{11}$",
+                        label="$SDD_{11}$",
                     )
                 s_param = 0.5 * (
                     self.s_params[pair.stop_p][pair.start_p]
@@ -170,13 +176,19 @@ class Postprocesor:
                     axes.plot(
                         self.frequencies / 1e9,
                         20 * np.log10(np.abs(s_param)),
-                        label=pair.name + " $SDD_{21}$",
+                        label="$SDD_{21}$",
                     )
-                axes.legend()
+                axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Magnitude, [dB]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"SDD_{pair.name}.png"))
+                bottom, top = axes.get_ylim()
+                axes.set_ylim([min(bottom, -60), max(top, 5)])
+                fig.savefig(
+                    os.path.join(os.getcwd(), RESULTS_DIR, "SDD_Diff"),
+                    bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
+                )
 
     def render_diff_impedance(self) -> None:
         """Render differential pair impedance plots to files."""
@@ -214,15 +226,21 @@ class Postprocesor:
                         color="orange",
                     )
 
-                    axs[0].set_ylabel(f"Magnitude, {pair.name} |Z| [\Omega]$")
-                    axs[1].set_ylabel(f"Angle, {pair.name} arg(Z) [^\circ]$")
+                    axs[0].set_ylabel("Magnitude, $|Z_{diff}| [\Omega]$")
+                    axs[1].set_ylabel("Angle, $arg(Z_{diff}) [^\circ]$")
                     axs[1].set_xlabel("Frequency, f [GHz]")
                     axs[0].grid(True)
                     axs[1].grid(True)
 
+                    bottom, top = axs[0].get_ylim()
+                    axs[0].set_ylim([min(bottom, 0), max(top, 200)])
+                    bottom, top = axs[1].get_ylim()
+                    axs[1].set_ylim([min(bottom, -90), max(top, 90)])
+
                     fig.savefig(
-                        os.path.join(os.getcwd(), RESULTS_DIR, f"Z_diff_{pair.name}.png"),
+                        os.path.join(os.getcwd(), RESULTS_DIR, "Z_diff.png"),
                         bbox_inches="tight",
+                        transparent=cfg.arguments.transparent,
                     )
                 else:
                     logger.error(
@@ -265,9 +283,15 @@ class Postprocesor:
                     axs[0].axhline(np.real(min_z), color="red")
                     axs[0].axhline(np.real(max_z), color="red")
 
+                bottom, top = axs[0].get_ylim()
+                axs[0].set_ylim([min(bottom, 0), max(top, 100)])
+                bottom, top = axs[1].get_ylim()
+                axs[1].set_ylim([min(bottom, -90), max(top, 90)])
+
                 fig.savefig(
                     os.path.join(os.getcwd(), RESULTS_DIR, f"Z_{port+1}.png"),
                     bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
                 )
 
     def render_smith(self) -> None:
@@ -288,9 +312,11 @@ class Postprocesor:
                     show_legend=True,
                     draw_vswr=[vswr_margin],
                 )
+                axes.legend(bbox_to_anchor=(1.0, 0.5), loc="center left")
                 fig.savefig(
                     os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"),
                     bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
                 )
 
     def render_trace_delays(self) -> None:
@@ -305,11 +331,15 @@ class Postprocesor:
                     self.delays[trace.stop][trace.start] * 1e9,
                     label=f"{trace.name} delay",
                 )
-                axes.legend()
+                axes.legend(loc="center left", bbox_to_anchor=(0.5, 1))
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Trace delay, [ns]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"))
+                fig.savefig(
+                    os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"),
+                    bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
+                )
 
         for pair in cfg.diff_pairs:
             if (
@@ -321,18 +351,22 @@ class Postprocesor:
                 axes.plot(
                     self.frequencies / 1e9,
                     self.delays[pair.stop_p][pair.start_n] * 1e9,
-                    label=f"{pair.name} n delay",
+                    label="N trace delay",
                 )
                 axes.plot(
                     self.frequencies / 1e9,
                     self.delays[pair.stop_n][pair.start_p] * 1e9,
-                    label=f"{pair.name} p delay",
+                    label="P trace delay",
                 )
-                axes.legend()
+                axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
                 axes.set_xlabel("Frequency, f [GHz]")
                 axes.set_ylabel("Trace delay, [ns]")
                 axes.grid(True)
-                fig.savefig(os.path.join(os.getcwd(), RESULTS_DIR, f"{pair.name}_delay.png"))
+                fig.savefig(
+                    os.path.join(os.getcwd(), RESULTS_DIR, "diff_delay.png"),
+                    bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
+                )
 
     def save_to_file(self) -> None:
         """Save all parameters to files."""

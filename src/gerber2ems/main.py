@@ -157,7 +157,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--export-field", "--ef", action="store_true", help="Export electric field data from the simulation"
     )
-
+    parser.add_argument("-t", "--transparent", action="store_true", help="Export graphs with transparent background")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
     group.add_argument("-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level")

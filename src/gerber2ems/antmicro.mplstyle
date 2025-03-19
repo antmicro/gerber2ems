@@ -13,4 +13,3 @@ xtick.color: c4c2c5
 ytick.color: c4c2c5
 axes.prop_cycle: cycler('color', ['c4c2c5', 'f15f32', '00af91', 'c0e4eb', 'e74a3c'])
 patch.edgecolor : dfdfdf
-legend.fontsize : 16
