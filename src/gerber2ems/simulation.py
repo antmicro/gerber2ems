@@ -109,7 +109,7 @@ class Simulation:
         offset = 0
         index = 0
         contours = []
-        with Pool() as p:
+        with Pool(initargs=(cfg._config,), initializer=Config.set_config) as p:
             contours = p.map(
                 importer.get_triangles,
                 [lc.file + ".png" for lc in cfg.layers if lc.kind == LayerKind.METAL],

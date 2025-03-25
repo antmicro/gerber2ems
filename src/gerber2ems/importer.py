@@ -49,7 +49,7 @@ def process_gbrs_to_pngs() -> None:
     if len(layers) == 0:
         logger.warning("No copper gerbers found")
 
-    with Pool() as p:
+    with Pool(initargs=(cfg._config,), initializer=Config.set_config) as p:
         p.map(partial(gbr_to_png, edge), layers)
 
 

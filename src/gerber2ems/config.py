@@ -207,6 +207,11 @@ class Config:
         return cls._instance
 
     @classmethod
+    def set_config(cls, cfg: _Config) -> None:
+        """Initialize inner config."""
+        Config()._config = cfg
+
+    @classmethod
     def load(cls, args: Namespace) -> None:
         """Load config file (default: simulation.json)."""
         global port_count
