@@ -13,9 +13,8 @@ from multiprocessing import Pool
 from pathlib import Path
 import PIL.Image
 import numpy as np
-from nanomesh import Image
-from nanomesh import Mesher2D
-import matplotlib.pyplot as plt
+from nanomesh import Image, Mesher2D
+import matplotlib as mpl
 
 from gerber2ems.config import Config
 from gerber2ems.constants import (
@@ -131,48 +130,76 @@ def get_triangles(input_filename: str) -> np.ndarray:
     and then uses Nanomesh to create a triangular mesh of the copper.
     Returns a list of triangles, where each triangle consists of coordinates for each vertex.
     """
-    path = os.path.join(GEOMETRY_DIR, input_filename)
-    image = PIL.Image.open(path)
+    img_path = Path(GEOMETRY_DIR) / input_filename
+    image = PIL.Image.open(img_path)
     gray = image.convert("L")
     thresh = gray.point(lambda p: 255 if p < 230 else 0)
-    copper = Image(np.array(thresh))
+    cooper_np = np.array(thresh)
+    copper = Image(cooper_np)
 
     mesher = Mesher2D(copper)
     # These constans are set so there won't be to many triangles.
     # If in some case triangles are too coarse they should be adjusted
     max_edge_dist = int(60000 / (cfg.pixel_size**2 / 25))
-    mesher.generate_contour(max_edge_dist=max_edge_dist, precision=1)
+    mesher.generate_contour(max_edge_dist=max_edge_dist, precision=1, group_regions=False)
     mesher.plot_contour()
     mesh = mesher.triangulate(opts=f"epAq15a{max_edge_dist}")
 
-    if cfg.arguments.debug:
-        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, input_filename + "_mesh.png")
-        logger.debug("Saving mesh to file: %s", filename)
-        mesh.plot_mpl(linewidth=0.05)
-        plt.savefig(filename, dpi=2400)
-        plt.close()
-
     points = mesh.get("triangle").points
     cells = mesh.get("triangle").cells
-    kinds = mesh.get("triangle").cell_data["physical"]
-
-    triangles: np.ndarray = np.empty((len(cells), 3, 2))
-    for i, cell in enumerate(cells):
-        triangles[i] = [
-            image_to_board_coordinates(points[cell[0]]),
-            image_to_board_coordinates(points[cell[1]]),
-            image_to_board_coordinates(points[cell[2]]),
-        ]
 
     # Selecting only triangles that represent copper
-    mask = kinds == 2.0
+    cu_triangles = []
+    for cell in cells:
+        t = (points[cell[0]], points[cell[1]], points[cell[2]])
+        center = np.average(t, axis=0)
+        is_copper = int(cooper_np[int(center[0]), int(center[1])] < 127)
+        if not is_copper:
+            continue
+        cu_triangles.append(
+            [
+                image_to_board_coordinates(t[0]),
+                image_to_board_coordinates(t[1]),
+                image_to_board_coordinates(t[2]),
+            ]
+        )
+    cu_triangles_np = np.stack(cu_triangles, axis=0)
 
-    logger.debug("Found %d triangles for %s", len(triangles[mask]), input_filename)
+    logger.debug("Found %d triangles for %s", len(cu_triangles), input_filename)
 
-    return triangles[mask]
+    if cfg.arguments.debug:
+        plot_mesh(img_path, image.size, cu_triangles_np)
+
+    return cu_triangles_np
 
 
-def image_to_board_coordinates(point: np.ndarray) -> np.ndarray:
+def plot_mesh(img_path: Path, img_size: Tuple[int, int], cu_triangles_np: np.ndarray) -> None:
+    """Plot cooper mesh to file."""
+    filename = img_path.with_stem(img_path.stem + "_mesh")
+    logger.debug("Saving mesh to file: %s", filename)
+    fig, ax = mpl.pyplot.subplots()
+
+    ax.set_xlim(0, image_to_board_coordinates(img_size[0]) / 1000)
+    ylim = image_to_board_coordinates(img_size[1]) / 1000
+    ax.set_ylim(0, ylim)
+    x, y = cu_triangles_np[:, :, 1].flatten() / 1000, -cu_triangles_np[:, :, 0].flatten() / 1000 + ylim
+    cu_count = cu_triangles_np.shape[0]
+    ax.set_aspect("equal")
+    ax.set_xlabel("Slice X position [mm]")
+    ax.set_ylabel("Slice Y position [mm]")
+    ax.set_title(f"{img_path.stem} triangle mesh")
+    c = np.ones(cu_count)
+    cmap = mpl.colors.ListedColormap("#B87333")
+    ax.tripcolor(x, y, c, triangles=np.arange(cu_count * 3).reshape((cu_count, 3)), edgecolor="k", lw=0.05, cmap=cmap)
+    fig.savefig(
+        filename,
+        dpi=2400,
+        bbox_inches="tight",
+    )
+    mpl.pyplot.close()
+
+
+def image_to_board_coordinates(point: np.ndarray | int) -> np.ndarray:
     """Transform point coordinates from image to board coordinates."""
     return point * cfg.pixel_size
 
