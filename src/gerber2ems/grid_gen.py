@@ -72,7 +72,7 @@ class GridGenerator:
             self.xmax = max(seg.start.x, seg.stop.x, self.xmax)
             self.ymax = max(seg.start.y, seg.stop.y, self.ymax)
 
-    def generate_z(self) -> List[float]:
+    def generate_z(self) -> List[int]:
         """Generate grid in Z axis."""
         logger.info("### Grid Generator: generate Z axis ###")
         cell_ratio = cfg.grid.cell_ratio.z
@@ -101,7 +101,7 @@ class GridGenerator:
         z_lines = Region(zmin, zmax).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
         z_lines = Region(zmax, margin).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
         z_lines = Region(offset - margin, zmin).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
-        return dedup_grid(z_lines, grid_min)
+        return [int(x) for x in dedup_grid(z_lines, grid_min)]
 
     def generate(self, grid: CSRectGrid) -> CSRectGrid:
         """Generate complete dynamic grid."""
@@ -686,5 +686,5 @@ class GridGeneratorAxis:
 
         grid = [line - offset for line in grid]
 
-        csgrid.AddLine(self.axis, grid)
+        csgrid.AddLine(self.axis, [int(x) for x in grid])
         return csgrid

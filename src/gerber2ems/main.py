@@ -5,7 +5,7 @@ import os
 import sys
 import argparse
 import logging
-from typing import Any, Optional
+from typing import Any
 import shutil
 
 import coloredlogs
@@ -58,27 +58,10 @@ def main() -> None:
         postprocess(sim)
 
 
-def add_ports(sim: Simulation, excited_port_number: Optional[int] = None) -> None:
-    """Add ports for simulation."""
-    logger.info("Adding ports")
-
-    sim.ports = []
-    importer.import_port_positions()
-
-    for index, port_config in enumerate(cfg.ports):
-        sim.add_msl_port(port_config, index, index == excited_port_number)
-
-
-def add_virtual_ports(sim: Simulation) -> None:
-    """Add virtual ports needed for data postprocessing due to openEMS api design."""
-    logger.info("Adding virtual ports")
-    for port_config in cfg.ports:
-        sim.add_virtual_port(port_config)
-
-
 def geometry(sim: Simulation) -> None:
     """Create a geometry for the simulation."""
     importer.import_stackup()
+    importer.import_port_positions()
     importer.process_gbrs_to_pngs()
 
     top_layer_name = cfg.get_metals()[0].file
@@ -94,7 +77,7 @@ def geometry(sim: Simulation) -> None:
         sim.add_dump_boxes()
     sim.set_boundary_conditions(pml=False)
     sim.add_vias()
-    add_ports(sim)
+    sim.add_ports()
     sim.save_geometry()
 
 
@@ -103,19 +86,17 @@ def simulate() -> None:
     for index, port in enumerate(cfg.ports):
         if port.excite:
             sim = Simulation()
-            importer.import_stackup()
-            sim.create_materials()
-            sim.set_excitation()
             logging.info("Simulating with excitation on port #%i", index)
             sim.load_geometry()
-            add_ports(sim, index)
+            sim.set_excitation()
+            sim.setup_ports(index)
             sim.run(index)
 
 
 def postprocess(sim: Simulation) -> None:
     """Postprocess data from the simulation."""
     if len(sim.ports) == 0:
-        add_virtual_ports(sim)
+        sim.add_virtual_ports()
 
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
     post = Postprocesor(frequencies, len(cfg.ports))

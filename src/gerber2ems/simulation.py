@@ -154,8 +154,6 @@ class Simulation:
         """Add grid around ports for simulation."""
         logger.info("Adding ports grid")
 
-        importer.import_port_positions()
-
         for port_config in cfg.ports:
             if port_config.position is None or port_config.direction is None:
                 logger.error("Port has no defined position or rotation, skipping")
@@ -319,7 +317,7 @@ class Simulation:
                     cfg.pcb_height,
                     offset - layer.thickness,
                 ],
-                priority=-i,
+                priority=-i - 1,
             )
             logger.debug("Added substrate from %f to %f", offset, offset - layer.thickness)
             offset -= layer.thickness
@@ -445,3 +443,32 @@ class Simulation:
             reflected.append(port.uf_ref)
 
         return (reflected, incident)
+
+    def setup_ports(self, enabled_idx: int) -> None:
+        """Set up ports excitation."""
+        logger.info("Setting up ports")
+
+        for prop in self.csx.GetAllProperties():
+            if not isinstance(prop, CSXCAD.CSProperties.CSPropExcitation):
+                continue
+            pname = prop.GetName()
+            idx = int(pname.removeprefix(pname.rstrip("0123456789")))
+            if idx != enabled_idx:
+                prop.SetExcitation([0, 0, 0])
+            else:
+                prop.SetExcitation([0, 0, 1])
+
+    def add_ports(self) -> None:
+        """Add ports for simulation."""
+        logger.info("Adding ports")
+
+        self.ports = []
+
+        for index, port_config in enumerate(cfg.ports):
+            self.add_msl_port(port_config, index, True)
+
+    def add_virtual_ports(self) -> None:
+        """Add virtual ports needed for data postprocessing due to openEMS api design."""
+        logger.info("Adding virtual ports")
+        for port_config in cfg.ports:
+            self.add_virtual_port(port_config)
