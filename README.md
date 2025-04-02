@@ -7,98 +7,51 @@ It takes PCB production files as input (Gerber, drill files, stackup information
 
 ## Installation
 
-### Required dependencies
-
-#### 1. [OpenEMS](https://www.openems.de/)
+### [OpenEMS](https://www.openems.de/)
 
 
 Install the following packages (on Debian/Ubuntu):
 
 ```bash
-sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py
+sudo apt update
+sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py python3-setuptools
 ```
 
 Clone the repository, compile and install openEMS:
 
+It is recommended to use the `bb991bb3` commit, as this is the latest one tested with gerber2ems.
 ```bash
-git clone --recursive https://github.com/thliebig/openEMS-Project.git
-cd openEMS-Project
+git clone https://github.com/thliebig/openEMS-Project.git
+pushd ./openEMS-Project
+git checkout bb991bb3
+git submodule update --init --recursive
 ./update_openEMS.sh ~/opt/openEMS --python
-```
-
-#### 2. [Gerbv](https://github.com/gerbv/gerbv)
-
-For Ubuntu/Debian:
-
-```bash
-sudo apt install gerbv
-```
-
-### Optional dependencies
-
-#### 1. [Paraview](https://www.paraview.org/)
-
-For Ubuntu/Debian:
-
-```bash
-sudo apt install paraview
+popd
 ```
 
 ### Script installation
 
-It is suggested to update pip before installation.
+1. Install the dependencies:
 ```bash
-python3 -m pip install pip -U
+sudo apt install gerbv paraview python3.11 pipx
+pipx ensurepath
 ```
-To install the script, run the commands below:
 
+2. Clone and install gerber2ems
 ```bash
 git clone https://github.com/antmicro/gerber2ems.git
-cd ./gerber2ems
-pip install .
+pushd ./gerber2ems
+pipx install --system-site-packages .
+popd
 ```
 
-### Virtual environment
-
-To install the script along with its Python dependencies inside a virtual environment on Debian/Ubuntu, follow these steps:
-
-* Install the virutalenv package with:
-    ```bash
-    sudo apt install python3-venv
-    ```
-* Create a virtual environment: 
-    ```bash
-    python3 -m venv .venv --system-site-packages
-    ```
-    `--system-site-packages` enables access to the system-wide openEMS installation
-* Activate the environment: 
-    ```bash
-    source .venv/bin/activate
-    ```
-* Install the script and its Python dependencies: 
-    ```
-    pip install .
-    ```
-* Deactivate the environment: 
-    ```
-    deactivate
-    ```
-
-For the script **installed inside a virtual environment** to be accessible globally without the need to manually enable the virtual environment, you can create a bash script as follows:
-
+You can test `gerber2ems` with built-in examples.
+The examples are slices of our open hardware [Signal Integrity Test Board](https://openhardware.antmicro.com/boards/si-simulation-test-board/), which were generated using the [KiCad SI wrapper](https://github.com/antmicro/kicad-si-simulation-wrapper).
+Selected examples contain VNA measurements in dedicated vna.csv files, which allows us to compare openEMS simulation results with real life measurements.
 ```bash
-#!/usr/bin/env bash
-source /path/to/repository/.venv/bin/activate
-python3 /path/to/repository/src/gerber2ems/main.py "$@"
-deactivate
+cd ./gerber2ems/examples/stub_short
+gerber2ems -a
 ```
-
-Then:
-
-* Mark the script executable: `chmod +x gerber2ems.sh`
-* Add it to your PATH, e.g. `ln -sf "$(pwd)/gerber2ems.sh" "$HOME/.local/bin/gerber2ems"`
-
-Then, you can simply call `gerber2ems` to run the script from any location.
 
 ## Usage
 
@@ -114,13 +67,12 @@ To simulate a trace, follow these steps:
 
 ## Results
 
+The simulation output of the `stub_short` example is shown below.
 This software returns the following types of output:
 
-### Impedance chart
+### S-parameter and impedance data
 
-Plot of each excited port vs. frequency.
-
-![](./docs/images/Z_1.png)
+Impedance and S-parameter data gathered during the simulations, stored in CSV format with a header.
 
 ### S-parameter chart
 
@@ -134,9 +86,15 @@ Plot of parameter S-11 for each excitation.
 
 ![](./docs/images/S_11_smith.png)
 
-### S-parameter and impedance data
+### Impedance chart
 
-Impedance and S-parameter data gathered during the simulations, stored in CSV format with a header.
+Plot of each excited port vs. frequency.
+
+![](./docs/images/Z_1.png)
+
+The `stub_short` example contains a `vna.csv` file, which can be used to verify simulation results.
+
+![](./docs/images/Z_ems+vna.png)
 
 ## How it works
 
@@ -163,31 +121,31 @@ They should all reside in the "fab" folder and are listed below:
 * Stackup file - a file describing the PCB stackup, named "stackup.json". 
 Example format:
 
-```json
-{
-    "layers": [
-        {
-            "name": "F.Cu",
-            "type": "copper",
-            "color": null,
-            "thickness": 0.035,
-            "material": null,
-            "epsilon": null,
-            "lossTangent": null
-        },
-        {
-            "name": "dielectric 1",
-            "type": "core",
-            "color": null,
-            "thickness": 0.2,
-            "material": "FR4",
-            "epsilon": 4.5,
-            "lossTangent": 0.02
-        }
-    ],
-    "format_version": "1.0"
-}
-```
+    ```
+    {
+        "layers": [
+            {
+                "name": "F.Cu",
+                "type": "copper",
+                "color": null,
+                "thickness": 0.035,
+                "material": null,
+                "epsilon": null,
+                "lossTangent": null
+            },
+            {
+                "name": "dielectric 1",
+                "type": "core",
+                "color": null,
+                "thickness": 0.2,
+                "material": "FR4",
+                "epsilon": 4.5,
+                "lossTangent": 0.02
+            }
+        ],
+        "format_version": "1.0"
+    }
+    ```
 
 * Drill file - Drill file in excellon format with plated through-holes.
 Filename should end with "-PTH.drl"
@@ -284,10 +242,10 @@ It inputs all the information into the engine and starts the simulations, iterat
 At this step, the user should verify if the indicated number of timesteps is sufficient. 
 The engine recommends that it should be at least 3x as long as the pulse:
 
-```
-Excitation signal length is: 3211 timesteps (3.18343e-10s)
-Max. number of timesteps: 10000 ( --> 3.11429 * Excitation signal length)
-```
+    ```
+    Excitation signal length is: 3211 timesteps (3.18343e-10s)
+    Max. number of timesteps: 10000 ( --> 3.11429 * Excitation signal length)
+    ```
 
 The simulator converts the geometry into voxels and starts solving Maxwell equations for each edge in the mesh.
 It does that for a number of timesteps (maximum number specified in config) and then exits.
@@ -298,10 +256,9 @@ This pulse traverses the network and exits using ports (it can also get emitted 
 
 You can monitor the simulation by looking at the engine output:
 
-```
-[@ 20s] Timestep: 4620 || Speed:  294.4 MC/s (3.372e-03 s/TS) || Energy: ~4.16e-16 (- 7.15dB)
-```
-
+    ```
+    [@ 20s] Timestep: 4620 || Speed:  294.4 MC/s (3.372e-03 s/TS) || Energy: ~4.16e-16 (- 7.15dB)
+    ```
 This way you can see:
 * what timestep you are on
 * how many mesh voxels per second the simulator processes 
