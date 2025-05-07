@@ -19,7 +19,8 @@ import matplotlib as mpl
 from gerber2ems.config import Config
 from gerber2ems.constants import (
     GEOMETRY_DIR,
-    UNIT,
+    MULTIPLIER,
+    BASE_UNIT,
     STACKUP_FORMAT_VERSION,
 )
 
@@ -61,7 +62,7 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
     """
     output_filename = Path.cwd() / GEOMETRY_DIR / gerber_filename.with_suffix(".png").name.rpartition("-")[2]
 
-    dpi = 1 / (cfg.pixel_size * UNIT / 0.0254)
+    dpi = 1 / (cfg.pixel_size * BASE_UNIT / 0.0254)
     logger.debug("Generating PNG (DPI: %d) for %s", dpi, gerber_filename)
 
     not_cropped_name = output_filename.with_stem(output_filename.stem + "_not_cropped")
@@ -116,8 +117,8 @@ def get_dimensions(input_filename: str) -> Tuple[int, int]:
     path = os.path.join(GEOMETRY_DIR, input_filename)
     image = PIL.Image.open(path)
     image_width, image_height = image.size
-    height = image_height * pixel_size
-    width = image_width * pixel_size
+    height = image_height * pixel_size * MULTIPLIER
+    width = image_width * pixel_size * MULTIPLIER
     logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
 
@@ -201,7 +202,7 @@ def plot_mesh(img_path: Path, img_size: Tuple[int, int], cu_triangles_np: np.nda
 
 def image_to_board_coordinates(point: np.ndarray | int) -> np.ndarray:
     """Transform point coordinates from image to board coordinates."""
-    return point * cfg.pixel_size
+    return point * cfg.pixel_size * MULTIPLIER
 
 
 def get_vias() -> List[List[float]]:
@@ -224,7 +225,7 @@ def get_vias() -> List[List[float]]:
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
-                drills[int(match.group(1))] = float(match.group(2)) / 1000 / UNIT
+                drills[int(match.group(1))] = float(match.group(2)) / 1000 / BASE_UNIT * MULTIPLIER
 
             # Regex for finding drill switches (in mm)
             match = re.fullmatch("T([0-9]+)\\n", line)
@@ -236,12 +237,13 @@ def get_vias() -> List[List[float]]:
             if match is not None:
                 if current_drill in drills:
                     logger.debug(
-                        f"Adding via at: X{float(match.group(1)) / 1000 / UNIT}Y{float(match.group(2)) / 1000 / UNIT}"
+                        f"Adding via at: X{float(match.group(1)) / 1000 / BASE_UNIT * MULTIPLIER} \
+                        Y{float(match.group(2)) / 1000 / BASE_UNIT * MULTIPLIER}"
                     )
                     vias.append(
                         [
-                            float(match.group(1)) / 1000 / UNIT,
-                            float(match.group(2)) / 1000 / UNIT,
+                            float(match.group(1)) / 1000 / BASE_UNIT * MULTIPLIER,
+                            float(match.group(2)) / 1000 / BASE_UNIT * MULTIPLIER,
                             drills[current_drill],
                         ]
                     )
@@ -320,7 +322,7 @@ def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], f
                 ports.append(
                     (
                         number - 1,
-                        (float(row[3]) / 1000 / UNIT, float(row[4]) / 1000 / UNIT),
+                        (float(row[3]) / 1000 / BASE_UNIT * MULTIPLIER, float(row[4]) / 1000 / BASE_UNIT * MULTIPLIER),
                         float(row[5]),
                     )
                 )

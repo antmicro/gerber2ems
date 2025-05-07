@@ -2,7 +2,8 @@
 
 import os
 
-UNIT = 1e-6  # Length units used in the whole script are microns
+MULTIPLIER = 10
+BASE_UNIT = 1e-6  # Length units used in the whole script are microns
 BASE_DIR = "ems"  # Name of the directory that outputs will be stored in
 SIMULATION_DIR = os.path.join(BASE_DIR, "simulation")
 GEOMETRY_DIR = os.path.join(BASE_DIR, "geometry")

@@ -14,7 +14,8 @@ import numpy as np
 
 from gerber2ems.config import Config, PortConfig, LayerKind
 from gerber2ems.constants import (
-    UNIT,
+    MULTIPLIER,
+    BASE_UNIT,
     SIMULATION_DIR,
     GEOMETRY_DIR,
     VIA_POLYGON,
@@ -36,7 +37,7 @@ class Simulation:
         self.fdtd = openEMS.openEMS(NrTS=cfg.max_steps)
         self.fdtd.SetCSX(self.csx)
         self.grid = self.csx.GetGrid()
-        self.grid.SetDeltaUnit(UNIT)
+        self.grid.SetDeltaUnit(BASE_UNIT * MULTIPLIER)
 
         self.ports: List[openEMS.ports.MSLPort] = []
 

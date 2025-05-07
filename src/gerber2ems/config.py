@@ -13,7 +13,7 @@ from pathlib import Path
 import json
 from argparse import Namespace
 
-from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT, DEFAULT_CONFIG_PATH
+from gerber2ems.constants import CONFIG_FORMAT_VERSION, MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
@@ -90,7 +90,7 @@ class LayerConfig:
         self.thickness = 0
         self.name = config["name"]
         if config["thickness"] is not None:
-            self.thickness = config["thickness"] / 1000 / UNIT
+            self.thickness = config["thickness"] / 1000 / BASE_UNIT * MULTIPLIER
         if self.kind == LayerKind.METAL:
             self.file = config["name"].replace(".", "_")
         elif self.kind == LayerKind.SUBSTRATE:
@@ -232,6 +232,9 @@ class Config:
             sys.exit(1)
 
         port_count = len(json_cfg["ports"])
+        for port in json_cfg["ports"]:
+            port["width"] *= MULTIPLIER
+            port["length"] *= MULTIPLIER
         cls._instance._config = from_dict(_Config, json_cfg)
         cls._instance._config.arguments = args
 
