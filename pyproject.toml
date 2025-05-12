@@ -25,7 +25,7 @@ dynamic = ["version"]
 
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
-dependencies = ["numpy", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow", "scipy", "pyserde"]
+dependencies = ["numpy<2", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow", "scipy", "pyserde"]
 scripts = {gerber2ems = "gerber2ems.main:main", ems2paraview = "ems2paraview.main:main"}
 
 [tool.setuptools.package-data]
