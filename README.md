@@ -281,11 +281,23 @@ This data is also automatically plotted and the plots are saved to `ems/results`
 
 To view simulation data in Paraview, follow these steps:
 
-* Run `gerber2ems -a --export-field`
+* Run `gerber2ems -a --export-field <dump locations>`
 * Run `ems2paraview <port>`
 
 `<port>` is a simulated port number, defined in the `simulation.json`,
 to list all available ports use: `ems2paraview -l`
+
+`dump locations` can be skipped (dump at all possible locations), or be one or more keywords from:
+
+* `outer` - dump field 100 um above board surface
+* `cu-outer` - dump field on outer cooper Z-position
+* `cu-inner` - dump field on inner cooper Z-position
+* `substrate` - dump field on the middle of each dielectric layer
+
+`--oversampling <int num>` - can be added to increase frequency of exporting field (normally OpenEMS dumps field once per few hundreds timesteps) (`<int num>` defaults to 4)
+
+> [!WARNING]  
+> Field exports can easily take hundreds GB of storage
 
 ## Licensing
 

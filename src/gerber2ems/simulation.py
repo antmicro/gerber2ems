@@ -347,26 +347,53 @@ class Simulation:
             y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + cfg.via.plating_thickness))
         self.via_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=50)
 
+    def add_single_dump_box(self, name: str, z: float) -> None:
+        """Add electric field dump box in whole bounding box of the PCB at specified Z-position."""
+        logger.debug("Adding dump box at %f", z)
+        dump = self.csx.AddDump(name, sub_sampling=[1, 1, 1])
+        start = [
+            -cfg.grid.margin.xy,
+            -cfg.grid.margin.xy,
+            z,
+        ]
+        stop = [
+            cfg.pcb_width + cfg.grid.margin.xy,
+            cfg.pcb_height + cfg.grid.margin.xy,
+            z,
+        ]
+        dump.AddBox(start, stop)
+
     def add_dump_boxes(self) -> None:
         """Add electric field dump box in whole bounding box of the PCB at half the thickness of each substrate."""
-        logger.info("Adding dump box for each dielectic")
+        if cfg.arguments.export_field is None:
+            return
+        logger.info("Adding field dump boxes")
+
+        if len(cfg.arguments.export_field) == 0:
+            cfg.arguments.export_field = ["outer", "cu-outer", "cu-inner", "substrate"]
+
         offset = 0
-        for i, layer in enumerate(cfg.get_substrates()):
-            height = offset - layer.thickness / 2
-            logger.debug("Adding dump box at %f", height)
-            dump = self.csx.AddDump(f"e_field_{i}", sub_sampling=[1, 1, 1])
-            start = [
-                -cfg.grid.margin.xy,
-                -cfg.grid.margin.xy,
-                height,
-            ]
-            stop = [
-                cfg.pcb_width + cfg.grid.margin.xy,
-                cfg.pcb_height + cfg.grid.margin.xy,
-                height,
-            ]
-            dump.AddBox(start, stop)
-            offset -= layer.thickness
+        metal_idx = 0
+        metal_count = len(cfg.get_metals())
+        for layer in cfg.layers:
+            norm_name = (
+                layer.name.replace(".", "_").replace("(", "_").replace(")", "_").replace(" ", "_").replace("/", "_")
+            )
+            if layer.kind == LayerKind.SUBSTRATE:
+                if "substrate" in cfg.arguments.export_field:
+                    height = offset - layer.thickness / 2
+                    self.add_single_dump_box(f"e_field_{norm_name}", height)
+                offset -= layer.thickness
+            elif layer.kind == LayerKind.METAL:
+                export_inner = "cu-inner" in cfg.arguments.export_field and metal_idx not in [0, metal_count]
+                export_outer = "cu-outer" in cfg.arguments.export_field and metal_idx in [0, metal_count]
+                if export_inner or export_outer:
+                    self.add_single_dump_box(f"e_field_{norm_name}", height)
+                metal_idx += 1
+
+        if "outer" in cfg.arguments.export_field:
+            self.add_single_dump_box("e_field_top_over", 100)
+            self.add_single_dump_box("e_field_bottom_over", offset - 100)
 
     def set_boundary_conditions(self, pml: bool = False) -> None:
         """Add boundary conditions. MUR for fast simulation, PML for more accurate."""
@@ -398,6 +425,7 @@ class Simulation:
         """Execute simulation."""
         logger.info("Starting simulation")
         cwd = os.getcwd()
+        self.fdtd.SetOverSampling(cfg.arguments.oversampling)
         self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)))
 
         os.chdir(cwd)

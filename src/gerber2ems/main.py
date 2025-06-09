@@ -136,8 +136,14 @@ def parse_arguments() -> argparse.Namespace:
         "-a", "--all", action="store_true", help="Execute all steps (geometry, simulation, postprocessing)"
     )
     parser.add_argument(
-        "--export-field", "--ef", action="store_true", help="Export electric field data from the simulation"
+        "--export-field",
+        "--ef",
+        choices=["outer", "cu-outer", "cu-inner", "substrate"],
+        nargs="*",
+        default=None,
+        help="Export electric field data from the simulation",
     )
+    parser.add_argument("--oversampling", type=int, default=4, help="Field dump time-oversampling")
     parser.add_argument("-t", "--transparent", action="store_true", help="Export graphs with transparent background")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")

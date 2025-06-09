@@ -88,6 +88,7 @@ class LayerConfig:
         """Initialize LayerConfig based on passed json object."""
         self.kind = self.parse_kind(config["type"])
         self.thickness = 0
+        self.name = config["name"]
         if config["thickness"] is not None:
             self.thickness = config["thickness"] / 1000 / UNIT
         if self.kind == LayerKind.METAL:
