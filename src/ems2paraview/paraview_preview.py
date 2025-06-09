@@ -36,9 +36,13 @@ def run_preview(files: list[str]) -> None:
 
         animation_scene.UpdateAnimationUsingDataTimeSteps()
 
-    e_field_vtr_display = Show(e_field, render_view, "UniformGridRepresentation")  # type: ignore #noqa: F405
+        e_field_vtr_display = Show(e_field, render_view, "UniformGridRepresentation")  # type: ignore #noqa: F405
 
-    ColorBy(e_field_vtr_display, ("POINTS", "E-Field", "Magnitude"))  # type: ignore #noqa: F405
+        ColorBy(e_field_vtr_display, ("POINTS", "E-Field", "Magnitude"))  # type: ignore #noqa: F405
+
+        Hide()  # type: ignore #noqa: F405
+
+    Show()  # type: ignore #noqa: F405
 
     e_field_vtr_display.RescaleTransferFunctionToDataRangeOverTime()
 
