@@ -25,6 +25,9 @@ def run_preview(files: list[str]) -> None:
         gf.append(file)
         grouped_files[dump_name] = gf
 
+    if len(grouped_files) == 0:
+        raise Exception("No data files found!")
+
     for dump_name, f in sorted(grouped_files.items()):
         e_field = XMLRectilinearGridReader(registrationName=dump_name, FileName=sorted(f))  # type: ignore #noqa: F405
         e_field.PointArrayStatus = ["E-Field"]
@@ -33,17 +36,17 @@ def run_preview(files: list[str]) -> None:
 
         animation_scene.UpdateAnimationUsingDataTimeSteps()
 
-        e_field_vtr_display = Show(e_field, render_view, "UniformGridRepresentation")  # type: ignore #noqa: F405
+    e_field_vtr_display = Show(e_field, render_view, "UniformGridRepresentation")  # type: ignore #noqa: F405
 
-        ColorBy(e_field_vtr_display, ("POINTS", "E-Field", "Magnitude"))  # type: ignore #noqa: F405
+    ColorBy(e_field_vtr_display, ("POINTS", "E-Field", "Magnitude"))  # type: ignore #noqa: F405
 
-        e_field_vtr_display.RescaleTransferFunctionToDataRange(True, False)
+    e_field_vtr_display.RescaleTransferFunctionToDataRangeOverTime()
 
-        e_field_vtr_display.SetScalarBarVisibility(render_view, True)
+    e_field_vtr_display.SetScalarBarVisibility(render_view, True)
 
-        render_view.Update()
+    render_view.Update()
 
-        render_view.ResetCamera(False)
+    render_view.ResetCamera(False)
 
     animation_scene.Play()
 
