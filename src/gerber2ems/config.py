@@ -13,7 +13,7 @@ from pathlib import Path
 import json
 from argparse import Namespace
 
-from gerber2ems.constants import CONFIG_FORMAT_VERSION, MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH
+from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT_MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
@@ -90,7 +90,7 @@ class LayerConfig:
         self.thickness = 0
         self.name = config["name"]
         if config["thickness"] is not None:
-            self.thickness = config["thickness"] / 1000 / BASE_UNIT * MULTIPLIER
+            self.thickness = config["thickness"] / 1000 / BASE_UNIT * UNIT_MULTIPLIER
         if self.kind == LayerKind.METAL:
             self.file = config["name"].replace(".", "_")
         elif self.kind == LayerKind.SUBSTRATE:
@@ -194,6 +194,15 @@ class _Config:
         self.grid.optimal = min(self.grid.diagonal, self.grid.optimal)
         self.format_version = CONFIG_FORMAT_VERSION
 
+    def _apply_unit_multiplier(self) -> None:
+        self.grid.max *= UNIT_MULTIPLIER
+        self.grid.diagonal *= UNIT_MULTIPLIER
+        self.grid.optimal *= UNIT_MULTIPLIER
+        self.grid.perpendicular *= UNIT_MULTIPLIER
+        self.grid.margin.xy *= UNIT_MULTIPLIER
+        self.grid.margin.z *= UNIT_MULTIPLIER
+        self.via.plating_thickness *= UNIT_MULTIPLIER
+
 
 class Config:
     """Config validation and parsing singleton class."""
@@ -233,14 +242,16 @@ class Config:
 
         port_count = len(json_cfg["ports"])
         for port in json_cfg["ports"]:
-            port["width"] *= MULTIPLIER
-            port["length"] *= MULTIPLIER
+            port["width"] *= UNIT_MULTIPLIER
+            port["length"] *= UNIT_MULTIPLIER
         cls._instance._config = from_dict(_Config, json_cfg)
         cls._instance._config.arguments = args
 
         if args.update_config:
             with cfg_path.open(mode="w", encoding="utf-8") as file:
                 file.write(to_json(cls._instance._config, indent=4))
+
+        cls._instance._config._apply_unit_multiplier()
 
     def __getattr__(self, name: str) -> Any:
         """Get value of field from internal config structure."""

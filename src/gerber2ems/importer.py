@@ -19,7 +19,7 @@ import matplotlib as mpl
 from gerber2ems.config import Config
 from gerber2ems.constants import (
     GEOMETRY_DIR,
-    MULTIPLIER,
+    UNIT_MULTIPLIER,
     BASE_UNIT,
     STACKUP_FORMAT_VERSION,
 )
@@ -117,8 +117,8 @@ def get_dimensions(input_filename: str) -> Tuple[int, int]:
     path = os.path.join(GEOMETRY_DIR, input_filename)
     image = PIL.Image.open(path)
     image_width, image_height = image.size
-    height = image_height * pixel_size * MULTIPLIER
-    width = image_width * pixel_size * MULTIPLIER
+    height = image_height * pixel_size * UNIT_MULTIPLIER
+    width = image_width * pixel_size * UNIT_MULTIPLIER
     logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
 
@@ -202,7 +202,7 @@ def plot_mesh(img_path: Path, img_size: Tuple[int, int], cu_triangles_np: np.nda
 
 def image_to_board_coordinates(point: np.ndarray | int) -> np.ndarray:
     """Transform point coordinates from image to board coordinates."""
-    return point * cfg.pixel_size * MULTIPLIER
+    return point * cfg.pixel_size * UNIT_MULTIPLIER
 
 
 def get_vias() -> List[List[float]]:
@@ -225,7 +225,7 @@ def get_vias() -> List[List[float]]:
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
-                drills[int(match.group(1))] = float(match.group(2)) / 1000 / BASE_UNIT * MULTIPLIER
+                drills[int(match.group(1))] = float(match.group(2)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER
 
             # Regex for finding drill switches (in mm)
             match = re.fullmatch("T([0-9]+)\\n", line)
@@ -237,13 +237,13 @@ def get_vias() -> List[List[float]]:
             if match is not None:
                 if current_drill in drills:
                     logger.debug(
-                        f"Adding via at: X{float(match.group(1)) / 1000 / BASE_UNIT * MULTIPLIER} \
-                        Y{float(match.group(2)) / 1000 / BASE_UNIT * MULTIPLIER}"
+                        f"Adding via at: X{float(match.group(1)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER} \
+                        Y{float(match.group(2)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER}"
                     )
                     vias.append(
                         [
-                            float(match.group(1)) / 1000 / BASE_UNIT * MULTIPLIER,
-                            float(match.group(2)) / 1000 / BASE_UNIT * MULTIPLIER,
+                            float(match.group(1)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
+                            float(match.group(2)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
                             drills[current_drill],
                         ]
                     )
@@ -322,7 +322,10 @@ def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], f
                 ports.append(
                     (
                         number - 1,
-                        (float(row[3]) / 1000 / BASE_UNIT * MULTIPLIER, float(row[4]) / 1000 / BASE_UNIT * MULTIPLIER),
+                        (
+                            float(row[3]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
+                            float(row[4]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
+                        ),
                         float(row[5]),
                     )
                 )

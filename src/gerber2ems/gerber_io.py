@@ -2,13 +2,14 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable, Any, ClassVar
 from enum import Enum
 import re
 import logging
 from functools import partial
 from math import cos, sin, radians
 from copy import deepcopy
+from gerber2ems.constants import BASE_UNIT, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 
@@ -342,19 +343,21 @@ class ApertureMacro(ApertureType):
                 # circle
                 def f(args: List[float], sline: List[Callable] = sline) -> List[TraceSegment]:
                     param = [p(args) for p in sline]
-                    ap = ApertureCircle(diameter=param[1] * 1000)
+                    ap = ApertureCircle(diameter=param[1] * FileFormat.gbr2sim)
                     rot = param[4] if len(param) > 4 else 0
-                    return ap.contours(pos=Position(param[2] * 1000, param[3] * 1000), post_rot=rot)
+                    return ap.contours(
+                        pos=Position(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim), post_rot=rot
+                    )
 
             elif op == "20":
                 # line start/stop/width
                 def f(args: List[float], sline: List[Callable] = sline) -> List[TraceSegment]:
                     param = [p(args) for p in sline]
                     trace = TraceSegment(
-                        start=Position(param[2] * 1000, param[3] * 1000),
-                        stop=Position(param[4] * 1000, param[5] * 1000),
+                        start=Position(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim),
+                        stop=Position(param[4] * FileFormat.gbr2sim, param[5] * FileFormat.gbr2sim),
                         aperture="",
-                        width=param[1] * 1000,
+                        width=param[1] * FileFormat.gbr2sim,
                     )
                     trace.rotate(param[6])
                     return [trace]
@@ -363,12 +366,12 @@ class ApertureMacro(ApertureType):
                 # line center/width/length
                 def f(args: List[float], sline: List[Callable] = sline) -> List[TraceSegment]:
                     param = [p(args) for p in sline]
-                    len2 = 1000 * param[1] / 2
+                    len2 = FileFormat.gbr2sim * param[1] / 2
                     trace = TraceSegment(
-                        start=Position(param[3] * 1000 - len2, param[4] * 1000),
-                        stop=Position(param[3] * 1000 + len2, param[4] * 1000),
+                        start=Position(param[3] * FileFormat.gbr2sim - len2, param[4] * FileFormat.gbr2sim),
+                        stop=Position(param[3] * FileFormat.gbr2sim + len2, param[4] * FileFormat.gbr2sim),
                         aperture="",
-                        width=param[2] * 1000,
+                        width=param[2] * FileFormat.gbr2sim,
                     )
                     trace.rotate(param[5])
                     return [trace]
@@ -379,7 +382,9 @@ class ApertureMacro(ApertureType):
                     param = [p(args) for p in sline]
                     points = []
                     for i in range(param[1] + 1):
-                        points.append(Position(param[2 + i * 2] * 1000, param[3 + i * 2] * 1000))
+                        points.append(
+                            Position(param[2 + i * 2] * FileFormat.gbr2sim, param[3 + i * 2] * FileFormat.gbr2sim)
+                        )
                     contours = _points2outline(points)
                     for seg in contours:
                         seg.rotate(param[-1])
@@ -389,8 +394,10 @@ class ApertureMacro(ApertureType):
                 # polygon
                 def f(args: List[float], sline: List[Callable] = sline) -> List[TraceSegment]:
                     param = [p(args) for p in sline]
-                    ap = AperturePolygon(vertices=param[1], diameter=param[4] * 1000, rotation=0)
-                    return ap.contours(pos=Position(param[2] * 1000, param[3] * 1000), post_rot=param[5])
+                    ap = AperturePolygon(vertices=param[1], diameter=param[4] * FileFormat.gbr2sim, rotation=0)
+                    return ap.contours(
+                        pos=Position(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim), post_rot=param[5]
+                    )
 
             elif op == "7":
                 # Thermal relief
@@ -437,14 +444,23 @@ class FileFormat:
     """Format used to encode position in X-axis"""
     y_format: NumberFormat = field(default_factory=lambda: NumberFormat())
     """Format used to encode position in Y-axis"""
+    gbr2sim: ClassVar[float]
 
     def parse_position(self, x: str, y: str) -> Position:
         """Convert position from format used in gerber file to `Position` class."""
         pos = Position(self.x_format.parse(x), self.y_format.parse(y))
-        if self.unit == "MM":
-            pos.x *= 1000
-            pos.y *= 1000
+        pos.x *= FileFormat.gbr2sim
+        pos.y *= FileFormat.gbr2sim
+
         return pos
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Setter method."""
+        if name == "unit":
+            mm2sim = UNIT_MULTIPLIER / BASE_UNIT / 1000
+            in2sim = 25.4 * UNIT_MULTIPLIER / BASE_UNIT / 1000
+            FileFormat.gbr2sim = mm2sim if value == "MM" else in2sim
+        super(FileFormat, self).__setattr__(name, value)
 
 
 @dataclass
@@ -563,16 +579,16 @@ class GerberFile:
             p = split[1].split("X")
             p_used = len(p)
             if aper_data_type == "C":
-                aper_data = ApertureCircle(float(p[0]) * 1000)
+                aper_data = ApertureCircle(float(p[0]) * FileFormat.gbr2sim)
                 p_used = 1
             elif aper_data_type == "R":
-                aper_data = ApertureRect(float(p[0]) * 1000, float(p[1]) * 1000)
+                aper_data = ApertureRect(float(p[0]) * FileFormat.gbr2sim, float(p[1]) * FileFormat.gbr2sim)
                 p_used = 2
             elif aper_data_type == "O":
-                aper_data = ApertureObround(float(p[0]) * 1000, float(p[1]) * 1000)
+                aper_data = ApertureObround(float(p[0]) * FileFormat.gbr2sim, float(p[1]) * FileFormat.gbr2sim)
                 p_used = 2
             elif aper_data_type == "P":
-                aper_data = AperturePolygon(float(p[0]) * 1000, int(p[1]), float(p[2]))
+                aper_data = AperturePolygon(float(p[0]) * FileFormat.gbr2sim, int(p[1]), float(p[2]))
                 p_used = 3
             elif aper_data_type in self.ap_macros:
                 p_used = len(p)
@@ -580,7 +596,7 @@ class GerberFile:
                 aper_data.args = [float(i) for i in p]
 
             if p_used < len(p):
-                aper_data.hole_diameter = float(p[p_used]) * 1000
+                aper_data.hole_diameter = float(p[p_used]) * FileFormat.gbr2sim
             self.apertures[name] = Aperture(self.parser.aperture_func, aper_data)
 
     def process_normal_line(self, line: str) -> None:
