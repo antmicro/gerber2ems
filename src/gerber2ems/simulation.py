@@ -388,7 +388,7 @@ class Simulation:
                 export_inner = "cu-inner" in cfg.arguments.export_field and metal_idx not in [0, metal_count]
                 export_outer = "cu-outer" in cfg.arguments.export_field and metal_idx in [0, metal_count]
                 if export_inner or export_outer:
-                    self.add_single_dump_box(f"e_field_{norm_name}", height)
+                    self.add_single_dump_box(f"e_field_{norm_name}", offset)
                 metal_idx += 1
 
         if "outer" in cfg.arguments.export_field:

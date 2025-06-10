@@ -73,7 +73,7 @@ def geometry(sim: Simulation) -> None:
     sim.add_gerbers()
     sim.add_grid()
     sim.add_substrates()
-    if cfg.arguments.export_field:
+    if cfg.arguments.export_field is not None:
         sim.add_dump_boxes()
     sim.set_boundary_conditions(pml=False)
     sim.add_vias()
