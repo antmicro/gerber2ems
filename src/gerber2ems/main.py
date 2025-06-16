@@ -12,7 +12,6 @@ import coloredlogs
 import numpy as np
 
 from gerber2ems.constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
-from gerber2ems.simulation import Simulation
 from gerber2ems.postprocess import Postprocesor
 from gerber2ems.config import Config
 import gerber2ems.importer as importer
@@ -45,8 +44,7 @@ def main() -> None:
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
-        sim = Simulation()
-        geometry(sim)
+        geometry()
     if args.simulate or args.all:
         logger.info("Running simulation")
         create_dir(SIMULATION_DIR, cleanup=True)
@@ -54,12 +52,13 @@ def main() -> None:
     if args.postprocess or args.all:
         logger.info("Postprocessing")
         create_dir(RESULTS_DIR, cleanup=True)
-        sim = Simulation()
-        postprocess(sim)
+        postprocess()
 
 
-def geometry(sim: Simulation) -> None:
+def geometry() -> None:
     """Create a geometry for the simulation."""
+    from gerber2ems.simulation import Simulation
+    sim = Simulation()
     importer.import_stackup()
     importer.import_port_positions()
     importer.process_gbrs_to_pngs()
@@ -83,6 +82,7 @@ def geometry(sim: Simulation) -> None:
 
 def simulate() -> None:
     """Run the simulation."""
+    from gerber2ems.simulation import Simulation
     for index, port in enumerate(cfg.ports):
         if port.excite:
             sim = Simulation()
@@ -91,10 +91,7 @@ def simulate() -> None:
             sim.set_excitation()
             sim.setup_ports(index)
             sim.run(index)
-
-
-def postprocess(sim: Simulation) -> None:
-    """Postprocess data from the simulation."""
+    
     if len(sim.ports) == 0:
         sim.add_virtual_ports()
 
@@ -109,6 +106,15 @@ def postprocess(sim: Simulation) -> None:
             for i, _ in enumerate(cfg.ports):
                 post.add_port_data(i, index, incident[i], reflected[i])
 
+    post.calculate_sparams()
+    post.save_to_file()
+
+
+def postprocess() -> None:
+    """Postprocess data from the simulation."""
+    frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
+    post = Postprocesor(frequencies, len(cfg.ports))
+    post.load_sparams()
     post.process_data()
     post.save_to_file()
     post.render_s_params()

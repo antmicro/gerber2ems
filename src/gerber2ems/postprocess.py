@@ -43,6 +43,7 @@ class Postprocesor:
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
+        self.delays_valid = False
 
     def add_port_data(
         self,
@@ -64,7 +65,7 @@ class Postprocesor:
         """Add port reference impedances."""
         self.reference_zs = impedances
 
-    def process_data(self) -> None:
+    def calculate_sparams(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating S-parameters and impedance")
         for i, _ in enumerate(self.incident):
@@ -73,9 +74,13 @@ class Postprocesor:
                     if self.is_valid(self.reflected[j][i]):
                         self.s_params[j][i] = self.reflected[j][i] / self.incident[i][i]
 
+    def process_data(self) -> None:
+        """Calculate all needed parameters for further processing. Should be called after all ports are added."""
+        logger.info("Processing all data from simulation. Calculating Delay & Impedance")
+
         for i, reference_z in enumerate(self.reference_zs):
             s_param = self.s_params[i][i]
-            if self.is_valid(reference_z) and self.is_valid(s_param):
+            if not np.isnan(reference_z) and self.is_valid(s_param):
                 self.impedances[i] = reference_z * (1 + s_param) / (1 - s_param)
 
         for i in range(self.count):
@@ -91,6 +96,7 @@ class Postprocesor:
                         )
                         group_delay = np.append(group_delay, group_delay[-1])
                         self.delays[j][i] = group_delay
+        self.delays_valid = True
 
     def get_impedance(self, port: int) -> Union[np.ndarray, None]:
         """Return specified port impedance."""
@@ -378,29 +384,37 @@ class Postprocesor:
         """Save all parameters from single excitation."""
         frequencies = np.transpose([self.frequencies])
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
-        delays = np.transpose(self.delays[:, port_number, :], (1, 0))
-        impedances = np.transpose([self.impedances[port_number]])
 
         header: str = "Frequency [Hz], "
-        header += "".join([f"|S{i}{port_number}| [-], " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Arg(S{i}{port_number}) [-], " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
-        header += f"|Z{port_number}| [Ohm] , "
-        header += f"Arg(Z{port_number}) [-]"
+        header += "".join([f"|S{i}-{port_number}| [-], " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Arg(S{i}-{port_number}) [-], " for i, _ in enumerate(self.s_params[port_number])])
+
+        if self.delays_valid:
+            delays = np.transpose(self.delays[:, port_number, :], (1, 0))
+            impedances = np.transpose([self.impedances[port_number]])
+            header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
+            header += f"|Z{port_number}| [Ohm] , "
+            header += f"Arg(Z{port_number}) [-]"
+            file_path = f"Port_{port_number}_data.csv"
+            add_data = [delays, np.abs(impedances), np.angle(impedances)]
+        else:
+            file_path = f"Port_Sx-{port_number}.csv"
+            add_data = []
 
         output = np.hstack(
             [
                 frequencies,
                 np.abs(s_params),
                 np.angle(s_params),
-                delays,
-                np.abs(impedances),
-                np.angle(impedances),
+                *add_data,
             ]
         )
-        file_path = f"Port_{port_number}_data.csv"
         logger.debug("Saving port no. %d parameters to file: %s", port_number, file_path)
         np.savetxt(os.path.join(path, file_path), output, fmt="%e", delimiter=", ", header=header, comments="")
+
+    def load_data(self) -> None:
+        """TODO"""
+        pass
 
     @staticmethod
     def is_valid(array: np.ndarray) -> bool:
