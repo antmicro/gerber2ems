@@ -301,20 +301,20 @@ to list all available ports use: `ems2paraview -l`
 
 ## Animation
 
-To generate animation:
+To generate an animation:
 
-1. Generate PCB blend model (See [picknblend](https://antmicro.github.io/picknblend/quickstart.html))
-2. Run `gerber2ems` with `--export-field` flag and increased oversampling (`--oversampling 16`) (See [Paraview Section](#paraview))
-3. Convert generated `*.vtr` files to grayscale pngs (run `ems2png`)
-4. Open PCB blend in `blender` and append [EMS_Plane](EMS_Plane.blend) (`File`>>`Append..`>>`EMS_Plane.blend/Object/EMS_Plane`)
-5. Set plane dimensions (This should be roughly the same as slice size)
-6. Enter `Shading` workspace
-7. In each of texture nodes on the left, click folder icon and select png from point 3 with lowest number (eg. `simulation_images/e_field_0_0000` for one trace, `simulation_images/e_field_1_0000` for second).
-8. If animation should show only single trace, substitute one texture node with RGB node set to black
-9. On texture nodes change source type from `Single Image` to `Image Sequence` and update `Frames` field to number of images generated for corresponding trace
-10. Set view mode to rendered and position `EMS_Plane` just above corresponding trace on pcb texture (You may want to switch time to frame, where field is stronger and covers most of trace)
-11. Select `EMS_Plane` and apply any type of keyframe on first and last frame of image sequence
-12. In `blendcfg.yaml` add new preset:
+1. Generate a PCB blend model (See [picknblend](https://antmicro.github.io/picknblend/quickstart.html))
+2. Run `gerber2ems` with the `--export-field` flag and increased oversampling (`--oversampling 16`) (See the [Paraview section](#paraview))
+3. Convert the generated `*.vtr` files to grayscale pngs (run `ems2png`)
+4. Open the PCB blend in `blender` and append [EMS_Plane](EMS_Plane.blend) (`File`>>`Append..`>>`EMS_Plane.blend/Object/EMS_Plane`)
+5. Set plane dimensions (it should be roughly the same as the slice size)
+6. Enter the `Shading` workspace
+7. In each texture node on the left, click the folder icon and select a png generated in the third step with the lowest number (e.g. `simulation_images/e_field_0_0000` for the first trace, `simulation_images/e_field_1_0000` for the second).
+8. If the animation should show only a single trace, substitute one texture node with an RGB node set to black
+9. On texture nodes, change source type from `Single Image` to `Image Sequence` and update the `Frames` field with the number of images generated for the corresponding trace
+10. Set view mode to `rendered` and position `EMS_Plane` just above the corresponding trace on the PCB texture (you may want to switch to a frame where the field is stronger and covers most of the trace)
+11. Select `EMS_Plane` and apply any type of keyframe on the first and last frame of the image sequence
+12. In `blendcfg.yaml` add a new preset:
 
     ```yaml
     ems_animation:
@@ -339,7 +339,7 @@ Sample animation:
 | ![](./docs/images/EMS_Field_Propagation_CE7_Top.gif) | ![](./docs/images/EMS_Field_Propagation_CE7_Bottom.gif) |
 
 > [!TIP]
-> Consider creating new blend file instead simply using output of `picknblend`. In this new file add `picknblend` output as linked blender model. This will allow to reuse base blender model for showing different trace simulation and also will protect against accidental refresh by `gerber2blend`/`picknblend`.
+> Consider creating a new blend file instead of simply using the output of `picknblend`. In this new file add the `picknblend` output as a linked blender model. This will allow you to reuse the base blender model for showing different trace simulations and will prevent accidental refresh by `gerber2blend`/`picknblend`.
 
 ## Licensing
 
