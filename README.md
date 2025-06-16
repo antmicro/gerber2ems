@@ -299,6 +299,48 @@ to list all available ports use: `ems2paraview -l`
 > [!WARNING]  
 > Field exports can easily take hundreds GB of storage
 
+## Animation
+
+To generate animation:
+
+1. Generate PCB blend model (See [picknblend](https://antmicro.github.io/picknblend/quickstart.html))
+2. Run `gerber2ems` with `--export-field` flag and increased oversampling (`--oversampling 16`) (See [Paraview Section](#paraview))
+3. Convert generated `*.vtr` files to grayscale pngs (run `ems2png`)
+4. Open PCB blend in `blender` and append [EMS_Plane](EMS_Plane.blend) (`File`>>`Append..`>>`EMS_Plane.blend/Object/EMS_Plane`)
+5. Set plane dimensions (This should be roughly the same as slice size)
+6. Enter `Shading` workspace
+7. In each of texture nodes on the left, click folder icon and select png from point 3 with lowest number (eg. `simulation_images/e_field_0_0000` for one trace, `simulation_images/e_field_1_0000` for second).
+8. If animation should show only single trace, substitute one texture node with RGB node set to black
+9. On texture nodes change source type from `Single Image` to `Image Sequence` and update `Frames` field to number of images generated for corresponding trace
+10. Set view mode to rendered and position `EMS_Plane` just above corresponding trace on pcb texture (You may want to switch time to frame, where field is stronger and covers most of trace)
+11. Select `EMS_Plane` and apply any type of keyframe on first and last frame of image sequence
+12. In `blendcfg.yaml` add new preset:
+
+    ```yaml
+    ems_animation:
+    CAMERAS:
+        PHOTO1: true
+    POSITIONS:
+        TOP: true
+    RENDERER:
+        FPS: 25
+    SCENE:
+        RENDERED_OBJECT: Object/EMS_Plane
+    OUTPUTS:
+        - ANIMATION:
+    ```
+
+13. Run `pcbooth -b <PCB_name>.blend -c ems_animation`
+
+Sample animation:
+
+| Top side                                             | Bottom side                                             |
+| ---------------------------------------------------- | ------------------------------------------------------- |
+| ![](./docs/images/EMS_Field_Propagation_CE7_Top.gif) | ![](./docs/images/EMS_Field_Propagation_CE7_Bottom.gif) |
+
+> [!TIP]
+> Consider creating new blend file instead simply using output of `picknblend`. In this new file add `picknblend` output as linked blender model. This will allow to reuse base blender model for showing different trace simulation and also will protect against accidental refresh by `gerber2blend`/`picknblend`.
+
 ## Licensing
 
 This project is published under the [Apache-2.0](LICENSE) license.
