@@ -1,8 +1,12 @@
 """Module contains functions useful for postprocessing data."""
 
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Dict
 import logging
 import os
+import csv
+import re
+from cmath import rect
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,6 +17,7 @@ from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE
 
 logger = logging.getLogger(__name__)
 cfg = Config()
+sparam_path_pat = "Port_Sx-{0}.csv"
 
 
 class Postprocesor:
@@ -31,8 +36,7 @@ class Postprocesor:
             [self.count, self.count, len(self.frequencies)], np.complex128
         )  # Reflected wave phasors table ([measured_port][excited_port][frequency])
         self.reflected[:] = np.nan
-        self.reference_zs = np.empty([self.count], np.complex128)
-        self.reference_zs[:] = np.nan  # Reference impedances of ports
+        self.reference_zs = np.array([p.impedance for p in cfg.ports])
 
         self.s_params = np.empty(
             [self.count, self.count, len(self.frequencies)], np.complex128
@@ -43,7 +47,6 @@ class Postprocesor:
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
-        self.delays_valid = False
 
     def add_port_data(
         self,
@@ -61,10 +64,6 @@ class Postprocesor:
         self.incident[port][excited_port] = incident
         self.reflected[port][excited_port] = reflected
 
-    def add_impedances(self, impedances: np.ndarray) -> None:
-        """Add port reference impedances."""
-        self.reference_zs = impedances
-
     def calculate_sparams(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating S-parameters and impedance")
@@ -73,6 +72,9 @@ class Postprocesor:
                 for j, _ in enumerate(self.incident):
                     if self.is_valid(self.reflected[j][i]):
                         self.s_params[j][i] = self.reflected[j][i] / self.incident[i][i]
+                    if j==1 and i==2:
+                        print(self.reflected[j][i][465:470])
+                        print(self.incident[i][i][465:470])
 
     def process_data(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
@@ -84,7 +86,7 @@ class Postprocesor:
                 self.impedances[i] = reference_z * (1 + s_param) / (1 - s_param)
 
         for i in range(self.count):
-            if self.is_valid(self.incident[i][i]):
+            if self.is_valid(self.s_params[i][i]):
                 for j in range(self.count):
                     if self.is_valid(self.s_params[j][i]):
                         phase = np.unwrap(np.angle(self.s_params[j][i]))
@@ -96,7 +98,6 @@ class Postprocesor:
                         )
                         group_delay = np.append(group_delay, group_delay[-1])
                         self.delays[j][i] = group_delay
-        self.delays_valid = True
 
     def get_impedance(self, port: int) -> Union[np.ndarray, None]:
         """Return specified port impedance."""
@@ -350,18 +351,19 @@ class Postprocesor:
         for pair in cfg.diff_pairs:
             if (
                 pair.correct
-                and self.is_valid(self.delays[pair.stop_p][pair.start_n])
-                and self.is_valid(self.delays[pair.stop_n][pair.start_p])
+                and self.is_valid(self.delays[pair.stop_n][pair.start_n])
+                and self.is_valid(self.delays[pair.stop_p][pair.start_p])
             ):
                 fig, axes = plt.subplots()
+                print(pair)
                 axes.plot(
                     self.frequencies / 1e9,
-                    self.delays[pair.stop_p][pair.start_n] * 1e9,
+                    self.delays[pair.start_n][pair.stop_n] * 1e9,
                     label="N trace delay",
                 )
                 axes.plot(
                     self.frequencies / 1e9,
-                    self.delays[pair.stop_n][pair.start_p] * 1e9,
+                    self.delays[pair.start_p][pair.stop_p] * 1e9,
                     label="P trace delay",
                 )
                 axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
@@ -382,40 +384,118 @@ class Postprocesor:
 
     def save_port_to_file(self, port_number: int, path: str) -> None:
         """Save all parameters from single excitation."""
-        frequencies = np.transpose([self.frequencies])
+        frequencies = np.transpose([self.frequencies]) / 1e6
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
+        delays = np.transpose(self.delays[:, port_number, :], (1, 0))
+        impedances = np.transpose([self.impedances[port_number]])
 
-        header: str = "Frequency [Hz], "
-        header += "".join([f"|S{i}-{port_number}| [-], " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Arg(S{i}-{port_number}) [-], " for i, _ in enumerate(self.s_params[port_number])])
-
-        if self.delays_valid:
-            delays = np.transpose(self.delays[:, port_number, :], (1, 0))
-            impedances = np.transpose([self.impedances[port_number]])
-            header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
-            header += f"|Z{port_number}| [Ohm] , "
-            header += f"Arg(Z{port_number}) [-]"
-            file_path = f"Port_{port_number}_data.csv"
-            add_data = [delays, np.abs(impedances), np.angle(impedances)]
-        else:
-            file_path = f"Port_Sx-{port_number}.csv"
-            add_data = []
+        header: str = "Frequency [MHz], "
+        header += "".join([f"|S{i}-{port_number}|, [-]" for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Arg(S{i}-{port_number}) [rad], " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
+        header += f"|Z{port_number}| [Ohm] , "
+        header += f"Arg(Z{port_number}) [rad]"
+        file_path = f"Port_{port_number}_data.csv"
 
         output = np.hstack(
             [
                 frequencies,
                 np.abs(s_params),
                 np.angle(s_params),
-                *add_data,
+                delays,
+                np.abs(impedances),
+                np.angle(impedances),
             ]
         )
         logger.debug("Saving port no. %d parameters to file: %s", port_number, file_path)
         np.savetxt(os.path.join(path, file_path), output, fmt="%e", delimiter=", ", header=header, comments="")
 
-    def load_data(self) -> None:
-        """TODO"""
-        pass
+    def sparam_to_file(self) -> None:
+        """Save all parameters to files."""
+        for i, _ in enumerate(self.s_params):
+            if self.is_valid(self.s_params[i][i]):
+                self.sparam_port_to_file(i, RESULTS_DIR)
 
+    def sparam_port_to_file(self, port_number: int, path: str) -> None:
+        """Save all parameters from single excitation."""
+        frequencies = np.transpose([self.frequencies]) / 1e6
+        s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
+
+        header: str = "Frequency [MHz], "
+        header += "".join([f"re(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"im(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+
+        file_path = sparam_path_pat.format(port_number)
+        output = np.hstack(
+            [
+                frequencies,
+                np.real(s_params),
+                np.imag(s_params),
+            ]
+        )
+        logger.debug("Saving port no. %d parameters to file: %s", port_number, file_path)
+        np.savetxt(os.path.join(path, file_path), output, fmt="%g", delimiter=", ", header=header, comments="")
+
+    def load_sparams(self) -> None:
+        """Load s-param from CSV file."""
+        nprect = np.vectorize(rect)
+        for idx, port in enumerate(cfg.ports):
+            if not port.excite:
+                continue
+            with open(Path(RESULTS_DIR)/sparam_path_pat.format(idx), "r", encoding="utf-8") as csvfile:
+                reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+                header = next(reader, [])
+                freq_mul = 1.0
+                freq_col = 0
+                s_map: Dict[str, Dict[Tuple[int, int], int]] = {"mag": {}, "arg": {}, "re": {}, "im": {}}
+                ph_degrees = {}
+                for col_num, cell in enumerate(header):
+                    lcell = cell.lower().strip()
+                    if "freq" in lcell:
+                        if "kHz" in cell:
+                            freq_mul = 1e3
+                        elif "MHz" in cell:
+                            freq_mul = 1e6
+                        elif "GHz" in cell:
+                            freq_mul = 1e9
+                        freq_col = col_num
+                    else:
+                        maybe_sxx = re.search(r"s([0-9]+)[,-]?([0-9]+)", lcell)
+                        if maybe_sxx is None:
+                            continue
+                        _sxx = maybe_sxx.group(1, 2)
+                        sxx = int(_sxx[0]), int(_sxx[1])
+                        if "mag" in lcell or "abs" in lcell or lcell.startswith("|"):
+                            s_map["mag"][sxx] = col_num
+                        elif "ang" in lcell or "arg" in lcell or "ph" in lcell:
+                            s_map["arg"][sxx] = col_num
+                            ph_degrees[sxx] = "deg" in lcell or "°" in lcell
+                        elif "re" in lcell:
+                            s_map["re"][sxx] = col_num
+                        elif "im" in lcell:
+                            s_map["im"][sxx] = col_num
+
+                data = np.loadtxt(csvfile, delimiter=",").T
+                self.frequencies = data[freq_col, :] * freq_mul
+                for sxx, col in s_map["mag"].items():
+                    arg = s_map["arg"].get(sxx, None)
+                    if arg is None:
+                        logger.error(
+                            f"S-param CSV error: no phase data matching `mag(S{sxx[0]}-{sxx[1]})` from column {col}!"
+                        )
+                        raise Exception("S-param CSV parse error")
+                    phase = np.deg2rad(data[arg, :]) if ph_degrees[sxx] else data[arg, :]
+
+                    self.s_params[*sxx, :] = nprect(data[col, :], phase)
+
+                for sxx, col in s_map["re"].items():
+                    im = s_map["im"].get(sxx, None)
+                    if im is None:
+                        logger.error(
+                            f"S-param CSV error: no imaginary data matching `re(S{sxx[0]}-{sxx[1]})` from column {col}!"
+                        )
+                        raise Exception("S-param CSV parse error")
+                    self.s_params[*sxx, :] = data[col, :] + data[im, :] * 1j
     @staticmethod
     def is_valid(array: np.ndarray) -> bool:
         """Check if array doesn't have any NaN's."""

@@ -455,13 +455,14 @@ class Simulation:
         self.csx.ReadFromXML(filename)
         self.grid = self.csx.GetGrid()
 
-    def get_port_parameters(self, index: int, frequencies: np.ndarray) -> Tuple[List, List]:
+    def get_port_parameters(self, exindex: int, frequencies: np.ndarray) -> Tuple[List, List]:
         """Return reflected and incident power vs frequency for each port."""
-        result_path = os.path.join(os.getcwd(), SIMULATION_DIR, str(index))
+        result_path = os.path.join(os.getcwd(), SIMULATION_DIR, str(exindex))
 
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
         for index, port in enumerate(self.ports):
+            print(index,exindex)
             try:
                 port.CalcPort(result_path, frequencies)
                 logger.debug("Found data for port %d", index)

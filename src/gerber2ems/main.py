@@ -51,7 +51,7 @@ def main() -> None:
         simulate()
     if args.postprocess or args.all:
         logger.info("Postprocessing")
-        create_dir(RESULTS_DIR, cleanup=True)
+        # create_dir(RESULTS_DIR, cleanup=True)
         postprocess()
 
 
@@ -97,8 +97,6 @@ def simulate() -> None:
 
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
     post = Postprocesor(frequencies, len(cfg.ports))
-    impedances = np.array([p.impedance for p in cfg.ports])
-    post.add_impedances(impedances)
 
     for index, port in enumerate(cfg.ports):
         if port.excite:
@@ -107,11 +105,28 @@ def simulate() -> None:
                 post.add_port_data(i, index, incident[i], reflected[i])
 
     post.calculate_sparams()
-    post.save_to_file()
+    post.sparams_to_file()
 
 
 def postprocess() -> None:
     """Postprocess data from the simulation."""
+    from gerber2ems.simulation import Simulation
+    sim = Simulation()
+    if len(sim.ports) == 0:
+        sim.add_virtual_ports()
+
+    frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
+    post = Postprocesor(frequencies, len(cfg.ports))
+
+    for index, port in enumerate(cfg.ports):
+        if port.excite:
+            reflected, incident = sim.get_port_parameters(index, frequencies)
+            for i, _ in enumerate(cfg.ports):
+                post.add_port_data(i, index, incident[i], reflected[i])
+
+    post.calculate_sparams()
+    post.sparam_to_file()
+
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
     post = Postprocesor(frequencies, len(cfg.ports))
     post.load_sparams()
