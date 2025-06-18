@@ -47,6 +47,7 @@ class Postprocesor:
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
+        self.delays[:] = np.nan
 
     def add_port_data(
         self,
@@ -72,9 +73,6 @@ class Postprocesor:
                 for j, _ in enumerate(self.incident):
                     if self.is_valid(self.reflected[j][i]):
                         self.s_params[j][i] = self.reflected[j][i] / self.incident[i][i]
-                    if j==1 and i==2:
-                        print(self.reflected[j][i][465:470])
-                        print(self.incident[i][i][465:470])
 
     def process_data(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
@@ -129,21 +127,37 @@ class Postprocesor:
         plt.style.use(PLOT_STYLE)
         for i in range(self.count):
             if self.is_valid(self.s_params[i][i]):
-                fig, axes = plt.subplots()
+                if cfg.arguments.plot_phase:
+                    fig, (ax1, ax2) = plt.subplots(2)
+                else:
+                    fig, ax1 = plt.subplots()
                 for j in range(self.count):
                     s_param = self.s_params[j][i]
                     if self.is_valid(s_param):
-                        axes.plot(
+                        ax1.plot(
                             self.frequencies / 1e9,
                             20 * np.log10(np.abs(s_param)),
-                            label="$S_{" + f"{j+1}{i+1}" + "}$",
+                            label="$S_{" + f"{j+1},{i+1}" + "}$",
                         )
-                axes.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
-                axes.set_xlabel("Frequency, f [GHz]")
-                axes.set_ylabel("Magnitude, [dB]")
-                axes.grid(True)
-                bottom, top = axes.get_ylim()
-                axes.set_ylim([min(bottom, -60), max(top, 5)])
+                fig.legend(loc="center left", bbox_to_anchor=(0.92, 0.5))
+                fig.supxlabel("Frequency [GHz]")
+                ax1.set_ylabel("Magnitude [dB]")
+                ax1.grid(True)
+                bottom, top = ax1.get_ylim()
+                ax1.set_ylim([min(bottom, -60), max(top, 5)])
+
+                if cfg.arguments.plot_phase:
+                    for j in range(self.count):
+                        s_param = self.s_params[j][i]
+                        if self.is_valid(s_param):
+                            ax2.plot(
+                                self.frequencies / 1e9,
+                                np.unwrap(np.angle(s_param, deg=True)),
+                                label="$S_{" + f"{j+1}{i+1}" + "}$",
+                            )
+                    ax2.set_ylabel("Phase [°]")
+                    ax2.grid(True)
+
                 fig.savefig(
                     os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"),
                     bbox_inches="tight",
@@ -321,7 +335,7 @@ class Postprocesor:
                 )
                 axes.legend(bbox_to_anchor=(1.0, 0.5), loc="center left")
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1}{port+1}_smith.png"),
+                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1},{port+1}_smith.png"),
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )
@@ -339,8 +353,8 @@ class Postprocesor:
                     label=f"{trace.name} delay",
                 )
                 axes.legend(loc="center left", bbox_to_anchor=(0.5, 1))
-                axes.set_xlabel("Frequency, f [GHz]")
-                axes.set_ylabel("Trace delay, [ns]")
+                axes.set_xlabel("Frequency [GHz]")
+                axes.set_ylabel("Trace delay [ns]")
                 axes.grid(True)
                 fig.savefig(
                     os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"),
@@ -355,20 +369,19 @@ class Postprocesor:
                 and self.is_valid(self.delays[pair.stop_p][pair.start_p])
             ):
                 fig, axes = plt.subplots()
-                print(pair)
                 axes.plot(
                     self.frequencies / 1e9,
-                    self.delays[pair.start_n][pair.stop_n] * 1e9,
+                    self.delays[pair.stop_n][pair.start_n] * 1e9,
                     label="N trace delay",
                 )
                 axes.plot(
                     self.frequencies / 1e9,
-                    self.delays[pair.start_p][pair.stop_p] * 1e9,
+                    self.delays[pair.stop_p][pair.start_p] * 1e9,
                     label="P trace delay",
                 )
                 axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-                axes.set_xlabel("Frequency, f [GHz]")
-                axes.set_ylabel("Trace delay, [ns]")
+                axes.set_xlabel("Frequency [GHz]")
+                axes.set_ylabel("Trace delay [ns]")
                 axes.grid(True)
                 fig.savefig(
                     os.path.join(os.getcwd(), RESULTS_DIR, "diff_delay.png"),
@@ -390,8 +403,8 @@ class Postprocesor:
         impedances = np.transpose([self.impedances[port_number]])
 
         header: str = "Frequency [MHz], "
-        header += "".join([f"|S{i}-{port_number}|, [-]" for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Arg(S{i}-{port_number}) [rad], " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"|S{i},{port_number}|, [-]" for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Arg(S{i},{port_number}) [rad], " for i, _ in enumerate(self.s_params[port_number])])
         header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
         header += f"|Z{port_number}| [Ohm] , "
         header += f"Arg(Z{port_number}) [rad]"
@@ -422,8 +435,8 @@ class Postprocesor:
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
 
         header: str = "Frequency [MHz], "
-        header += "".join([f"re(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"im(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"re(S{i},{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"im(S{i},{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
 
         file_path = sparam_path_pat.format(port_number)
         output = np.hstack(
@@ -442,7 +455,7 @@ class Postprocesor:
         for idx, port in enumerate(cfg.ports):
             if not port.excite:
                 continue
-            with open(Path(RESULTS_DIR)/sparam_path_pat.format(idx), "r", encoding="utf-8") as csvfile:
+            with open(Path(RESULTS_DIR) / sparam_path_pat.format(idx), "r", encoding="utf-8") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",", quotechar='"')
                 header = next(reader, [])
                 freq_mul = 1.0
@@ -496,6 +509,7 @@ class Postprocesor:
                         )
                         raise Exception("S-param CSV parse error")
                     self.s_params[*sxx, :] = data[col, :] + data[im, :] * 1j
+
     @staticmethod
     def is_valid(array: np.ndarray) -> bool:
         """Check if array doesn't have any NaN's."""

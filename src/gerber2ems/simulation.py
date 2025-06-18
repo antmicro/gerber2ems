@@ -462,7 +462,6 @@ class Simulation:
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
         for index, port in enumerate(self.ports):
-            print(index,exindex)
             try:
                 port.CalcPort(result_path, frequencies)
                 logger.debug("Found data for port %d", index)

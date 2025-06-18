@@ -203,6 +203,16 @@ class _Config:
         self.grid.margin.z *= UNIT_MULTIPLIER
         self.via.plating_thickness *= UNIT_MULTIPLIER
 
+    def _correct_trace_config(self) -> None:
+        for trace in self.traces:
+            if not self.ports[trace.start].excite and self.ports[trace.start].excite:
+                trace.start, trace.stop = trace.stop, trace.start
+        for pair in self.diff_pairs:
+            if not self.ports[pair.start_p].excite and self.ports[pair.start_p].excite:
+                pair.start_p, pair.stop_p = pair.stop_p, pair.start_p
+            if not self.ports[pair.start_n].excite and self.ports[pair.start_n].excite:
+                pair.start_n, pair.stop_n = pair.stop_n, pair.start_n
+
 
 class Config:
     """Config validation and parsing singleton class."""
@@ -241,9 +251,6 @@ class Config:
             sys.exit(1)
 
         port_count = len(json_cfg["ports"])
-        for port in json_cfg["ports"]:
-            port["width"] *= UNIT_MULTIPLIER
-            port["length"] *= UNIT_MULTIPLIER
         cls._instance._config = from_dict(_Config, json_cfg)
         cls._instance._config.arguments = args
 
@@ -251,6 +258,9 @@ class Config:
             with cfg_path.open(mode="w", encoding="utf-8") as file:
                 file.write(to_json(cls._instance._config, indent=4))
 
+        for port in cls._instance._config.ports:
+            port.width *= UNIT_MULTIPLIER
+            port.length *= UNIT_MULTIPLIER
         cls._instance._config._apply_unit_multiplier()
 
     def __getattr__(self, name: str) -> Any:

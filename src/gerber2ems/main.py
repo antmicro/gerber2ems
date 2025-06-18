@@ -58,6 +58,7 @@ def main() -> None:
 def geometry() -> None:
     """Create a geometry for the simulation."""
     from gerber2ems.simulation import Simulation
+
     sim = Simulation()
     importer.import_stackup()
     importer.import_port_positions()
@@ -83,6 +84,7 @@ def geometry() -> None:
 def simulate() -> None:
     """Run the simulation."""
     from gerber2ems.simulation import Simulation
+
     for index, port in enumerate(cfg.ports):
         if port.excite:
             sim = Simulation()
@@ -91,7 +93,7 @@ def simulate() -> None:
             sim.set_excitation()
             sim.setup_ports(index)
             sim.run(index)
-    
+
     if len(sim.ports) == 0:
         sim.add_virtual_ports()
 
@@ -111,6 +113,7 @@ def simulate() -> None:
 def postprocess() -> None:
     """Postprocess data from the simulation."""
     from gerber2ems.simulation import Simulation
+
     sim = Simulation()
     if len(sim.ports) == 0:
         sim.add_virtual_ports()
@@ -166,6 +169,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--oversampling", type=int, default=4, help="Field dump time-oversampling")
     parser.add_argument("-t", "--transparent", action="store_true", help="Export graphs with transparent background")
+    parser.add_argument("--plot-phase", action="store_true", help="Plot phase on S-parm graphs")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
     group.add_argument("-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level")
