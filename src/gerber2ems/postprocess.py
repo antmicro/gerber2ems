@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import skrf
 
 from gerber2ems.config import Config
-from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE
+from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE, SIMULATION_DIR
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -427,7 +427,7 @@ class Postprocesor:
         """Save all parameters to files."""
         for i, _ in enumerate(self.s_params):
             if self.is_valid(self.s_params[i][i]):
-                self.sparam_port_to_file(i, RESULTS_DIR)
+                self.sparam_port_to_file(i, SIMULATION_DIR)
 
     def sparam_port_to_file(self, port_number: int, path: str) -> None:
         """Save all parameters from single excitation."""
@@ -494,21 +494,21 @@ class Postprocesor:
                     arg = s_map["arg"].get(sxx, None)
                     if arg is None:
                         logger.error(
-                            f"S-param CSV error: no phase data matching `mag(S{sxx[0]}-{sxx[1]})` from column {col}!"
+                            f"S-param CSV error: no phase data matching `mag(S{sxx[0]},{sxx[1]})` from column {col}!"
                         )
                         raise Exception("S-param CSV parse error")
                     phase = np.deg2rad(data[arg, :]) if ph_degrees[sxx] else data[arg, :]
 
-                    self.s_params[*sxx, :] = nprect(data[col, :], phase)
+                    self.s_params[sxx[0], sxx[1], :] = nprect(data[col, :], phase)
 
                 for sxx, col in s_map["re"].items():
                     im = s_map["im"].get(sxx, None)
                     if im is None:
                         logger.error(
-                            f"S-param CSV error: no imaginary data matching `re(S{sxx[0]}-{sxx[1]})` from column {col}!"
+                            f"S-param CSV error: no imaginary data matching `re(S{sxx[0]},{sxx[1]})` from column {col}!"
                         )
                         raise Exception("S-param CSV parse error")
-                    self.s_params[*sxx, :] = data[col, :] + data[im, :] * 1j
+                    self.s_params[sxx[0], sxx[1], :] = data[col, :] + data[im, :] * 1j
 
     @staticmethod
     def is_valid(array: np.ndarray) -> bool:
