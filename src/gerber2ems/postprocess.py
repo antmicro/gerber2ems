@@ -6,18 +6,17 @@ import os
 import csv
 import re
 from cmath import rect
-from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 import skrf
 
 from gerber2ems.config import Config
-from gerber2ems.constants import RESULTS_DIR, PLOT_STYLE, SIMULATION_DIR
+from gerber2ems.constants import PLOT_STYLE, SIMULATION_DIR
 
 logger = logging.getLogger(__name__)
 cfg = Config()
-sparam_path_pat = "Port_Sx-{0}.csv"
+sparam_path_pat = "Port_Sx{0}.csv"
 
 
 class Postprocesor:
@@ -159,9 +158,7 @@ class Postprocesor:
                     ax2.grid(True)
 
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_x{i+1}.png"),
-                    bbox_inches="tight",
-                    transparent=cfg.arguments.transparent,
+                    cfg.arguments.output / f"S_x{i+1}.png", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
 
     def render_diff_pair_s_params(self) -> None:
@@ -206,9 +203,7 @@ class Postprocesor:
                 bottom, top = axes.get_ylim()
                 axes.set_ylim([min(bottom, -60), max(top, 5)])
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, "SDD_Diff"),
-                    bbox_inches="tight",
-                    transparent=cfg.arguments.transparent,
+                    cfg.arguments.output / "SDD_Diff", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
 
     def render_diff_impedance(self) -> None:
@@ -259,9 +254,7 @@ class Postprocesor:
                     axs[1].set_ylim([min(bottom, -90), max(top, 90)])
 
                     fig.savefig(
-                        os.path.join(os.getcwd(), RESULTS_DIR, "Z_diff.png"),
-                        bbox_inches="tight",
-                        transparent=cfg.arguments.transparent,
+                        cfg.arguments.output / "Z_diff.png", bbox_inches="tight", transparent=cfg.arguments.transparent
                     )
                 else:
                     logger.error(
@@ -310,9 +303,7 @@ class Postprocesor:
                 axs[1].set_ylim([min(bottom, -90), max(top, 90)])
 
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"Z_{port+1}.png"),
-                    bbox_inches="tight",
-                    transparent=cfg.arguments.transparent,
+                    cfg.arguments.output / f"Z_{port+1}.png", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
 
     def render_smith(self) -> None:
@@ -335,7 +326,7 @@ class Postprocesor:
                 )
                 axes.legend(bbox_to_anchor=(1.0, 0.5), loc="center left")
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"S_{port+1},{port+1}_smith.png"),
+                    cfg.arguments.output / f"S_{port+1},{port+1}_smith.png",
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )
@@ -357,7 +348,7 @@ class Postprocesor:
                 axes.set_ylabel("Trace delay [ns]")
                 axes.grid(True)
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, f"{trace.name}_delay.png"),
+                    cfg.arguments.output / f"{trace.name}_delay.png",
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )
@@ -384,16 +375,14 @@ class Postprocesor:
                 axes.set_ylabel("Trace delay [ns]")
                 axes.grid(True)
                 fig.savefig(
-                    os.path.join(os.getcwd(), RESULTS_DIR, "diff_delay.png"),
-                    bbox_inches="tight",
-                    transparent=cfg.arguments.transparent,
+                    cfg.arguments.output / "diff_delay.png", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
 
     def save_to_file(self) -> None:
         """Save all parameters to files."""
         for i, _ in enumerate(self.s_params):
             if self.is_valid(self.s_params[i][i]):
-                self.save_port_to_file(i, RESULTS_DIR)
+                self.save_port_to_file(i, cfg.arguments.output)
 
     def save_port_to_file(self, port_number: int, path: str) -> None:
         """Save all parameters from single excitation."""
@@ -421,7 +410,7 @@ class Postprocesor:
             ]
         )
         logger.debug("Saving port no. %d parameters to file: %s", port_number, file_path)
-        np.savetxt(os.path.join(path, file_path), output, fmt="%e", delimiter=", ", header=header, comments="")
+        np.savetxt(path / file_path, output, fmt="%e", delimiter=", ", header=header, comments="")
 
     def sparam_to_file(self) -> None:
         """Save all parameters to files."""
@@ -455,7 +444,7 @@ class Postprocesor:
         for idx, port in enumerate(cfg.ports):
             if not port.excite:
                 continue
-            with open(Path(RESULTS_DIR) / sparam_path_pat.format(idx), "r", encoding="utf-8") as csvfile:
+            with open(cfg.arguments.input / sparam_path_pat.format(idx), "r", encoding="utf-8") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",", quotechar='"')
                 header = next(reader, [])
                 freq_mul = 1.0

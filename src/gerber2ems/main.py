@@ -7,6 +7,7 @@ import argparse
 import logging
 from typing import Any
 import shutil
+from pathlib import Path
 
 import coloredlogs
 import numpy as np
@@ -147,11 +148,19 @@ def parse_arguments() -> argparse.Namespace:
         choices=["outer", "cu-outer", "cu-inner", "substrate"],
         nargs="*",
         default=None,
-        help="Export electric field data from the simulation",
+        help="[s] Export electric field data from the simulation",
     )
-    parser.add_argument("--oversampling", type=int, default=4, help="Field dump time-oversampling")
-    parser.add_argument("-t", "--transparent", action="store_true", help="Export graphs with transparent background")
-    parser.add_argument("--plot-phase", action="store_true", help="Plot phase on S-parm graphs")
+    parser.add_argument("--oversampling", type=int, default=4, help="[s] Field dump time-oversampling")
+    parser.add_argument(
+        "-t", "--transparent", action="store_true", help="[p] Export graphs with transparent background"
+    )
+    parser.add_argument("--plot-phase", action="store_true", help="[p] Plot phase on S-parm graphs")
+    parser.add_argument(
+        "-i", "--input", default=Path.cwd() / SIMULATION_DIR, type=Path, help="[p] Directory with input S-param files"
+    )
+    parser.add_argument(
+        "-o", "--output", default=Path.cwd() / RESULTS_DIR,  type=Path, help="[p] Directory where results will be placed"
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
     group.add_argument("-l", "--log", choices=["DEBUG", "INFO", "WARNING", "ERROR"], dest="log_level")
