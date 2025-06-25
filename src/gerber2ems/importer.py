@@ -1,6 +1,5 @@
 """Module containing functions for importing gerbers."""
 
-import csv
 import json
 import subprocess
 import os
@@ -16,7 +15,7 @@ import numpy as np
 from nanomesh import Image, Mesher2D
 import matplotlib as mpl
 
-from gerber2ems.config import Config
+from gerber2ems.config import Config, get_ports_from_file
 from gerber2ems.constants import (
     GEOMETRY_DIR,
     UNIT_MULTIPLIER,
@@ -290,9 +289,8 @@ def import_port_positions() -> None:
     Parses them to find port footprints and inserts their position information to config object.
     """
     ports: List[Tuple[int, Tuple[float, float], float]] = []
-    for filename in os.listdir(os.path.join(os.getcwd(), "fab")):
-        if filename.endswith("-pos.csv"):
-            ports += get_ports_from_file(os.path.join(os.getcwd(), "fab", filename))
+    for filename in (Path.cwd() / "fab").glob("*pos.csv"):
+        ports += get_ports_from_file(filename)
 
     for number, position, direction in ports:
         if len(cfg.ports) > number:
@@ -309,26 +307,3 @@ def import_port_positions() -> None:
         if port.position is None:
             logger.error("Port #%i is not defined on board. It will be skipped", index)
 
-
-def get_ports_from_file(filename: str) -> List[Tuple[int, Tuple[float, float], float]]:
-    """Parse pnp CSV file and return all ports in format (number, (x, y), direction)."""
-    ports: List[Tuple[int, Tuple[float, float], float]] = []
-    with open(filename, "r", encoding="utf-8") as csvfile:
-        reader = csv.reader(csvfile, delimiter=",", quotechar='"')
-        next(reader, None)  # skip the headers
-        for row in reader:
-            if "Simulation_Port" in row[2] or "Simulation-Port" in row[2]:
-                number = int(row[0][2:])
-                ports.append(
-                    (
-                        number - 1,
-                        (
-                            float(row[3]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
-                            float(row[4]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
-                        ),
-                        float(row[5]),
-                    )
-                )
-                logging.debug("Found port #%i position in pos file", number)
-
-    return ports

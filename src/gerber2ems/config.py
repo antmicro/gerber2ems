@@ -12,6 +12,7 @@ from serde.json import to_json
 from pathlib import Path
 import json
 from argparse import Namespace
+import csv
 
 from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT_MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH
 
@@ -308,7 +309,7 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
     logger.info(f"Loading config from {cfg_path}")
     if not cfg_path.is_file() and update_config:
         cfg_path.touch()
-        return {"format_version": CONFIG_FORMAT_VERSION, "ports": []}
+
     if not cfg_path.is_file():
         logger.error("Config file doesn't exist: %s", cfg_path)
         sys.exit(1)
@@ -319,4 +320,57 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
         except json.JSONDecodeError as error:
             logger.error("JSON decoding failed at %d:%d: %s", error.lineno, error.colno, error.msg)
             sys.exit(1)
+
+    if len(json_cfg) == 0:
+        json_cfg = {"format_version": CONFIG_FORMAT_VERSION}
+
+    if not json_cfg.get("ports", []):
+        ports_pnp: List[Tuple[int, Tuple[float, float], float]] = []
+        for filename in (Path.cwd() / "fab").glob("*pos.csv"):
+            ports_pnp += get_ports_from_file(filename)
+        ports = [PortConfig(str(p[0])) for p in ports_pnp]
+        ports[-1].excite = True
+        if len(ports) >= 4:
+            ports[-3].excite = True
+        json_cfg["ports"] = ports
+        if len(ports) in [2, 3]:
+            json_cfg["traces"] = [
+                {
+                    "start": ports_pnp[-1][0] - 1,
+                    "stop": ports_pnp[-2][0] - 1,
+                }
+            ]
+        if len(ports) >= 4:
+            json_cfg["differential_pairs"] = [
+                {
+                    "start_p": ports_pnp[-1][0] - 1,
+                    "stop_p": ports_pnp[-2][0] - 1,
+                    "start_n": ports_pnp[-3][0] - 1,
+                    "stop_n": ports_pnp[-4][0] - 1,
+                }
+            ]
     return json_cfg
+
+
+def get_ports_from_file(filename: Path) -> List[Tuple[int, Tuple[float, float], float]]:
+    """Parse pnp CSV file and return all ports in format (number, (x, y), direction)."""
+    ports: List[Tuple[int, Tuple[float, float], float]] = []
+    with open(filename, "r", encoding="utf-8") as csvfile:
+        reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+        next(reader, None)  # skip the headers
+        for row in reader:
+            if "Simulation_Port" in row[2] or "Simulation-Port" in row[2]:
+                number = int(row[0][2:])
+                ports.append(
+                    (
+                        number - 1,
+                        (
+                            float(row[3]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
+                            float(row[4]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
+                        ),
+                        float(row[5]),
+                    )
+                )
+                logging.debug("Found port #%i position in pos file", number)
+
+    return ports
