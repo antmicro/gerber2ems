@@ -306,4 +306,3 @@ def import_port_positions() -> None:
     for index, port in enumerate(cfg.ports):
         if port.position is None:
             logger.error("Port #%i is not defined on board. It will be skipped", index)
-

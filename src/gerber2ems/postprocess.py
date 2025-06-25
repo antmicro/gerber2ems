@@ -6,6 +6,7 @@ import os
 import csv
 import re
 from cmath import rect
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -384,7 +385,7 @@ class Postprocesor:
             if self.is_valid(self.s_params[i][i]):
                 self.save_port_to_file(i, cfg.arguments.output)
 
-    def save_port_to_file(self, port_number: int, path: str) -> None:
+    def save_port_to_file(self, port_number: int, path: Path) -> None:
         """Save all parameters from single excitation."""
         frequencies = np.transpose([self.frequencies]) / 1e6
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))

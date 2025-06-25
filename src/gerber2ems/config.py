@@ -35,6 +35,13 @@ class PortConfig:
     dB_margin: float = field(default=-15)  # noqa: N815
     excite: bool = field(default=False)
 
+    @staticmethod
+    def with_name(p: str) -> PortConfig:
+        """Create PortConfig with specified name."""
+        pc = PortConfig()
+        pc.name = p
+        return pc
+
 
 @serde(type_check=coerce)
 class DifferentialPairConfig:
@@ -328,7 +335,7 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
         ports_pnp: List[Tuple[int, Tuple[float, float], float]] = []
         for filename in (Path.cwd() / "fab").glob("*pos.csv"):
             ports_pnp += get_ports_from_file(filename)
-        ports = [PortConfig(str(p[0])) for p in ports_pnp]
+        ports = [PortConfig.with_name(str(p[0])) for p in ports_pnp]
         ports[-1].excite = True
         if len(ports) >= 4:
             ports[-3].excite = True

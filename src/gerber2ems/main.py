@@ -159,7 +159,7 @@ def parse_arguments() -> argparse.Namespace:
         "-i", "--input", default=Path.cwd() / SIMULATION_DIR, type=Path, help="[p] Directory with input S-param files"
     )
     parser.add_argument(
-        "-o", "--output", default=Path.cwd() / RESULTS_DIR,  type=Path, help="[p] Directory where results will be placed"
+        "-o", "--output", default=Path.cwd() / RESULTS_DIR, type=Path, help="[p] Directory where results will be placed"
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--debug", action="store_true", dest="debug")
