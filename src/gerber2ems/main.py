@@ -108,7 +108,7 @@ def simulate() -> None:
                 post.add_port_data(i, index, incident[i], reflected[i])
 
     post.calculate_sparams()
-    post.sparams_to_file()
+    post.sparam_to_file()
 
 
 def postprocess() -> None:

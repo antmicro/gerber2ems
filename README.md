@@ -15,6 +15,7 @@ Install the following packages (on Debian/Ubuntu):
 ```bash
 sudo apt update
 sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py python3-setuptools
+pip install --upgrade --break-system-packages --ignore-installed numpy scipy matplotlib # Required as Debian installs old numpy version
 ```
 
 Clone the repository, compile and install openEMS:
