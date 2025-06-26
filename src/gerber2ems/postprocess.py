@@ -17,7 +17,7 @@ from gerber2ems.constants import PLOT_STYLE, SIMULATION_DIR
 
 logger = logging.getLogger(__name__)
 cfg = Config()
-sparam_path_pat = "Port_Sx{0}.csv"
+sparam_path_pat = "Sx{0}.csv"
 
 
 class Postprocesor:

@@ -14,8 +14,8 @@ Install the following packages (on Debian/Ubuntu):
 
 ```bash
 sudo apt update
-sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev python3-numpy python3-matplotlib cython3 python3-h5py python3-setuptools
-pip install --upgrade --break-system-packages --ignore-installed numpy scipy matplotlib # Required as Debian installs old numpy version
+sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev cython3 pip
+pip install --break-system-packages numpy scipy matplotlib h5py setuptools # Preferred as Debian installs old numpy version which often results in version conflicts
 ```
 
 Clone the repository, compile and install openEMS:
@@ -34,7 +34,7 @@ popd
 
 1. Install the dependencies:
 ```bash
-sudo apt install gerbv paraview python3.11 pipx
+sudo apt install gerbv python3.11 pipx
 pipx ensurepath
 ```
 
@@ -45,6 +45,9 @@ pushd ./gerber2ems
 pipx install --system-site-packages .
 popd
 ```
+
+> [!NOTE]
+> I you want to use `ems2paraview` command run also `sudo apt install paraview python3-paraview`.
 
 You can test `gerber2ems` with built-in examples.
 The examples are slices of our open hardware [Signal Integrity Test Board](https://openhardware.antmicro.com/boards/si-simulation-test-board/), which were generated using the [KiCad SI wrapper](https://github.com/antmicro/kicad-si-simulation-wrapper).
