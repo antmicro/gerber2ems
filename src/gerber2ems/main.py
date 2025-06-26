@@ -113,6 +113,7 @@ def simulate() -> None:
 
 def postprocess() -> None:
     """Postprocess data from the simulation."""
+    cfg.arguments.output.mkdir(exist_ok=True, parents=True)
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
     post = Postprocesor(frequencies, len(cfg.ports))
     post.load_sparams()

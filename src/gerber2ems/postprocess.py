@@ -153,7 +153,7 @@ class Postprocesor:
                             ax2.plot(
                                 self.frequencies / 1e9,
                                 np.unwrap(np.angle(s_param, deg=True)),
-                                label="$S_{" + f"{j+1}{i+1}" + "}$",
+                                label="$S_{" + f"{j+1},{i+1}" + "}$",
                             )
                     ax2.set_ylabel("Phase [°]")
                     ax2.grid(True)
@@ -327,7 +327,7 @@ class Postprocesor:
                 )
                 axes.legend(bbox_to_anchor=(1.0, 0.5), loc="center left")
                 fig.savefig(
-                    cfg.arguments.output / f"S_{port+1},{port+1}_smith.png",
+                    cfg.arguments.output / f"S_{port+1}-{port+1}_smith.png",
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )
@@ -393,8 +393,8 @@ class Postprocesor:
         impedances = np.transpose([self.impedances[port_number]])
 
         header: str = "Frequency [MHz], "
-        header += "".join([f"|S{i},{port_number}|, [-]" for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Arg(S{i},{port_number}) [rad], " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"|S{i}-{port_number}|, [-]" for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Arg(S{i}-{port_number}) [rad], " for i, _ in enumerate(self.s_params[port_number])])
         header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
         header += f"|Z{port_number}| [Ohm] , "
         header += f"Arg(Z{port_number}) [rad]"
@@ -425,8 +425,8 @@ class Postprocesor:
         s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
 
         header: str = "Frequency [MHz], "
-        header += "".join([f"re(S{i},{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"im(S{i},{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"re(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"im(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
 
         file_path = sparam_path_pat.format(port_number)
         output = np.hstack(
@@ -484,7 +484,7 @@ class Postprocesor:
                     arg = s_map["arg"].get(sxx, None)
                     if arg is None:
                         logger.error(
-                            f"S-param CSV error: no phase data matching `mag(S{sxx[0]},{sxx[1]})` from column {col}!"
+                            f"S-param CSV error: no phase data matching `mag(S{sxx[0]}-{sxx[1]})` from column {col}!"
                         )
                         raise Exception("S-param CSV parse error")
                     phase = np.deg2rad(data[arg, :]) if ph_degrees[sxx] else data[arg, :]
@@ -495,7 +495,7 @@ class Postprocesor:
                     im = s_map["im"].get(sxx, None)
                     if im is None:
                         logger.error(
-                            f"S-param CSV error: no imaginary data matching `re(S{sxx[0]},{sxx[1]})` from column {col}!"
+                            f"S-param CSV error: no imaginary data matching `re(S{sxx[0]}-{sxx[1]})` from column {col}!"
                         )
                         raise Exception("S-param CSV parse error")
                     self.s_params[sxx[0], sxx[1], :] = data[col, :] + data[im, :] * 1j
