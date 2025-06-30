@@ -74,7 +74,7 @@ class Simulation:
                 mscale = max(scale, mscale)
                 prev = line
                 prev_size = size
-            return [msize, mscale]
+            return [msize / UNIT_MULTIPLIER, mscale]
 
         sx = get_stat(self.grid.GetLines("x"))
         sy = get_stat(self.grid.GetLines("y"))

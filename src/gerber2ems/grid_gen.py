@@ -27,14 +27,17 @@ logger = logging.getLogger(__name__)
 cfg = Config()
 
 
-def dedup_grid(grid: List[float], grid_min: float) -> List[float]:
+def dedup_grid(grid: List[float], grid_min: float, edge_grid: List[float]) -> List[float]:
     """Merge grid lines that are to close to each other."""
     to_remove = []
     grid.sort()
     for idx in range(len(grid) - 1):
         if grid[idx + 1] - grid[idx] < grid_min / 2:
             grid[idx + 1] = (grid[idx + 1] + grid[idx]) / 2
-            to_remove.append(idx)
+            if grid[idx] not in edge_grid:
+                to_remove.append(idx)
+            elif grid[idx + 1] not in edge_grid:
+                to_remove.append(idx + 1)
     for idx in reversed(to_remove):
         grid.pop(idx)
     return grid
@@ -101,7 +104,7 @@ class GridGenerator:
         z_lines = Region(zmin, zmax).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
         z_lines = Region(zmax, margin).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
         z_lines = Region(offset - margin, zmin).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
-        return [int(x) for x in dedup_grid(z_lines, grid_min)]
+        return [int(x) for x in dedup_grid(z_lines, grid_min, [])]
 
     def generate(self, grid: CSRectGrid) -> CSRectGrid:
         """Generate complete dynamic grid."""
@@ -212,6 +215,7 @@ class SubRegion:
             self.lines[0] = self.lines[1]
             self.lines[1] = region_end_line
             grid.insert(self.start_idx + 2, region_end_line)
+            self.start_idx += 1
             self.edge_l = False
         region_end_line = max(self.lines[1] + self.grid_size, self.reg_max)
         if self.edge_h and region_end_line < self.lines[2] - self.grid_size:
@@ -239,6 +243,7 @@ class SubRegion:
             # self.lines[0] is outside region and far away from self.lines[1] -> Add line near the end of region
             self.lines[0] = min(self.reg_min, self.lines[1] - self.grid_size)
             grid.insert(self.start_idx + 1, self.lines[0])
+            self.start_idx += 1
             self.prev_size = self.lines[1] - self.lines[0]
         if (
             self.bounded_h
@@ -295,7 +300,8 @@ class SubRegion:
                     return calc_left_dist(q) - k * self.grid_size  # noqa: B023
 
                 q1 = fsolve(series_sum2, self.cell_ratio)[0]
-                if 1 < q1 < self.cell_ratio * cell_ratio_mul:
+                q1norm = q1 if q1 > 1 else 1 / q1
+                if 1 < q1norm < self.cell_ratio * cell_ratio_mul:
                     left_dist = calc_left_dist(q1)
                     k = max(0, floor(left_dist / (self.prev_size * (q1 ** (self.n_q_sgn * n_opt)))))
                     if k == 0:
@@ -307,7 +313,7 @@ class SubRegion:
                     break_cond = True
                     if (
                         q1 > self.final_cell_ratio
-                        and q1 <= self.cell_ratio * cell_ratio_mul
+                        and q1norm <= self.cell_ratio * cell_ratio_mul
                         or self.final_cell_ratio == 0
                     ):
                         (self.m_opt, self.n_opt, self.k, self.final_cell_ratio) = (m_opt, n_opt, k, q1)
@@ -568,8 +574,7 @@ class GridGeneratorAxis:
     def resolve_edge_regions(self) -> None:
         """Shrink/Merge conflicting edge regions (try to follow the rule of thirds as closely as possible)."""
         grid_size = cfg.grid.optimal
-        cell_ratio = cfg.grid.cell_ratio.xy
-        grid_min = grid_size / cell_ratio
+        grid_min = grid_size / 1.8
         self.edge_cells.sort(key=lambda k: k.prio, reverse=True)  # sort by prio: high to low
         to_delete = []
         for i in range(0, len(self.edge_cells)):
@@ -658,12 +663,14 @@ class GridGeneratorAxis:
         else:
             self.board.min += offset
             self.board.max += offset
-        grid.append(self.board.min)
-        grid.append(self.board.max)
+
         for reg in self.edge_cells:
             grid.append(reg.min)
             grid.append(reg.max)
-        grid = dedup_grid(grid, grid_min)
+
+        edge_grid = deepcopy(grid)
+        grid.append(self.board.min)
+        grid.append(self.board.max)
 
         self.merge_regions("parallel", grid_size)
         self.merge_regions("perpendicular", grid_perp)
@@ -671,18 +678,18 @@ class GridGeneratorAxis:
 
         for reg in self.parallel:
             grid = reg.densify_region_grid(grid, grid_size, grid_min, cell_ratio)
-        grid = dedup_grid(grid, grid_min)
+        grid = dedup_grid(grid, grid_min, edge_grid)
 
         for reg in self.diagonal:
             grid = reg.densify_region_grid(grid, grid_diag, grid_min, cell_ratio)
-        grid = dedup_grid(grid, grid_min)
+        grid = dedup_grid(grid, grid_min, edge_grid)
 
         for reg in self.perpendicular:
             grid = reg.densify_region_grid(grid, grid_perp, grid_min, cell_ratio)
-        grid = dedup_grid(grid, grid_min)
+        grid = dedup_grid(grid, grid_min, edge_grid)
 
         grid = self.board.densify_region_grid(grid, cfg.grid.max, grid_min, cell_ratio)
-        grid = dedup_grid(grid, grid_min)
+        grid = dedup_grid(grid, grid_min, edge_grid)
 
         grid = [line - offset for line in grid]
 
