@@ -272,6 +272,8 @@ class SubRegion:
         """Calculate distance left after filling subregion with two geometric series."""
         qm = q**self.m_q_sgn
         qn = q**self.n_q_sgn
+        if q == 1:
+            return self.dist
         return (
             self.dist
             - self.next_size * qm * (1 - qm**m_opt) / (1 - qm)
@@ -291,7 +293,7 @@ class SubRegion:
         for _ in range(n_opt + m_opt):
 
             calc_left_dist = partial(self.calc_left_dist, m_opt, n_opt)
-            left_dist = calc_left_dist(self.cell_ratio)
+            left_dist = calc_left_dist(self.final_cell_ratio if self.final_cell_ratio != 0 else self.cell_ratio)
             k = 0
             if left_dist >= -self.grid_size:
                 k = max(0, floor(left_dist / self.grid_size))

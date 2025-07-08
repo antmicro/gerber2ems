@@ -220,6 +220,9 @@ class _Config:
                 pair.start_p, pair.stop_p = pair.stop_p, pair.start_p
             if not self.ports[pair.start_n].excite and self.ports[pair.start_n].excite:
                 pair.start_n, pair.stop_n = pair.stop_n, pair.start_n
+        for port in self.ports:
+            port.width *= UNIT_MULTIPLIER
+            port.length *= UNIT_MULTIPLIER
 
 
 class Config:

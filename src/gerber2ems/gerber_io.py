@@ -678,6 +678,7 @@ class GerberFile:
                     TraceSegment(self.parser.pos, pos, ap_name, ap.data.diameter, self.parser.plot_mode)
                 )
                 self.traces[self.parser.net] = trace
+            self.parser.pos = pos
         elif opi == 2:
             self.parser.pos = pos
         elif opi == 3:
