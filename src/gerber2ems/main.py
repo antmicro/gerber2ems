@@ -155,7 +155,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-t", "--transparent", action="store_true", help="[p] Export graphs with transparent background"
     )
-    parser.add_argument("--plot-phase", action="store_true", help="[p] Plot phase on S-parm graphs")
+    parser.add_argument("--plot-phase", action="store_true", help="[p] Plot phase on S-param graphs")
     parser.add_argument(
         "-i", "--input", default=Path.cwd() / SIMULATION_DIR, type=Path, help="[p] Directory with input S-param files"
     )

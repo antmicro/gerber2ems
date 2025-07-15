@@ -198,8 +198,8 @@ class Postprocesor:
                         label="$SDD_{21}$",
                     )
                 axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-                axes.set_xlabel("Frequency, f [GHz]")
-                axes.set_ylabel("Magnitude, [dB]")
+                axes.set_xlabel("Frequency [GHz]")
+                axes.set_ylabel("Magnitude [dB]")
                 axes.grid(True)
                 bottom, top = axes.get_ylim()
                 axes.set_ylim([min(bottom, -60), max(top, 5)])
@@ -245,7 +245,7 @@ class Postprocesor:
 
                     axs[0].set_ylabel("Magnitude, $|Z_{diff}| [\Omega]$")
                     axs[1].set_ylabel("Angle, $arg(Z_{diff}) [^\circ]$")
-                    axs[1].set_xlabel("Frequency, f [GHz]")
+                    axs[1].set_xlabel("Frequency [GHz]")
                     axs[0].grid(True)
                     axs[1].grid(True)
 
@@ -286,7 +286,7 @@ class Postprocesor:
 
                 axs[0].set_ylabel("Magnitude, $|Z_{" + str(port) + r"}| [\Omega]$")
                 axs[1].set_ylabel("Angle, $arg(Z_{" + str(port) + r"}) [^\circ]$")
-                axs[1].set_xlabel("Frequency, f [GHz]")
+                axs[1].set_xlabel("Frequency [GHz]")
                 axs[0].grid(True)
                 axs[1].grid(True)
 
@@ -327,7 +327,7 @@ class Postprocesor:
                 )
                 axes.legend(bbox_to_anchor=(1.0, 0.5), loc="center left")
                 fig.savefig(
-                    cfg.arguments.output / f"S_{port+1}-{port+1}_smith.png",
+                    cfg.arguments.output / f"S_{port+1}{port+1}_smith.png",
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )
@@ -445,7 +445,12 @@ class Postprocesor:
         for idx, port in enumerate(cfg.ports):
             if not port.excite:
                 continue
-            with open(cfg.arguments.input / sparam_path_pat.format(idx), "r", encoding="utf-8") as csvfile:
+            fpath = cfg.arguments.input / sparam_path_pat.format(idx)
+            if not fpath.exists():
+                afpath = fpath.absolute()
+                msg = f"Input file with s-parameters ({afpath}) could not be found! Did You run simulation step?"
+                raise Exception(msg)
+            with open(fpath, "r", encoding="utf-8") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",", quotechar='"')
                 header = next(reader, [])
                 freq_mul = 1.0
