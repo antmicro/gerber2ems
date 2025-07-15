@@ -134,11 +134,15 @@ class Postprocesor:
                     fig, ax1 = plt.subplots()
                 for j in range(self.count):
                     s_param = self.s_params[j][i]
+                    if i > 9 or j > 9:
+                        s_label = "$S_{" + f"{j+1},{i+1}" + "}$"
+                    else:
+                        s_label = "$S_{" + f"{j+1}{i+1}" + "}$"
                     if self.is_valid(s_param):
                         ax1.plot(
                             self.frequencies / 1e9,
                             20 * np.log10(np.abs(s_param)),
-                            label="$S_{" + f"{j+1},{i+1}" + "}$",
+                            label=s_label,
                         )
                 fig.legend(loc="center left", bbox_to_anchor=(0.92, 0.5))
                 fig.supxlabel("Frequency [GHz]")
@@ -150,11 +154,15 @@ class Postprocesor:
                 if cfg.arguments.plot_phase:
                     for j in range(self.count):
                         s_param = self.s_params[j][i]
+                        if i > 9 or j > 9:
+                            s_label = "$S_{" + f"{j+1},{i+1}" + "}$"
+                        else:
+                            s_label = "$S_{" + f"{j+1}{i+1}" + "}$"
                         if self.is_valid(s_param):
                             ax2.plot(
                                 self.frequencies / 1e9,
                                 np.unwrap(np.angle(s_param, deg=True)),
-                                label="$S_{" + f"{j+1},{i+1}" + "}$",
+                                label=s_label,
                             )
                     ax2.set_ylabel("Phase [°]")
                     ax2.grid(True)
