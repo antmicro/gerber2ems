@@ -3,6 +3,7 @@
 from typing import Union, Tuple, Optional, Dict
 import logging
 import os
+import sys
 import csv
 import re
 from cmath import rect
@@ -448,8 +449,10 @@ class Postprocesor:
             fpath = cfg.arguments.input / sparam_path_pat.format(idx)
             if not fpath.exists():
                 afpath = fpath.absolute()
-                msg = f"Input file with s-parameters ({afpath}) could not be found! Did You run simulation step?"
-                raise Exception(msg)
+                logger.error(
+                    f"Input file with s-parameters ({afpath}) could not be found. Did you run simulation step?"
+                )
+                sys.exit(1)
             with open(fpath, "r", encoding="utf-8") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",", quotechar='"')
                 header = next(reader, [])
