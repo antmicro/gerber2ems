@@ -401,11 +401,11 @@ class Postprocesor:
         delays = np.transpose(self.delays[:, port_number, :], (1, 0))
         impedances = np.transpose([self.impedances[port_number]])
 
-        header: str = "Frequency [MHz], "
-        header += "".join([f"|S{i}-{port_number}|, [-]" for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Arg(S{i}-{port_number}) [rad], " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"Delay {port_number}>{i} [s], " for i, _ in enumerate(self.delays[port_number])])
-        header += f"|Z{port_number}| [Ohm] , "
+        header: str = "Frequency [MHz],"
+        header += "".join([f"|S{i}-{port_number}| [-]," for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Arg(S{i}-{port_number}) [rad]," for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"Delay {port_number}>{i} [s]," for i, _ in enumerate(self.delays[port_number])])
+        header += f"|Z{port_number}| [Ohm],"
         header += f"Arg(Z{port_number}) [rad]"
         file_path = f"Port_{port_number}_data.csv"
 
