@@ -23,5 +23,12 @@
             "plane": 1,
             "excite": true
         }
+    ],
+    "traces": [
+        {
+            "nets": ["GND"],
+            "start": 0,
+            "stop": 1
+        }
     ]
 }
