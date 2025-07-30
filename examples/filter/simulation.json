@@ -4,7 +4,7 @@
         "start": 200000000.0,
         "stop": 6000000000.0
     },
-    "max_steps": 39845,
+    "max_steps": 500000,
     "pixel_size": 2.5,
     "ports": [
         {
