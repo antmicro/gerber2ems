@@ -1,5 +1,3 @@
 include:
-  - project: 'repositories/gerber2ems-ci'
-    file: '/.ci.yml'
-  - project: 'repositories/gerber2ems-ci'
-    file: '/.verification.yml'
+  - gerber2ems-ci@main:.ci.yml
+  - gerber2ems-ci@main:.verification.yml
