@@ -82,7 +82,7 @@ def export_single(res_n: int, filecount: int, min_max: Tuple[float, float], fnm:
     new_grid = new_grid.reshape(2, -1).T
 
     data_interp = interp(new_grid).reshape(shape)
-    img_data = np.astype(np.sqrt(data_interp.T - min_val) * vmul, np.uint16)
+    img_data = (np.sqrt(data_interp.T - min_val) * vmul).astype(np.uint16)
 
     # Save as image
     image = Image.fromarray(img_data, "I;16")
