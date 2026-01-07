@@ -133,12 +133,15 @@ def get_triangles(input_filename: str) -> np.ndarray:
     img_path = Path(GEOMETRY_DIR) / input_filename
     image = PIL.Image.open(img_path)
     gray = image.convert("L")
+    if gray.getextrema()[1] < 230:  # type:ignore
+        # Image is empty - no cooper features on this layer
+        return np.empty((0, 3, 2))
     thresh = gray.point(lambda p: 255 if p < 230 else 0)
     cooper_np = np.array(thresh)
     copper = Image(cooper_np)
 
     mesher = Mesher2D(copper)
-    # These constans are set so there won't be to many triangles.
+    # These constants are set so there won't be to many triangles.
     # If in some case triangles are too coarse they should be adjusted
     max_edge_dist = int(60000 / (cfg.pixel_size**2 / 25))
     mesher.generate_contour(max_edge_dist=max_edge_dist, precision=1, group_regions=False)
