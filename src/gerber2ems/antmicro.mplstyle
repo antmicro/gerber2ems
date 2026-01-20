@@ -5,7 +5,7 @@ axes.edgecolor : c4c2c5
 axes.labelcolor : dfdfdf
 axes.labelsize : 12
 figure.facecolor : 2E303E
-text.color : FFFFFF
+text.color : dfdfdf
 grid.color : c4c2c5
 xtick.labelcolor: c4c2c5
 ytick.labelcolor: c4c2c5

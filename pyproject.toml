@@ -32,7 +32,7 @@ scripts = {gerber2ems = "gerber2ems.main:main", ems2paraview = "ems2paraview.mai
 gerber2ems = ["*.mplstyle"]
 
 [project.optional-dependencies]
-dev = ["mypy", "ruff", "black"]
+dev = ["mypy", "ruff", "black==25.12.0"]
 
 [tool.ruff]
 lint.select = ["E", "F", "N", "B", "D", "A", "RET"]
