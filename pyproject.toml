@@ -25,14 +25,14 @@ dynamic = ["version"]
 
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
-dependencies = ["numpy", "matplotlib", "coloredlogs", "nanomesh", "scikit-rf", "Pillow", "scipy", "pyserde"]
+dependencies = ["numpy>=1.24.0,<2.5.0", "matplotlib~=3.6.0", "coloredlogs==15.0.1", "nanomesh==0.9.1", "scikit-rf==1.9.0", "Pillow==12.1.0", "scipy==1.17.0", "pyserde==0.28.0"]
 scripts = {gerber2ems = "gerber2ems.main:main", ems2paraview = "ems2paraview.main:main", ems2png = "ems2png.main:app"}
 
 [tool.setuptools.package-data]
 gerber2ems = ["*.mplstyle"]
 
 [project.optional-dependencies]
-dev = ["mypy", "ruff", "black==25.12.0"]
+dev = ["mypy==1.19.1", "ruff==0.14.14", "black==25.12.0"]
 
 [tool.ruff]
 lint.select = ["E", "F", "N", "B", "D", "A", "RET"]

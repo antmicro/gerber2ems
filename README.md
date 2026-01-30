@@ -1,6 +1,6 @@
 # gerber2ems - openEMS simulation based on Gerber files
 
-Copyright (c) 2023-2025 [Antmicro](https://www.antmicro.com)
+Copyright (c) 2023-2026 [Antmicro](https://www.antmicro.com)
 
 This project is a Python script that aims to streamline signal integrity simulations using open source tools.
 It takes PCB production files as input (Gerber, drill files, stackup information) and simulates trace SI performance using [openEMS](https://github.com/thliebig/openEMS-Project/) - a free and open source electromagnetic field solver that uses the FDTD method.
@@ -15,16 +15,15 @@ Install the following packages (on Debian/Ubuntu):
 ```bash
 sudo apt update
 sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-dev libcgal-dev libtinyxml-dev qtbase5-dev libvtk9-qt-dev cython3 pip
-pip install --break-system-packages numpy scipy matplotlib h5py setuptools # Preferred as Debian installs old numpy version which often results in version conflicts
 ```
 
 Clone the repository, compile and install openEMS:
 
-It is recommended to use the `bb991bb3` commit, as this is the latest one tested with gerber2ems.
+It is recommended to use the `a30587728affa4f8451e13819981899bd8ab6b64` commit, as this is the latest one tested with gerber2ems.
 ```bash
 git clone https://github.com/thliebig/openEMS-Project.git
 pushd ./openEMS-Project
-git checkout bb991bb3
+git checkout a30587728affa4f8451e13819981899bd8ab6b64
 git submodule update --init --recursive
 ./update_openEMS.sh ~/opt/openEMS --python
 popd
@@ -34,15 +33,16 @@ popd
 
 1. Install the dependencies:
 ```bash
-sudo apt install gerbv python3.11 pipx
-pipx ensurepath
+sudo apt install gerbv python3
 ```
 
 2. Clone and install gerber2ems
 ```bash
 git clone https://github.com/antmicro/gerber2ems.git
 pushd ./gerber2ems
-pipx install --system-site-packages .
+source ~/opt/openEMS/venv/bin/activate
+pip install .
+ln -s ~/opt/openEMS/venv/bin/{gerber2ems,ems2paraview,ems2png} ~/.local/bin
 popd
 ```
 
