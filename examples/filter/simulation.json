@@ -4,7 +4,7 @@
         "start": 200000000.0,
         "stop": 6000000000.0
     },
-    "max_steps": 500000,
+    "max_steps": 193720,
     "pixel_size": 2.5,
     "ports": [
         {
@@ -12,7 +12,7 @@
             "length": 3000,
             "impedance": 50,
             "layer": 0,
-            "plane": 1,
+            "plane": 2,
             "excite": true
         },
         {
@@ -20,15 +20,30 @@
             "length": 3000,
             "impedance": 50,
             "layer": 0,
-            "plane": 1,
-            "excite": true
+            "plane": 2,
+            "excite": false
         }
     ],
     "traces": [
         {
-            "nets": ["GND"],
             "start": 0,
             "stop": 1
         }
-    ]
+    ],
+    "grid": {
+        "inter_layers": 4,
+        "optimal": 40.0,
+        "diagonal": 40.0,
+        "perpendicular": 200.0,
+        "max": 500.0,
+        "margin": {
+            "xy": 2400.0,
+            "z": 5000.0,
+            "from_trace": false
+        },
+        "cell_ratio": {
+            "xy": 1.2,
+            "z": 1.5
+        }
+    }
 }

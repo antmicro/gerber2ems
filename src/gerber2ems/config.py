@@ -146,8 +146,8 @@ class Via:
 class Margin:
     """Margin config (how far outside area of interest should grid span)."""
 
-    xy: float = field(default=1000)
-    z: float = field(default=1000)
+    xy: float = field(default=1500)
+    z: float = field(default=2000)
     from_trace: bool = field(default=True)
 
 

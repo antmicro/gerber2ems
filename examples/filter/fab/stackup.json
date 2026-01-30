@@ -7,7 +7,8 @@
             "thickness": null,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "F_Silkscreen"
         },
         {
             "name": "F.Paste",
@@ -16,16 +17,18 @@
             "thickness": null,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "F_Paste"
         },
         {
             "name": "F.Mask",
             "type": "Top Solder Mask",
-            "color": "Black",
+            "color": null,
             "thickness": 0.01,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "F_Mask"
         },
         {
             "name": "F.Cu",
@@ -34,16 +37,38 @@
             "thickness": 0.035,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "F_Cu"
         },
         {
             "name": "dielectric 1",
-            "type": "core",
+            "type": "prepreg",
             "color": null,
-            "thickness": 1.32,
+            "thickness": 0.12,
             "material": "FR4",
             "epsilon": 4.18,
-            "lossTangent": 0.02
+            "lossTangent": 0.02,
+            "user-name": "dielectric 1"
+        },
+        {
+            "name": "In1.Cu",
+            "type": "copper",
+            "color": null,
+            "thickness": 0.035,
+            "material": null,
+            "epsilon": null,
+            "lossTangent": null,
+            "user-name": "In1_Cu"
+        },
+        {
+            "name": "dielectric 2",
+            "type": "prepreg",
+            "color": null,
+            "thickness": 1.2,
+            "material": "FR4",
+            "epsilon": 4.18,
+            "lossTangent": 0.02,
+            "user-name": "dielectric 2"
         },
         {
             "name": "In2.Cu",
@@ -52,16 +77,18 @@
             "thickness": 0.035,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "In2_Cu"
         },
         {
             "name": "B.Mask",
             "type": "Bottom Solder Mask",
-            "color": "Black",
+            "color": null,
             "thickness": 0.01,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "B_Mask"
         },
         {
             "name": "B.Paste",
@@ -70,7 +97,8 @@
             "thickness": null,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "B_Paste"
         },
         {
             "name": "B.SilkS",
@@ -79,7 +107,8 @@
             "thickness": null,
             "material": null,
             "epsilon": null,
-            "lossTangent": null
+            "lossTangent": null,
+            "user-name": "B_Silkscreen"
         }
     ],
     "format_version": "1.0"

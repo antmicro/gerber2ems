@@ -194,14 +194,14 @@ If they are not filled in, it should be 1
 #### Grid
 
 * `inter_layers` - number of grid lines in Z axis between neighboring PCB layers (default: 4)
-* `optimal` - basic mesh grid pitch (micrometers) (used for cells on metal edge) (default: 50)
+* `optimal` - basic mesh grid pitch (micrometers) (used for cells on metal edge) (default: 50) (Hint: Reduce for fine detailed designs)
 * `diagonal` - mesh grid pitch (micrometers) (used for regions with diagonal paths) (default: 50)
 * `perpendicular` - mesh grid pitch (micrometers) (used for regions with paths perpendicular to grid) (default: 200)
 * `max` - maximum mesh grid pitch (micrometers) (used outside of the board area) (default: 500)
 * `cell_ratio/xy` - optimal neighboring cell size ratio (X/Y axis) (default: 1.2)
 * `cell_ratio/xy` - optimal neighboring cell size ratio (Z axis) (default: 1.5)
-* `margin/xy` - margin size in X/Y axis (micrometers) (how far beyond pcb the grid spreads) (default: 1000)
-* `margin/z` - margin size in Z axis (micrometers) (default: 1000).
+* `margin/xy` - margin size in X/Y axis (micrometers) (how far beyond pcb the grid spreads) (default: 1500)
+* `margin/z` - margin size in Z axis (micrometers) (default: 2000) (Hint: Increase for designs with wide features or ports or tall ports)
 * `margin/from_trace` - Limit simulation space based on nets-of-interest bounding box (default: True) (if False, board b-box is used).
 
 Grid pitch options should follow `optimal`<=`diagonal`<=`perpendicular`<=`max`<=`λmin/10`
