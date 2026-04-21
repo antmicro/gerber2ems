@@ -23,7 +23,7 @@ description = "Perform EM simulations based on standard PCB production files (ge
 # anymore (i.e, main branch).
 dynamic = ["version"]
 
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 dependencies = ["numpy>=1.24.0,<2.5.0", "matplotlib~=3.10.5", "coloredlogs==15.0.1", "nanomesh==0.9.1", "scikit-rf==1.9.0", "Pillow==12.1.0", "scipy==1.17.0", "pyserde==0.28.0"]
 scripts = {gerber2ems = "gerber2ems.main:main", ems2paraview = "ems2paraview.main:main", ems2png = "ems2png.main:app"}
