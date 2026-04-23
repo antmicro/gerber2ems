@@ -12,20 +12,17 @@ RUN apt update \
       gerbv \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd docker && echo "docker:docker" | chpasswd
-RUN mkdir /home/docker && chown -R docker:docker /home/docker
+RUN useradd docker && echo "docker:docker" | chpasswd && mkdir /home/docker && chown -R docker:docker /home/docker
 
 USER docker
 
-ENV HOME="/home/docker"
-ENV XDG_CONFIG_HOME="/home/docker/.config"
-ENV XDG_DATA_HOME="/home/docker/.local/share"
-ENV XDG_BIN_HOME="/home/docker/.local/bin"
-ENV PATH="$XDG_BIN_HOME:$PATH"
+ENV HOME="/home/docker" \
+    XDG_CONFIG_HOME="/home/docker/.config" \
+    XDG_DATA_HOME="/home/docker/.local/share" \
+    XDG_BIN_HOME="/home/docker/.local/bin" \
+    PATH="/home/docker/.local/bin:$PATH"
 
 WORKDIR /home/docker
-
-RUN mkdir -p $XDG_CONFIG_HOME $XDG_DATA_HOME $XDG_BIN_HOME
 
 RUN echo "Installing openEMS..." \
   && git clone https://github.com/thliebig/openEMS-Project.git \
@@ -41,6 +38,7 @@ RUN echo "Installing gerber2ems..." \
   && pushd ./gerber2ems \
   && source ~/opt/openEMS/venv/bin/activate \
   && pip install . \
+  && mkdir --parents ~/.local/bin \
   && ln -s ~/opt/openEMS/venv/bin/{gerber2ems,ems2paraview,ems2png} ~/.local/bin \
   && popd
 
