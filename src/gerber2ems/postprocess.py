@@ -122,6 +122,38 @@ class Postprocesor:
         logger.error("S%d%d wasn't calculated", output_port, input_port)
         return None
 
+    def export_touchstone(self) -> None:
+        """Export calculated S-parameters to a standard Touchstone file format (.sNp)."""
+        try:
+            import skrf as rf
+            logger.info(f"Exporting data to a {self.count}-port Touchstone file...")
+
+            # Initialize the complex s-matrix array with shape: (Points, PortsIn, PortsOut)
+            # self.s_params is structured as [port_j][port_i][frequency_idx]
+            # skrf expects the shape: (number_of_frequency_points, num_ports, num_ports)
+            num_freqs = len(self.frequencies)
+            s_matrix = np.zeros((num_freqs, self.count, self.count), dtype=complex)
+
+            # Map the self.s_params internal list arrays to the s-matrix grid
+            for i in range(self.count):
+                for j in range(self.count):
+                    if self.is_valid(self.s_params[j][i]):
+                        s_matrix[:, j, i] = self.s_params[j][i]
+
+            # Pack parameters into a scikit-rf Network structure (assuming 50 Ohm reference impedance)
+            ntwk = rf.Network(f=self.frequencies, f_unit='Hz', s=s_matrix, z0=50)
+
+            # Dynamically derive the extension matching the port configuration (.s2p, .s4p, etc.)
+            ts_filename = cfg.arguments.output / f"simulation_results.s{self.count}p"
+            ntwk.write_touchstone(str(ts_filename))
+
+            logger.info(f"✨ Successfully generated Touchstone file: {ts_filename}")
+        except ImportError:
+            logger.error("Failed to export Touchstone file: 'scikit-rf' (skrf) is not installed in your environment.")
+        except Exception as e:
+            logger.error(f"Failed to export Touchstone file: {e}")
+
+
     def render_s_params(self) -> None:
         """Render all S parameter plots to files."""
         logger.info("Rendering S-parameter plots")

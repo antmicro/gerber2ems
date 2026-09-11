@@ -119,6 +119,7 @@ def postprocess() -> None:
     post.load_sparams()
     post.process_data()
     post.save_to_file()
+    post.export_touchstone()
     post.render_s_params()
     post.render_impedance()
     post.render_smith()
