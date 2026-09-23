@@ -179,7 +179,8 @@ class _Config:
     format_version: str = field(default=CONFIG_FORMAT_VERSION)
     ports: List[PortConfig] = field(default_factory=list)
     frequency: Frequency = field(default_factory=Frequency)
-    max_steps: int = field(default=100e3)
+    max_steps: int | None = field(default=None)
+    sim_length: float | None = field(default=None)
     pixel_size: int = field(default=5.0)
     via: Via = field(default_factory=Via)
     grid: Grid = field(default_factory=Grid)
@@ -201,6 +202,8 @@ class _Config:
         self.grid.diagonal = min(self.grid.diagonal, self.grid.perpendicular)
         self.grid.optimal = min(self.grid.diagonal, self.grid.optimal)
         self.format_version = CONFIG_FORMAT_VERSION
+        if not self.max_steps and not self.sim_length:
+            self.sim_length = 5
 
     def _apply_unit_multiplier(self) -> None:
         self.grid.max *= UNIT_MULTIPLIER

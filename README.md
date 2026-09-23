@@ -195,6 +195,7 @@ This config file consists of three sections:
 When writing a new config, it should be the newest supported version (visible in the `constants.py` file)
 * `frequency` - `start` specifies the lowest frequency of interest and `stop` the highest (in Hz)
 * `max_steps` - max number of simulation steps after which the simulation will stop unconditionally
+* `sim_length` - sets `max_steps` so that simulation will last `n` times excitation signal length
 * `pixel_size` - size of pixel in microns. Used during gerber conversion (default: 5) (due to a limitation of libcairo, this needs to be increased for larger boards, but try to keep as low as possible)
 * `via/plating_thickness` - via plating thickness (micrometers)
 * `via/filling_epsilon` - dielectric constant of the material the vias are filled in with

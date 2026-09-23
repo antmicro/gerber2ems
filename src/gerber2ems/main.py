@@ -12,7 +12,7 @@ from pathlib import Path
 import coloredlogs
 import numpy as np
 
-from gerber2ems.constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR
+from gerber2ems.constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR, GEOMETRY_FILE
 from gerber2ems.postprocess import Postprocesor
 from gerber2ems.config import Config
 import gerber2ems.importer as importer
@@ -88,9 +88,8 @@ def simulate() -> None:
 
     for index, port in enumerate(cfg.ports):
         if port.excite:
-            sim = Simulation()
+            sim = Simulation(GEOMETRY_FILE)
             logging.info("Simulating with excitation on port #%i", index)
-            sim.load_geometry()
             sim.set_excitation()
             sim.setup_ports(index)
             sim.run(index)

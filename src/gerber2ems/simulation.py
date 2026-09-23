@@ -75,12 +75,18 @@ class LogFilter:
 class Simulation:
     """Class used for interacting with openEMS."""
 
-    def __init__(self) -> None:
+    def __init__(self, path: Path | None = None) -> None:
         """Initialize simulation object."""
         self.csx = CSXCAD.ContinuousStructure()
-        self.fdtd = openEMS.openEMS(NrTS=cfg.max_steps)
+        if path:
+            self.load_geometry(path)
+            self.grid = self.csx.GetGrid()
+            sim_steps = (cfg.sim_length * self.calculate_excitation_length()) if cfg.sim_length else cfg.max_steps
+        else:
+            self.grid = self.csx.GetGrid()
+            sim_steps = 1e5
+        self.fdtd = openEMS.openEMS(NrTS=sim_steps)
         self.fdtd.SetCSX(self.csx)
-        self.grid = self.csx.GetGrid()
         self.grid.SetDeltaUnit(BASE_UNIT / UNIT_MULTIPLIER)
 
         self.ports: List[openEMS.ports.MSLPort] = []
@@ -544,3 +550,18 @@ class Simulation:
         logger.info("Adding virtual ports")
         for port_config in cfg.ports:
             self.add_virtual_port(port_config)
+
+    def calculate_excitation_length(self) -> int:
+        """Calculate how many steps excitation signal will have."""
+        cfl = 0.9
+        c = 299792458
+        unit = self.grid.GetDeltaUnit()
+        delta_coeff = 0
+        for axis in range(3):
+            lines = self.grid.GetLines(axis, do_sort=True)
+            min_delta = min(b - a for a, b in zip(lines, lines[1:])) * unit
+            delta_coeff += 1 / (min_delta**2)
+        step_time = cfl / (c * math.sqrt(delta_coeff))
+        center_freq = (cfg.frequency.start + cfg.frequency.stop) * 0.5
+        effective_pulse_len = math.sqrt(math.log(10)) * 6 / math.pi / center_freq
+        return effective_pulse_len / step_time
