@@ -69,11 +69,11 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
         logger.warning("DPI is not an integer number: %f", dpi)
     gerbv_command = [
         "gerbv",
-        gerber_filename,
         edge_filename,
+        gerber_filename,
         "--background=#000000",
-        "--foreground=#ffffffff",
-        "--foreground=#00007f",
+        "--foreground=#0000ffff",
+        "--foreground=#00ff00ff",
         "-o",
         not_cropped_name,
         "--dpi",
@@ -86,20 +86,24 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
     subprocess.run(gerbv_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     not_cropped_image = PIL.Image.open(not_cropped_name)
-
+    mono_img = not_cropped_image.getchannel("B")
+    bbox = mono_img.getbbox()
+    if not bbox:
+        raise Exception(f"Bounding box of edge cuts in {not_cropped_name} can not be identified!")
     edge_width = 0
-    v_probe = not_cropped_image.height / 2
-    px_access = not_cropped_image.load()
-    for i in range(not_cropped_image.width):
+    v_probe = int((bbox[1] + bbox[3]) / 2)
+    px_access = mono_img.load()
+    assert px_access
+    for i in range(mono_img.width):
         px = px_access[i, v_probe]
-        if 0xBF > px[2] > 0x3F:
+        if px > 0x3F:
             # px belongs to edge
             edge_width += 1
             continue
         if edge_width != 0:
             break
     ew2 = int(edge_width / 2)
-    cropped_image = not_cropped_image.crop((ew2, ew2, not_cropped_image.width - ew2, not_cropped_image.height - ew2))
+    cropped_image = not_cropped_image.crop((bbox[0] + ew2, bbox[1] + ew2, bbox[2] - ew2, bbox[3] - ew2))
     cropped_image.save(output_filename)
 
     if not cfg.arguments.debug:
@@ -132,7 +136,7 @@ def get_triangles(input_filename: str) -> np.ndarray:
     """
     img_path = GEOMETRY_DIR / input_filename
     image = PIL.Image.open(img_path)
-    gray = image.convert("L")
+    gray = image.getchannel("G")
     if gray.getextrema()[1] < 230:  # type:ignore
         # Image is empty - no cooper features on this layer
         return np.empty((0, 3, 2))
