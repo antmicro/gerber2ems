@@ -1,23 +1,24 @@
 """Module containing Simulation class used for interacting with openEMS."""
 
 import logging
+import math
 import os
 import re
 import sys
-import math
-from typing import Tuple, List, Any
 from multiprocessing import Pool
+from pathlib import Path
+from typing import Tuple, List, Any
 
 import CSXCAD
-import openEMS
 import numpy as np
+import openEMS
 
 from gerber2ems.config import Config, PortConfig, LayerKind
 from gerber2ems.constants import (
     UNIT_MULTIPLIER,
     BASE_UNIT,
     SIMULATION_DIR,
-    GEOMETRY_DIR,
+    GEOMETRY_FILE,
     VIA_POLYGON,
 )
 import gerber2ems.importer as importer
@@ -425,15 +426,14 @@ class Simulation:
     def run(self, excited_port_number: int) -> None:
         """Execute simulation."""
         logger.info("Starting simulation")
-        cwd = os.getcwd()
+        cwd = Path.cwd()
         self.fdtd.SetOverSampling(cfg.arguments.oversampling)
-        self.fdtd.Run(os.path.join(os.getcwd(), SIMULATION_DIR, str(excited_port_number)))
-
-        os.chdir(cwd)
+        self.fdtd.Run(str(SIMULATION_DIR / str(excited_port_number)))
+        os.chdir(cwd)  # OpenEMS changes cwd, restore original
 
     def save_geometry(self) -> None:
         """Save geometry to file."""
-        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
+        filename = GEOMETRY_FILE
         logger.info("Saving geometry to %s", filename)
         self.csx.Write2XML(filename)
 
@@ -445,25 +445,24 @@ class Simulation:
         with open(filename, "w") as f:
             f.write(new_content)
 
-    def load_geometry(self) -> None:
+    def load_geometry(self, path: Path = GEOMETRY_FILE) -> None:
         """Load geometry from file."""
-        filename = os.path.join(os.getcwd(), GEOMETRY_DIR, "geometry.xml")
-        logger.info("Loading geometry from %s", filename)
-        if not os.path.exists(filename):
+        logger.info("Loading geometry from %s", path)
+        if not path.exists():
             logger.error("Geometry file does not exist. Did you run geometry step?")
             sys.exit(1)
-        self.csx.ReadFromXML(filename)
+        self.csx.ReadFromXML(str(path))
         self.grid = self.csx.GetGrid()
 
     def get_port_parameters(self, exindex: int, frequencies: np.ndarray) -> Tuple[List, List]:
         """Return reflected and incident power vs frequency for each port."""
-        result_path = os.path.join(os.getcwd(), SIMULATION_DIR, str(exindex))
+        result_path = SIMULATION_DIR / str(exindex)
 
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
         for index, port in enumerate(self.ports):
             try:
-                port.CalcPort(result_path, frequencies)
+                port.CalcPort(str(result_path), frequencies)
                 logger.debug("Found data for port %d", index)
             except IOError:
                 logger.error("Port data files do not exist. Did you run simulation step?")

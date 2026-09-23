@@ -59,7 +59,7 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
     Edge cuts gerber is used to crop the image correctly.
     Output DPI is based on config.pixel_size constant.
     """
-    output_filename = Path.cwd() / GEOMETRY_DIR / gerber_filename.with_suffix(".png").name.rpartition("-")[2]
+    output_filename = GEOMETRY_DIR / gerber_filename.with_suffix(".png").name.rpartition("-")[2]
 
     dpi = 1 / (cfg.pixel_size * BASE_UNIT / 0.0254)
     logger.debug("Generating PNG (DPI: %d) for %s", dpi, gerber_filename)
@@ -113,7 +113,7 @@ def get_dimensions(input_filename: str) -> Tuple[int, int]:
     gets it's size and subtracts border thickness to get board dimensions
     """
     pixel_size = cfg.pixel_size
-    path = os.path.join(GEOMETRY_DIR, input_filename)
+    path = GEOMETRY_DIR / input_filename
     image = PIL.Image.open(path)
     image_width, image_height = image.size
     height = image_height * pixel_size * UNIT_MULTIPLIER
@@ -130,7 +130,7 @@ def get_triangles(input_filename: str) -> np.ndarray:
     and then uses Nanomesh to create a triangular mesh of the copper.
     Returns a list of triangles, where each triangle consists of coordinates for each vertex.
     """
-    img_path = Path(GEOMETRY_DIR) / input_filename
+    img_path = GEOMETRY_DIR / input_filename
     image = PIL.Image.open(img_path)
     gray = image.convert("L")
     if gray.getextrema()[1] < 230:  # type:ignore

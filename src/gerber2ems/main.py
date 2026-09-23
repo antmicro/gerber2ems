@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """Main module of EM-Simulator."""
-import os
+
 import sys
 import argparse
 import logging
@@ -198,13 +198,12 @@ def setup_logging(args: Any) -> None:
         disabled_logger.setLevel(logging.ERROR)
 
 
-def create_dir(path: str, cleanup: bool = False) -> None:
+def create_dir(path: Path, cleanup: bool = False) -> None:
     """Create a directory if doesn't exist."""
-    directory_path = os.path.join(os.getcwd(), path)
-    if cleanup and os.path.exists(directory_path):
-        shutil.rmtree(directory_path)
-    if not os.path.exists(directory_path):
-        os.mkdir(directory_path)
+    if cleanup and path.exists():
+        shutil.rmtree(path)
+    if not path.exists():
+        path.mkdir(parents=True)
 
 
 if __name__ == "__main__":
