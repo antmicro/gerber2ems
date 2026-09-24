@@ -553,8 +553,8 @@ class Simulation:
 
     def calculate_excitation_length(self) -> int:
         """Calculate how many steps excitation signal will have."""
-        cfl = 0.9 # Courant–Friedrichs–Lewy convergence condition
-        c = 299792458 # speed of light
+        cfl = 0.9  # Courant–Friedrichs–Lewy convergence condition
+        c = 299792458  # speed of light
         unit = self.grid.GetDeltaUnit()
         delta_coeff = 0
         for axis in range(3):
