@@ -5,9 +5,11 @@ import math
 import os
 import re
 import sys
+import threading
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Tuple, List, Any
+from types import TracebackType
+from typing import Tuple, List, Any, Self
 
 import CSXCAD
 import numpy as np
@@ -27,6 +29,47 @@ from gerber2ems.gerber_io import Pad, ApertureRect, Aperture, Position
 
 logger = logging.getLogger(__name__)
 cfg = Config()
+
+
+class LogFilter:
+    """Class used for filtering openEMS output."""
+
+    def __init__(self) -> None:
+        """Create pipes and backup original system file descriptors."""
+        self.pipe_r, self.pipe_w = os.pipe()
+        self.stdout_fd = sys.stdout.fileno()
+        self.stderr_fd = sys.stderr.fileno()
+
+        self.old_stdout = os.dup(self.stdout_fd)
+        self.old_stderr = os.dup(self.stderr_fd)
+
+    def __enter__(self) -> Self:
+        """Force both C++ stdout and stderr to stream into the pipe."""
+        os.dup2(self.pipe_w, self.stdout_fd)
+        os.dup2(self.pipe_w, self.stderr_fd)
+        self.filter_thread = threading.Thread(target=self.filter_gerber_primitive_warnings, daemon=True)
+        self.filter_thread.start()
+        return self
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+    ) -> None:
+        """Clean up open OS pipes and restore the original streams."""
+        os.dup2(self.old_stdout, self.stdout_fd)
+        os.dup2(self.old_stderr, self.stderr_fd)
+        os.close(self.pipe_w)
+        if self.filter_thread is not None:
+            self.filter_thread.join()
+        os.close(self.old_stdout)
+        os.close(self.old_stderr)
+
+    def filter_gerber_primitive_warnings(self) -> None:
+        """Filter unwanted warnings and write logs back."""
+        with os.fdopen(self.pipe_r, "r", errors="ignore") as f:
+            for line in f:
+                if "Unused primitive" in line and "Gerber" in line:
+                    continue
+                os.write(self.old_stdout, line.encode("utf-8"))
 
 
 class Simulation:
@@ -162,8 +205,8 @@ class Simulation:
                 return
             angle = port_config.direction / 360 * 2 * math.pi
             ap = f"PORT{len(self.grid_gen.add_apertures) + 1}"
-            (w, h) = ((port_config.width), (port_config.length))
-            (width, height) = (
+            w, h = ((port_config.width), (port_config.length))
+            width, height = (
                 w * round(math.cos(angle)) - h * round(math.sin(angle)),
                 w * round(math.sin(angle)) + h * round(math.cos(angle)),
             )
@@ -428,7 +471,8 @@ class Simulation:
         logger.info("Starting simulation")
         cwd = Path.cwd()
         self.fdtd.SetOverSampling(cfg.arguments.oversampling)
-        self.fdtd.Run(str(SIMULATION_DIR / str(excited_port_number)))
+        with LogFilter():
+            self.fdtd.Run(str(SIMULATION_DIR / str(excited_port_number)))
         os.chdir(cwd)  # OpenEMS changes cwd, restore original
 
     def save_geometry(self) -> None:
