@@ -1,6 +1,6 @@
 """Module contains functions useful for postprocessing data."""
 
-from typing import Union, Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List
 import logging
 import os
 import sys
@@ -11,9 +11,10 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 import skrf
 
-from gerber2ems.config import Config
+from gerber2ems.config import Config, Interface
 from gerber2ems.constants import PLOT_STYLE, SIMULATION_DIR
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,9 @@ class Postprocesor:
         """Initialize postprocessor."""
         self.frequencies = frequencies  # Frequency list for whitch parameters are calculated
         self.count = port_count  # Number of ports
+
+        self.interfaces = np.empty([self.count], Interface)
+        self.interfaces[:] = np.nan
 
         self.incident = np.empty(
             [self.count, self.count, len(self.frequencies)], np.complex128
@@ -45,6 +49,8 @@ class Postprocesor:
         self.s_params[:] = np.nan
         self.impedances = np.empty([self.count, len(self.frequencies)], np.complex128)
         self.impedances[:] = np.nan
+        self.diff_impedances = np.empty([len(cfg.diff_pairs), len(self.frequencies)], np.complex128)
+        self.diff_impedances[:] = np.nan
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
         )  # Group delay table ([output_port][input_port][frequency])
@@ -75,14 +81,52 @@ class Postprocesor:
                     if self.is_valid(self.reflected[j][i]):
                         self.s_params[j][i] = self.reflected[j][i] / self.incident[i][i]
 
+    def calculate_diff_impedance(self) -> None:
+        """Calculate all needed parameters for further processing. Should be called after all ports are added."""
+        logger.info("Processing all data from simulation. Calculating differential S-parameters and impedance")
+        for idx, pair in enumerate(cfg.diff_pairs):
+            if (
+                pair.correct
+                and self.is_valid(self.s_params[pair.start_p][pair.start_p])
+                and self.is_valid(self.s_params[pair.start_n][pair.start_n])
+            ):
+                s11 = self.s_params[pair.start_p][pair.start_p]
+                s21 = self.s_params[pair.start_n][pair.start_p]
+                s12 = self.s_params[pair.start_p][pair.start_n]
+                s22 = self.s_params[pair.start_n][pair.start_n]
+                gamma = ((2 * s11 - s21) * (1 - s22 - s12) + (1 - s11 - s21) * (1 + s22 - 2 * s12)) / (
+                    (2 - s21) * (1 - s22 - s12) + (1 - s11 - s21) * (1 + s22)
+                )
+                if (
+                    self.reference_zs[pair.start_p]
+                    == self.reference_zs[pair.start_n]
+                    == self.reference_zs[pair.stop_p]
+                    == self.reference_zs[pair.stop_n]
+                ):
+                    z0 = self.reference_zs[pair.start_p]
+                    self.diff_impedances[idx] = z0 * (1 + gamma) / (1 - gamma)
+            self.verify_boundaries(idx, True)
+
     def process_data(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating Delay & Impedance")
+
+        for trace in cfg.traces:
+            self.interfaces[trace.start] = trace.interface
+            self.interfaces[trace.stop] = trace.interface
+        for pair in cfg.diff_pairs:
+            self.interfaces[pair.start_p] = pair.interface
+            self.interfaces[pair.stop_p] = pair.interface
+            self.interfaces[pair.start_n] = pair.interface
+            self.interfaces[pair.stop_n] = pair.interface
 
         for i, reference_z in enumerate(self.reference_zs):
             s_param = self.s_params[i][i]
             if not np.isnan(reference_z) and self.is_valid(s_param):
                 self.impedances[i] = reference_z * (1 + s_param) / (1 - s_param)
+                self.verify_boundaries(i)
+
+        self.calculate_diff_impedance()
 
         for i in range(self.count):
             if self.is_valid(self.s_params[i][i]):
@@ -97,16 +141,6 @@ class Postprocesor:
                         )
                         group_delay = np.append(group_delay, group_delay[-1])
                         self.delays[j][i] = group_delay
-
-    def get_impedance(self, port: int) -> Union[np.ndarray, None]:
-        """Return specified port impedance."""
-        if port >= self.count:
-            logger.error("Port no. %d doesn't exist", port)
-            return None
-        if self.is_valid(self.impedances[port]):
-            logger.error("Impedance for port %d wasn't calculated", port)
-            return None
-        return self.impedances[port]
 
     def get_s_param(self, output_port: int, input_port: int) -> Optional[np.ndarray]:
         """Return specified S parameter."""
@@ -211,7 +245,7 @@ class Postprocesor:
                 axes.set_ylabel("Magnitude [dB]")
                 axes.grid(True)
                 bottom, top = axes.get_ylim()
-                axes.set_ylim([min(bottom, -60), max(top, 5)])
+                axes.set_ylim((min(bottom, -60), max(top, 5)))
                 fig.savefig(
                     cfg.arguments.output / "SDD_Diff", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
@@ -220,28 +254,16 @@ class Postprocesor:
         """Render differential pair impedance plots to files."""
         logger.info("Rendering differential pair impedance plots")
         plt.style.use(PLOT_STYLE)
-        for pair in cfg.diff_pairs:
+
+        for idx, pair in enumerate(cfg.diff_pairs):
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
                 and self.is_valid(self.s_params[pair.start_n][pair.start_n])
             ):
                 fig, axes = plt.subplots()
-                s11 = self.s_params[pair.start_p][pair.start_p]
-                s21 = self.s_params[pair.start_n][pair.start_p]
-                s12 = self.s_params[pair.start_p][pair.start_n]
-                s22 = self.s_params[pair.start_n][pair.start_n]
-                gamma = ((2 * s11 - s21) * (1 - s22 - s12) + (1 - s11 - s21) * (1 + s22 - 2 * s12)) / (
-                    (2 - s21) * (1 - s22 - s12) + (1 - s11 - s21) * (1 + s22)
-                )
-                if (
-                    self.reference_zs[pair.start_p]
-                    == self.reference_zs[pair.start_n]
-                    == self.reference_zs[pair.stop_p]
-                    == self.reference_zs[pair.stop_n]
-                ):
-                    z0 = self.reference_zs[pair.start_p]
-                    impedance = z0 * (1 + gamma) / (1 - gamma)
+                if self.is_valid(self.diff_impedances[idx]):
+                    impedance = self.diff_impedances[idx]
 
                     fig, axs = plt.subplots(2)
                     axs[0].plot(self.frequencies / 1e9, np.abs(impedance))
@@ -252,11 +274,14 @@ class Postprocesor:
                         color="orange",
                     )
 
-                    axs[0].set_ylabel("Magnitude, $|Z_{diff}| [\Omega]$")
-                    axs[1].set_ylabel("Angle, $arg(Z_{diff}) [^\circ]$")
+                    axs[0].set_ylabel("Magnitude, $|Z_{diff}| [\\Omega]$")
+                    axs[1].set_ylabel("Angle, $arg(Z_{diff}) [^\\circ]$")
                     axs[1].set_xlabel("Frequency [GHz]")
                     axs[0].grid(True)
                     axs[1].grid(True)
+
+                    if cfg.arguments.boundaries and not np.isnan(self.interfaces[pair.start_p].diff_impedance_nominal):
+                        self.draw_boudaries(axs, pair.start_p, True)
 
                     bottom, top = axs[0].get_ylim()
                     axs[0].set_ylim([min(bottom, 0), max(top, 200)])
@@ -278,7 +303,7 @@ class Postprocesor:
         impedances = z0 * (1 + reflection_coeffs) / (1 - reflection_coeffs)
         return (abs(impedances[0]), abs(impedances[1]))
 
-    def render_impedance(self, include_margins: bool = False) -> None:
+    def render_impedance(self) -> None:
         """Render all ports impedance plots to files."""
         logger.info("Rendering impedance plots")
         plt.style.use(PLOT_STYLE)
@@ -299,13 +324,8 @@ class Postprocesor:
                 axs[0].grid(True)
                 axs[1].grid(True)
 
-                if include_margins:
-                    s11_margin = cfg.ports[port].dB_margin
-                    z0 = cfg.ports[port].impedance
-                    min_z, max_z = self.calculate_min_max_impedance(s11_margin, z0)
-
-                    axs[0].axhline(np.real(min_z), color="red")
-                    axs[0].axhline(np.real(max_z), color="red")
+                if cfg.arguments.boundaries and not np.isnan(self.interfaces[port].se_impedance_nominal):
+                    self.draw_boudaries(axs, port)
 
                 bottom, top = axs[0].get_ylim()
                 axs[0].set_ylim([min(bottom, 0), max(top, 100)])
@@ -315,6 +335,87 @@ class Postprocesor:
                 fig.savefig(
                     cfg.arguments.output / f"Z_{port+1}.png", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
+
+    def get_impedance_boundaries(self, port: int, diff: bool = False) -> tuple[float, float]:
+        """Get impedance boundaries."""
+        interface = self.interfaces[port]
+        if diff:
+            impedance_nominal = interface.diff_impedance_nominal
+            if np.isnan(impedance_nominal):
+                return float("nan"), float("nan")
+            impedance_tolerance = interface.diff_impedance_tolerance
+        else:
+            impedance_nominal = interface.se_impedance_nominal
+            if np.isnan(impedance_nominal):
+                return float("nan"), float("nan")
+            impedance_tolerance = interface.se_impedance_tolerance
+        z_tolerance = impedance_nominal * impedance_tolerance
+        min_z = np.real(impedance_nominal - z_tolerance)
+        max_z = np.real(impedance_nominal + z_tolerance)
+        return min_z, max_z
+
+    def draw_boudaries(self, axs: List[Axes], port: int, diff: bool = False) -> None:
+        """Render boundaries on a plot."""
+        min_z, max_z = self.get_impedance_boundaries(port, diff)
+        if np.isnan(min_z):
+            return
+
+        axs[0].axhline(min_z, linestyle="solid", color="orange", alpha=0.5)
+        axs[0].axhline(max_z, linestyle="solid", color="orange", alpha=0.5)
+
+        interface = self.interfaces[port]
+        min_freq = float(interface.min_frequency) / 1e9
+        max_freq = float(interface.max_frequency) / 1e9
+        axs[0].axvline(min_freq, linestyle="solid", color="orange", alpha=0.5)
+        axs[0].axvline(max_freq, linestyle="solid", color="orange", alpha=0.5)
+
+        square = plt.Rectangle((min_freq, min_z), max_freq, np.real(max_z - min_z), color="orange", alpha=0.3)
+        axs[0].add_patch(square)
+
+    def verify_boundaries(self, idx: int, diff: bool = False) -> None:
+        """Verify if results are inside boundaries for defined interface."""
+        min_z, max_z = self.get_impedance_boundaries(idx, diff)
+        if np.isnan(min_z):
+            return
+        error_message = "Interface {interface.name}: Impedance (local extremum {extr_z:.2f}Ω) is \
+            out of range ({min_z:.2f}Ω-{max_z:.2f}Ω) at {range_bottom:.0f}-{range_top:.0f} MHz for "
+        if diff:
+            impedance = self.diff_impedances[idx]
+            logger.info(f"Verifying diff boundaries for pair {idx}")
+            error_message += "pair {idx}"
+        else:
+            impedance = self.impedances[idx]
+            logger.info(f"Verifying se boundaries for port {idx}")
+            error_message += "port {idx}"
+        interface = self.interfaces[idx]
+        min_freq = float(interface.min_frequency)
+        max_freq = float(interface.max_frequency)
+
+        abs_impedance = np.abs(impedance)
+        extr_z = interface.se_impedance_nominal
+        range_bottom = None
+        range_top = None
+        in_range_segment = False
+        for i, item in enumerate(abs_impedance):
+            freq = self.frequencies[i]
+            if not (min_freq <= freq <= max_freq):
+                continue
+            if not min_z <= item <= max_z:
+                if (item < min_z and item < extr_z) or (item > max_z and item > extr_z):
+                    extr_z = item
+                freq_mhz = freq / 1e6
+                if not in_range_segment:
+                    range_bottom = freq_mhz
+                    range_top = freq_mhz
+                    in_range_segment = True
+                else:
+                    range_top = freq_mhz
+            elif in_range_segment:
+                in_range_segment = False
+                logger.error(error_message.format(**locals()))
+                extr_z = interface.se_impedance_nominal
+        if in_range_segment:
+            logger.error(error_message.format(**locals()))
 
     def render_smith(self) -> None:
         """Render port reflection smithcharts to files."""

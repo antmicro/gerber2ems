@@ -10,6 +10,7 @@ GEOMETRY_DIR = BASE_DIR / "geometry"
 GEOMETRY_FILE = GEOMETRY_DIR / "geometry.xml"
 RESULTS_DIR = BASE_DIR / "results"
 PLOT_STYLE = Path(__file__).parent.absolute() / "antmicro.mplstyle"
+GUIDELINES_FILE = Path(__file__).parent.absolute() / "guidelines.yml"
 DEFAULT_CONFIG_PATH = "./simulation.json"
 
 # Via geometry is approximated using n-sided right prism

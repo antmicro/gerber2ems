@@ -2,7 +2,7 @@
     "format_version": "1.2",
     "frequency": {
         "start": 200000000.0,
-        "stop": 6000000000.0
+        "stop": 4000000000.0
     },
     "ports": [
         {
@@ -48,7 +48,14 @@
             "stop_p": 1,
             "start_n": 2,
             "stop_n": 3,
-            "name": "DIFF"
+            "name": "DIFF",
+            "interface": {
+                "max_frequency": 4e9,
+                "se_impedance_nominal": 50,
+                "se_impedance_tolerance": 0.2,
+                "diff_impedance_nominal": 100,
+                "diff_impedance_tolerance": 0.3
+            }
         }
     ]
 }

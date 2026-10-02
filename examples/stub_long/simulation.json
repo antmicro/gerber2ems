@@ -2,7 +2,7 @@
     "format_version": "1.2",
     "frequency": {
         "start": 200000000.0,
-        "stop": 6000000000.0
+        "stop": 4000000000.0
     },
     "pixel_size": 2.5,
     "ports": [
@@ -21,6 +21,17 @@
             "layer": 0,
             "plane": 1,
             "excite": false
+        }
+    ],
+    "traces": [
+        {
+            "start": 0,
+            "stop": 1,
+            "interface": {
+                "max_frequency": 4e9,
+                "se_impedance_nominal": 70,
+                "se_impedance_tolerance": 1
+            },
         }
     ]
 }

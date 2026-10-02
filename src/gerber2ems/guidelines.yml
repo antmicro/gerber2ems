@@ -1,0 +1,230 @@
+interfaces:
+  .pcie: &pcie
+    impedance:
+      diff: {nominal: 85, tolerance: 0.15}
+      se: {nominal: 50, tolerance: 0.15}
+    skew:
+      intra-pair: 1e-12
+      clock-data: 1.6e-9
+
+  pcie 1.0:
+    <<: *pcie
+    frequency: 1.25e9
+
+  pcie 2.0:
+    <<: *pcie
+    frequency: 2.5e9
+
+  pcie 3.0:
+    <<: *pcie
+    frequency: 4e9
+
+  pcie 4.0:
+    <<: *pcie
+    frequency: 8e9
+
+  .sata: &sata
+    impedance:
+      diff: {nominal: 100, tolerance: 0.15}
+      se: {nominal: 50, tolerance: 0.15}
+    skew:
+      intra-pair: 1e-12
+      inter-pair: 0.8e-9
+
+  sata 1:
+    <<: *sata
+    frequency: 7.5e8
+
+  sata 2:
+    <<: *sata
+    frequency: 1.5e9
+
+  sata 3:
+    <<: *sata
+    frequency: 3e9
+
+  .eth: &eth
+    impedance:
+      diff: {nominal: 100, tolerance: 0.15}
+      se: {nominal: 50, tolerance: 0.15}
+    skew:
+      intra-pair: 1e-12
+      inter-pair: 1.5e-12
+      clock-data: 3.3e-10
+
+  10base-t:
+    <<: *eth
+    frequency: 1e7
+
+  100base-tx:
+    <<: *eth
+    frequency: 3.125e7
+
+  1000base-t:
+    <<: *eth
+    frequency: 6.25e7
+
+  .usb: &usb
+    impedance:
+      diff: {nominal: 90, tolerance: 0.15}
+      se: {nominal: 50, tolerance: 0.15}
+
+  .usb 2.0: &usb_2_0
+    <<: *usb
+    skew:
+      intra-pair: 7.5e-12
+
+  usb low speed:
+    <<: *usb_2_0
+    frequency: 7.5e5
+    rise-fall-time: 7.5e-8 # Universal Serial Bus Specification Revision 2.0 7.1.2.1 Low-speed and Full-speed Data Signal Rise and Fall
+
+  usb full speed:
+    <<: *usb_2_0
+    frequency: 6e6
+    rise-fall-time: 4.0e-9 # Universal Serial Bus Specification Revision 2.0 7.1.2.1 Low-speed and Full-speed Data Signal Rise and Fall
+
+  usb high speed:
+    <<: *usb_2_0
+    frequency: 2.4e8
+    rise-fall-time: 5.0e-10 # Universal Serial Bus Specification Revision 2.0 7.1.2.2 High-speed Signaling Eye Patterns and Rise and Fall Time
+
+  .usb 3.0: &usb_3_0
+    <<: *usb
+    skew:
+      intra-pair: 1e-12
+      inter-pair: 1.6e-9
+    impedance:
+      diff: {nominal: 85, tolerance: 0.15}
+      se: {nominal: 43, tolerance: 0.15}
+
+  usb 3.2 gen1:
+    <<: *usb_3_0
+    frequency: 2.5e9
+
+  usb 3.2 gen2:
+    <<: *usb_3_0
+    frequency: 5e9
+  
+  usb 4.0 gen3:
+    <<: *usb_3_0
+    frequency: 1e10
+  
+  usb 4.0 gen4:
+    <<: *usb_3_0
+    frequency: 2e10
+
+  lvds:
+    impedance:
+      diff: {nominal: 100, tolerance: 0.15}
+      se: {nominal: 55, tolerance: 0.15}
+    skew:
+      intra-pair: 1e-12
+      clock-data: 3.5e-12
+
+  .hdmi: &hdmi
+    impedance:
+      diff: {nominal: 100, tolerance: 0.10}
+      se: {nominal: 50, tolerance: 0.15}
+    skew:
+      intra-pair: 5e-12
+      inter-pair: 1.5e-10
+
+  hdmi 1.0-1.2a:
+    <<: *hdmi
+    frequency: 1.65e8
+
+  hdmi 1.3-1.4:
+    <<: *hdmi
+    frequency: 3.4e8
+
+  hdmi 2.0-2.2:
+    <<: *hdmi
+    frequency: 6e8
+
+  .display port: &display_port
+    impedance:
+      diff: {nominal: 100, tolerance: 0.10}
+      se: {nominal: 50, tolerance: 0.15}
+    skew:
+      intra-pair: 1e-12
+      inter-pair: 1.5e-10
+
+  dp rbr:
+    <<: *display_port
+    frequency: 1.62e8
+
+  dp hbr:
+    <<: *display_port
+    frequency: 2.7e8
+
+  dp hbr2:
+    <<: *display_port
+    frequency: 5.4e8
+
+  dp hbr3:
+    <<: *display_port
+    frequency: 8.1e8
+
+  .sdio: &sdio
+    impedance:
+      se: {nominal: 50, tolerance: 0.15}
+
+  uhs sd:
+    <<: *sdio
+    frequency: 2.08e8
+    skew:
+      clock-data: 2e-11
+
+  mmcplus:
+    <<: *sdio
+    frequency: 5.2e7
+    skew:
+      clock-data: 1e-10
+
+  .i2c: &i2c
+    impedance:
+      se: {nominal: 50, tolerance: 0.15}
+
+  i2c standard mode:
+    <<: *i2c
+    frequency: 1e5
+
+  i2c fast mode:
+    <<: *i2c
+    frequency: 4e5
+
+  i2c fast mode plus:
+    <<: *i2c
+    frequency: 1e6
+
+  i2s:
+    impedance:
+      se: {nominal: 50, tolerance: 0.20}
+    skew:
+      clock-data: 2.5e-10
+
+  spi:
+    frequency: 6.5e7
+    impedance:
+      se: {nominal: 50, tolerance: 0.15}
+    skew:
+      clock-data: 1e-10
+
+  dsi:
+    frequency: 5e8
+    impedance:
+      diff: {nominal: 100, tolerance: 0.10}
+      se: {nominal: 50, tolerance: 0.10}
+    skew:
+      intra-pair: 1e-12
+      clock-data: 1e-11
+
+  csi-2:
+    frequency: 5e8
+    impedance:
+      diff: {nominal: 100, tolerance: 0.10}
+      se: {nominal: 50, tolerance: 0.10}
+    skew:
+      intra-pair: 1e-12
+      clock-data: 1e-11

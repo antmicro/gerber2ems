@@ -10,11 +10,13 @@ from math import sqrt
 from serde import serde, field, coerce, from_dict
 from serde.json import to_json
 from pathlib import Path
+import numpy as np
 import json
+import yaml
 from argparse import Namespace
 import csv
 
-from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT_MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH
+from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT_MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH, GUIDELINES_FILE
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
@@ -44,6 +46,23 @@ class PortConfig:
 
 
 @serde(type_check=coerce)
+class Interface:
+    """Interface config."""
+
+    name: str = field(default="undefined")
+    min_frequency: float = field(default=0)
+    max_frequency: float = field(default=float("nan"))
+    se_impedance_nominal: float = field(default=float("nan"))
+    se_impedance_tolerance: float = field(default=float("nan"))
+    diff_impedance_nominal: float = field(default=float("nan"))
+    diff_impedance_tolerance: float = field(default=float("nan"))
+    skew_intra_pair: float = field(default=float("nan"))
+    skew_inter_pair: float = field(default=float("nan"))
+    skew_clock_data: float = field(default=float("nan"))
+    rise_fall_time: float = field(default=float("nan"))
+
+
+@serde(type_check=coerce)
 class DifferentialPairConfig:
     """Class representing and parsing differential pair config."""
 
@@ -54,6 +73,7 @@ class DifferentialPairConfig:
     name: Optional[str] = field(default=None)
     nets: List[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
+    interface: Interface = field(default_factory=Interface)
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -76,6 +96,7 @@ class SingleEndedConfig:
     name: Optional[str] = field(default=None)
     nets: List[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
+    interface: Interface = field(default_factory=Interface)
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -246,6 +267,63 @@ class Config:
         Config()._config = cfg
 
     @classmethod
+    def load_guidelines(cls) -> None:
+        """Load interface parameters from guidelines."""
+        if cls._instance is None:
+            cls._instance = Config()
+
+        with open(GUIDELINES_FILE, "r") as file:
+            try:
+                data = yaml.safe_load(file)
+            except data.YAMLError as error:
+                logger.error("Yaml parsing failed at %d:%d: %s", error.lineno, error.colno, error.msg)
+                sys.exit(1)
+
+            interfaces: List[Interface] = []
+            for trace in cls._instance._config.traces:
+                interfaces.append(trace.interface)
+
+            for diff_pair in cls._instance._config.diff_pairs:
+                interfaces.append(diff_pair.interface)
+
+            for interface in interfaces:
+                interface_data = data["interfaces"].get(interface.name)
+                if interface_data is None:
+                    continue
+
+                if interface_data.get("rise-fall-time") is not None:
+                    if np.isnan(interface.rise_fall_time):
+                        interface.rise_fall_time = interface_data.get("rise-fall-time")
+                        interface.max_frequency = 0.35 / interface.rise_fall_time
+                        logger.info(f"Knee frequency: {np.ceil(interface.max_frequency)/1e6} MHz")
+                if np.isnan(interface.max_frequency):
+                    interface.max_frequency = interface_data.get("frequency")
+                    logger.info(f"Defined frequency: {float(interface.max_frequency)/1e6} MHz")
+
+                impedance = interface_data.get("impedance")
+                se_impedance = impedance.get("se")
+                if se_impedance is not None:
+                    if np.isnan(interface.se_impedance_nominal):
+                        interface.se_impedance_nominal = se_impedance.get("nominal")
+                    if np.isnan(interface.se_impedance_tolerance):
+                        interface.se_impedance_tolerance = se_impedance.get("tolerance")
+                diff_impedance = impedance.get("diff")
+                if diff_impedance is not None:
+                    if np.isnan(interface.diff_impedance_nominal):
+                        interface.diff_impedance_nominal = diff_impedance.get("nominal")
+                    if np.isnan(interface.diff_impedance_tolerance):
+                        interface.diff_impedance_tolerance = diff_impedance.get("tolerance")
+
+                skew = interface_data.get("skew")
+                if skew is not None:
+                    if np.isnan(interface.skew_intra_pair):
+                        interface.skew_intra_pair = skew.get("intra-pair")
+                    if np.isnan(interface.skew_inter_pair):
+                        interface.skew_inter_pair = skew.get("inter-pair")
+                    if np.isnan(interface.skew_clock_data):
+                        interface.skew_clock_data = skew.get("clock-data")
+
+    @classmethod
     def load(cls, args: Namespace) -> None:
         """Load config file (default: simulation.json)."""
         global port_count
@@ -276,6 +354,8 @@ class Config:
             port.width *= UNIT_MULTIPLIER
             port.length *= UNIT_MULTIPLIER
         cls._instance._config._apply_unit_multiplier()
+
+        cls.load_guidelines()
 
     def __getattr__(self, name: str) -> Any:
         """Get value of field from internal config structure."""
