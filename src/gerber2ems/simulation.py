@@ -548,6 +548,13 @@ class Simulation:
     def add_virtual_ports(self) -> None:
         """Add virtual ports needed for data postprocessing due to openEMS api design."""
         logger.info("Adding virtual ports")
+        # Geometry loaded from file already contains the probes of the real ports. Virtual ports re-create
+        # probes with the same names (to read their data files), which openEMS rejects as duplicates.
+        for prop in self.csx.GetAllProperties():
+            if isinstance(prop, CSXCAD.CSProperties.CSPropProbeBox) and not isinstance(
+                prop, CSXCAD.CSProperties.CSPropDumpBox
+            ):
+                self.csx.RemoveProperty(prop)
         for port_config in cfg.ports:
             self.add_virtual_port(port_config)
 
