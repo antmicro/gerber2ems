@@ -512,7 +512,9 @@ class Simulation:
         reflected: List[np.ndarray] = []
         for index, port in enumerate(self.ports):
             try:
-                port.CalcPort(str(result_path), frequencies)
+                # Without ref_impedance an MSL port normalizes to its extracted line impedance, while
+                # postprocessing converts S-parameters back to impedance using the configured one.
+                port.CalcPort(str(result_path), frequencies, ref_impedance=cfg.ports[index].impedance)
                 logger.debug("Found data for port %d", index)
             except IOError:
                 logger.error("Port data files do not exist. Did you run simulation step?")
