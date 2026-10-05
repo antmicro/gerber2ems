@@ -31,7 +31,7 @@
                 "max_frequency": 4e9,
                 "se_impedance_nominal": 70,
                 "se_impedance_tolerance": 1
-            },
+            }
         }
     ]
 }
