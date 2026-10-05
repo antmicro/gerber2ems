@@ -62,7 +62,7 @@ gerber2ems -a
 Alternatively `gerber2ems` can be run using container definition from this repository
 
 ```bash
-docker build gerber2ems .
+docker build -t gerber2ems .
 docker run -w "$PWD" --mount type=bind,source="$PWD",target="$PWD" gerber2ems -a
 ```
 
