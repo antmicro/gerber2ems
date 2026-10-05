@@ -18,7 +18,7 @@
     "traces": [
         {
             "start": 0,
-            "stop": 1,
+            "stop": 0,
             "interface": {
                 "min_frequency": 2.9e9,
                 "max_frequency": 4e9,
