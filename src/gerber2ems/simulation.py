@@ -485,7 +485,7 @@ class Simulation:
         """Save geometry to file."""
         filename = GEOMETRY_FILE
         logger.info("Saving geometry to %s", filename)
-        self.csx.Write2XML(filename)
+        self.csx.Write2XML(str(filename))
 
         # Replacing , with . for numerals in the file
         # (openEMS bug mitigation for locale that uses , as decimal separator)
