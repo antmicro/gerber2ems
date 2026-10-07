@@ -15,6 +15,7 @@ from CSXCAD.CSRectGrid import CSRectGrid
 from scipy.optimize import fsolve
 
 from gerber2ems.config import Config
+from gerber2ems.constants import FAB_DIR
 from gerber2ems.gerber_io import (
     Aperture,
     GerberFile,
@@ -64,7 +65,7 @@ class GridGenerator:
 
     def get_board_offset(self) -> None:
         """Calculate board offset in gerber files."""
-        fab_dir = Path.cwd() / "fab"
+        fab_dir = FAB_DIR
         edge_cuts_path = list(fab_dir.glob("*Edge_Cuts.gbr"))
         if len(edge_cuts_path) == 0:
             logger.error(f"No EdgeCuts gerber in fab dir({fab_dir})")
@@ -110,7 +111,7 @@ class GridGenerator:
 
     def generate(self, grid: CSRectGrid) -> CSRectGrid:
         """Generate complete dynamic grid."""
-        fab_dir = Path.cwd() / "fab"
+        fab_dir = FAB_DIR
         gerbers = [GerberFile(gbr_path) for gbr_path in fab_dir.glob("*_Cu.gbr")]
 
         logger.info("### Grid Generator: get nets of interest ###")

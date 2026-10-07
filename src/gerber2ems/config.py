@@ -7,28 +7,40 @@ import json
 import logging
 import sys
 from argparse import Namespace
+from dataclasses import dataclass
 from enum import Enum
 from math import sqrt
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import yaml
 from serde import coerce, field, from_dict, serde
 from serde.json import to_json
 
-from gerber2ems.constants import BASE_UNIT, CONFIG_FORMAT_VERSION, DEFAULT_CONFIG_PATH, GUIDELINES_FILE, UNIT_MULTIPLIER
+from gerber2ems.constants import (
+    BASE_UNIT,
+    CONFIG_FORMAT_VERSION,
+    DEFAULT_CONFIG_PATH,
+    FAB_DIR,
+    GUIDELINES_FILE,
+    UNIT_MULTIPLIER,
+)
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
 
 
-@serde(type_check=coerce, frozen=True)
+@serde(type_check=coerce)
+@dataclass(frozen=True)
 class Point:
-    """2D space point coordintes."""
+    """2D space point coordinates."""
 
     x: float
     y: float
+
+    def mm_to_sim_space(self) -> Point:
+        return Point(mm_to_sim_space(self.x), mm_to_sim_space(self.y))
 
 
 @serde(type_check=coerce)
@@ -49,7 +61,7 @@ class PortConfig:
     This will be matched to pad designated with `%TO.P,J15,9,net_name*%` in gerber file"""
     reference_pad_position: Point | None = None
     """Position of pad that is reference point for port"""
-    db_margin: float = field(default=-15, alias="dB_margin")
+    db_margin: float = field(default=-15, alias=["dB_margin"])
     excite: bool = False
 
     @staticmethod
@@ -66,7 +78,7 @@ class PortConfig:
     def get_ref_pad(self) -> tuple[Point, float]:
         """Return reference pad position & size."""
         if self.reference_pad_position:
-            return self.reference_pad_position, self.width
+            return self.reference_pad_position.mm_to_sim_space(), self.width
         raise NotImplementedError(
             "Getting pad position/size by pad name is not yet supported! Specify `reference_pad_position`!"
         )
@@ -146,7 +158,7 @@ class LayerConfig:
         self.thickness = 0
         self.name = config["name"]
         if config["thickness"] is not None:
-            self.thickness = config["thickness"] / 1000 / BASE_UNIT * UNIT_MULTIPLIER
+            self.thickness = mm_to_sim_space(config["thickness"])
         if self.kind == LayerKind.METAL:
             self.file = config["name"].replace(".", "_")
         elif self.kind == LayerKind.SUBSTRATE:
@@ -482,10 +494,7 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
         json_cfg = {"format_version": CONFIG_FORMAT_VERSION}
 
     if not json_cfg.get("ports", []):
-        ports_pnp: List[Tuple[int, Tuple[float, float], float]] = []
-        for filename in (Path.cwd() / "fab").glob("*pos.csv"):
-            ports_pnp += get_ports_from_file(filename)
-        ports = [PortConfig.with_name(str(p[0])) for p in ports_pnp]
+        ports = [PortConfig.with_name(str(p[0])) for p in get_ports_from_all_pos_files()]
         ports[-1].excite = True
         if len(ports) >= 4:
             ports[-3].excite = True
@@ -509,9 +518,13 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
     return json_cfg
 
 
-def get_ports_from_file(filename: Path) -> List[Tuple[int, Tuple[float, float], float]]:
+def mm_to_sim_space(val: float) -> float:
+    return val / 1000 / BASE_UNIT * UNIT_MULTIPLIER
+
+
+def get_ports_from_file(filename: Path) -> list[tuple[int, Point, float]]:
     """Parse pnp CSV file and return all ports in format (number, (x, y), direction)."""
-    ports: List[Tuple[int, Tuple[float, float], float]] = []
+    ports = []
     with open(filename, "r", encoding="utf-8") as csvfile:
         reader = csv.reader(csvfile, delimiter=",", quotechar='"')
         next(reader, None)  # skip the headers
@@ -521,13 +534,18 @@ def get_ports_from_file(filename: Path) -> List[Tuple[int, Tuple[float, float], 
                 ports.append(
                     (
                         number - 1,
-                        (
-                            float(row[3]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
-                            float(row[4]) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
-                        ),
+                        Point(mm_to_sim_space(float(row[3])), mm_to_sim_space(float(row[4]))),
                         float(row[5]),
                     )
                 )
                 logging.debug("Found port #%i position in pos file", number)
 
     return ports
+
+
+def get_ports_from_all_pos_files(path: Path = FAB_DIR) -> list[tuple[int, Point, float]]:
+    """Parse all pnp files and return all ports in format (number, (x, y), direction)."""
+    ports_pnp = []
+    for filename in path.glob("*pos.csv"):
+        ports_pnp += get_ports_from_file(filename)
+    return ports_pnp

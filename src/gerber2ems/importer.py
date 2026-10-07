@@ -19,8 +19,8 @@ import numpy as np
 import PIL.Image
 from nanomesh import Image, Mesher2D
 
-from gerber2ems.config import Config, Point, get_ports_from_file
-from gerber2ems.constants import BASE_UNIT, GEOMETRY_DIR, STACKUP_FORMAT_VERSION, UNIT_MULTIPLIER
+from gerber2ems.config import Config, Point, get_ports_from_all_pos_files, mm_to_sim_space
+from gerber2ems.constants import BASE_UNIT, FAB_DIR, GEOMETRY_DIR, STACKUP_FORMAT_VERSION, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def process_gbrs_to_pngs() -> None:
     """
     logger.info("Processing gerber files (may take a while for larger boards)")
 
-    fab = Path.cwd() / "fab"
+    fab = FAB_DIR
     edge = next(fab.glob("*Edge_Cuts.gbr"), None)
     if edge is None:
         logger.error("No edge_cuts gerber found")
@@ -441,7 +441,7 @@ def get_vias() -> list[list[float]]:
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
-                drills[int(match.group(1))] = float(match.group(2)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER
+                drills[int(match.group(1))] = mm_to_sim_space(float(match.group(2)))
 
             # Regex for finding drill switches (in mm)
             match = re.fullmatch("T([0-9]+)\\n", line)
@@ -453,14 +453,14 @@ def get_vias() -> list[list[float]]:
             if match is not None:
                 if current_drill in drills:
                     logger.debug(
-                        f"Adding via at: X{float(match.group(1)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER} \
-                        Y{float(match.group(2)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER}"
+                        f"Adding via at: X{mm_to_sim_space(float(match.group(1)))} \
+                        Y{mm_to_sim_space(float(match.group(2)))}"
                     )
                     vias.append(
                         [
-                            float(match.group(1)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
-                            float(match.group(2)) / 1000 / BASE_UNIT * UNIT_MULTIPLIER,
-                            drills[current_drill],
+                            mm_to_sim_space(float(match.group(1))),
+                            mm_to_sim_space(float(match.group(2))),
+                            drills[current_drill]
                         ]
                     )
                 else:
@@ -505,11 +505,7 @@ def import_port_positions() -> None:
     Looks for all PnP files in `fab` folder (files ending with `-pos.csv`)
     Parses them to find port footprints and inserts their position information to config object.
     """
-    ports: list[tuple[int, tuple[float, float], float]] = []
-    for filename in (Path.cwd() / "fab").glob("*pos.csv"):
-        ports += get_ports_from_file(filename)
-
-    for number, position, direction in ports:
+    for number, position, direction in get_ports_from_all_pos_files():
         if len(cfg.ports) > number:
             port = cfg.ports[number]
             if port.position is None:

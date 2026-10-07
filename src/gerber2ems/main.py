@@ -48,7 +48,7 @@ def main() -> None:
         geometry()
     if args.simulate or args.all:
         logger.info("Running simulation")
-        create_dir(SIMULATION_DIR, cleanup=True)
+        # create_dir(SIMULATION_DIR, cleanup=True)
         simulate()
     if args.postprocess or args.all:
         logger.info("Postprocessing")
@@ -89,10 +89,10 @@ def simulate() -> None:
     for index, port in enumerate(cfg.ports):
         if port.excite:
             sim = Simulation(GEOMETRY_FILE)
-            logging.info("Simulating with excitation on port #%i", index)
-            sim.set_excitation()
-            sim.setup_ports(index)
-            sim.run(index)
+            # logging.info("Simulating with excitation on port #%i", index)
+            # sim.set_excitation()
+            # sim.setup_ports(index)
+            # sim.run(index)
 
     if len(sim.ports) == 0:
         sim.add_virtual_ports()

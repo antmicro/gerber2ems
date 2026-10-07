@@ -313,8 +313,10 @@ class Simulation:
             logger.error("Port has no defined position, skipping")
             return
 
-        start = [port_config.position.x, port_config.position.y, start_z]
-        stop = [port_config.position.x, port_config.position.y, stop_z]
+        pos = port_config.position
+        w2 = port_config.width / 2
+        start = [pos.x - w2, pos.y - w2, start_z]
+        stop = [pos.x + w2, pos.y + w2, stop_z]
         logger.debug("Adding lumped port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddLumpedPort(
@@ -345,18 +347,22 @@ class Simulation:
         margin = max(port_config.width, ref_size) / 2
         self.plane_material.AddBox(
             [patch_start.x - margin, patch_start.y - margin, stop_z],
-            [patch_stop.x + margin, patch_start.y + margin, stop_z],
+            [patch_stop.x + margin, patch_stop.y + margin, stop_z],
             priority=ObjectPriority.COOPER,
         )
 
     def add_virtual_port(self, port_config: PortConfig, port_number: int) -> None:
         """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
         logger.debug("Adding virtual port number %d", port_number)
-        args = [port_number, self.csx.AddMetal(f"VirtualPort_{port_number}"), [0, 0, 0], [10, 10, 10]]
+        box = [[0, 0, 0], [10, 10, 10]]
         kwargs = {"Feed_R": port_config.impedance, "priority": ObjectPriority.PORT, "excite": 0}
 
         msl = not port_config.is_port_v2()
-        port = self.fdtd.AddMSLPort(*args, "x", "z", **kwargs) if msl else self.fdtd.AddLumpedPort(*args, "z", **kwargs)
+        if msl:
+            metal_prop = self.csx.AddMetal(f"VirtualPort_{port_number}")
+            port = self.fdtd.AddMSLPort(port_number, metal_prop, *box, "x", "z", **kwargs)
+        else:
+            port = self.fdtd.AddLumpedPort(port_number, port_config.impedance, *box, "z", **kwargs)
         self.ports.append(port)
 
     def add_plane(self, z_height: float) -> None:

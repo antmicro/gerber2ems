@@ -4,6 +4,7 @@ from pathlib import Path
 
 UNIT_MULTIPLIER = 10
 BASE_UNIT = 1e-6  # Length units used in the whole script are microns
+FAB_DIR = Path.cwd() / "fab"  # Name of the directory where input/production files are located
 BASE_DIR = Path.cwd() / "ems"  # Name of the directory that outputs will be stored in
 SIMULATION_DIR = BASE_DIR / "simulation"
 GEOMETRY_DIR = BASE_DIR / "geometry"
