@@ -338,6 +338,8 @@ class Postprocesor:
 
     def get_impedance_boundaries(self, port: int, diff: bool = False) -> tuple[float, float]:
         """Get impedance boundaries."""
+        if not isinstance(self.interfaces[port], Interface):
+            return float("nan"), float("nan")
         interface = self.interfaces[port]
         if diff:
             impedance_nominal = interface.diff_impedance_nominal
