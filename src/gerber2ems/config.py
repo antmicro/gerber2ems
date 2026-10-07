@@ -23,20 +23,34 @@ logger = logging.getLogger(__name__)
 port_count: int = 0
 
 
+@serde(type_check=coerce, frozen=True)
+class Point:
+    """2D space point coordintes."""
+
+    x: float
+    y: float
+
+
 @serde(type_check=coerce)
 class PortConfig:
     """Class representing and parsing port config."""
 
-    name: str = field(default="Unnamed")
-    position: Optional[Tuple[float, float]] = field(default=None, skip=True)
-    direction: Optional[float] = field(default=None, skip=True)
-    width: float = field(default=200)
-    length: float = field(default=1000)
-    impedance: float = field(default=50)
-    layer: int = field(default=0)
-    plane: int = field(default=1)
-    dB_margin: float = field(default=-15)  # noqa: N815
-    excite: bool = field(default=False)
+    name: str = "Unnamed"
+    position: Point | None = field(default=None, skip=True)
+    direction: float | None = field(default=None, skip=True)
+    width: float = 200
+    length: float = 1000
+    impedance: float = 50
+    layer: int = 0
+    plane: int | None = None
+    reference_pad: str | None = None
+    """Name of pad that is reference point for port
+    Expected format: `J15,9` (component-designator,pin-number)
+    This will be matched to pad designated with `%TO.P,J15,9,net_name*%` in gerber file"""
+    reference_pad_position: Point | None = None
+    """Position of pad that is reference point for port"""
+    db_margin: float = field(default=-15, alias="dB_margin")
+    excite: bool = False
 
     @staticmethod
     def with_name(p: str) -> PortConfig:
@@ -44,6 +58,18 @@ class PortConfig:
         pc = PortConfig()
         pc.name = p
         return pc
+
+    def is_port_v2(self) -> bool:
+        """Return true if port is V2 port (vertical, lumped port to virtual gnd patch)."""
+        return (self.reference_pad_position or self.reference_pad) is not None
+
+    def get_ref_pad(self) -> tuple[Point, float]:
+        """Return reference pad position & size."""
+        if self.reference_pad_position:
+            return self.reference_pad_position, self.width
+        raise NotImplementedError(
+            "Getting pad position/size by pad name is not yet supported! Specify `reference_pad_position`!"
+        )
 
 
 @serde(type_check=coerce)
@@ -307,10 +333,10 @@ class Config:
                     if np.isnan(interface.rise_fall_time):
                         interface.rise_fall_time = interface_data.get("rise-fall-time")
                         interface.max_frequency = 0.35 / interface.rise_fall_time
-                        logger.info(f"Knee frequency: {np.ceil(interface.max_frequency)/1e6} MHz")
+                        logger.info(f"Knee frequency: {np.ceil(interface.max_frequency) / 1e6} MHz")
                 if np.isnan(interface.max_frequency):
                     interface.max_frequency = interface_data.get("frequency")
-                    logger.info(f"Defined frequency: {float(interface.max_frequency)/1e6} MHz")
+                    logger.info(f"Defined frequency: {float(interface.max_frequency) / 1e6} MHz")
 
                 impedance = interface_data.get("impedance")
                 se_impedance = impedance.get("se")

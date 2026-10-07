@@ -427,7 +427,7 @@ class Postprocesor:
         for port in range(self.count):
             if self.is_valid(self.s_params[port][port]):
                 fig, axes = plt.subplots()
-                s11_margin = cfg.ports[port].dB_margin
+                s11_margin = cfg.ports[port].db_margin
                 vswr_margin = (10 ** (s11_margin / 20) + 1) / (10 ** (s11_margin / 20) - 1)
                 net.plot_s_smith(
                     m=port,

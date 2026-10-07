@@ -16,13 +16,14 @@ import numpy as np
 import openEMS
 
 import gerber2ems.importer as importer
-from gerber2ems.config import Config, LayerKind, PortConfig
+from gerber2ems.config import Config, LayerKind, Point, PortConfig
 from gerber2ems.constants import (
     BASE_UNIT,
     GEOMETRY_FILE,
     SIMULATION_DIR,
     UNIT_MULTIPLIER,
     VIA_POLYGON,
+    ObjectPriority,
 )
 from gerber2ems.gerber_io import Aperture, ApertureRect, Pad, Position
 from gerber2ems.grid_gen import GridGenerator
@@ -89,7 +90,7 @@ class Simulation:
         self.fdtd.SetCSX(self.csx)
         self.grid.SetDeltaUnit(BASE_UNIT / UNIT_MULTIPLIER)
 
-        self.ports: List[openEMS.ports.MSLPort] = []
+        self.ports: List[openEMS.ports.MSLPort | openEMS.ports.LumpedPort] = []
 
         # Separate metal materials for easier switching of layers
         self.gerber_materials: List[Any] = []
@@ -184,7 +185,7 @@ class Simulation:
                 points[0].append((point.y))
                 points[1].append(cfg.pcb_height - point.x)
 
-            self.gerber_materials[layer_index].AddPolygon(points, "z", z_height, priority=1)
+            self.gerber_materials[layer_index].AddPolygon(points, "z", z_height, priority=ObjectPriority.COOPER)
 
     def get_metal_layer_offset(self, index: int) -> float:
         """Get z offset of nth metal layer."""
@@ -199,6 +200,22 @@ class Simulation:
                 offset -= layer.thickness
         logger.error("Hadn't found %dth metal layer", index)
         sys.exit(1)
+
+    def get_virt_ref_plane_offset(self, port_config: PortConfig) -> float:
+        """Get z offset of virtual ref plane linked to port layer."""
+        if port_config.layer == 0:
+            return port_config.length
+        return self.get_metal_layer_offset(len(cfg.get_metals())) - port_config.length
+
+    def get_v2_port_z_span(self, port_config: PortConfig) -> tuple[float, float]:
+        """Get Z coordinates that limit port."""
+        start_z = self.get_metal_layer_offset(port_config.layer)
+        stop_z = (
+            self.get_metal_layer_offset(port_config.plane)
+            if port_config.plane
+            else self.get_virt_ref_plane_offset(port_config)
+        )
+        return start_z, stop_z
 
     def add_port_grid(self) -> None:
         """Add grid around ports for simulation."""
@@ -220,8 +237,8 @@ class Simulation:
                     ap,
                     "PORT",
                     Position(
-                        port_config.position[0] + self.grid_gen.xmin + width / 2,
-                        port_config.position[1] + self.grid_gen.ymin,
+                        port_config.position.x + self.grid_gen.xmin + width / 2,
+                        port_config.position.y + self.grid_gen.ymin,
                     ),
                 )
             )
@@ -231,8 +248,8 @@ class Simulation:
             )
 
     def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
-        """Add microstripline port based on config."""
-        logger.debug("Adding port number %d", len(self.ports))
+        """Add MicroStripLine port based on config."""
+        logger.debug(f"Adding port number {port_number}")
 
         if port_config.position is None or port_config.direction is None:
             logger.error("Port has no defined position or rotation, skipping")
@@ -247,23 +264,25 @@ class Simulation:
             return
 
         start_z = self.get_metal_layer_offset(port_config.layer)
-        stop_z = self.get_metal_layer_offset(port_config.plane)
+        stop_z = self.get_metal_layer_offset(
+            port_config.plane or (1 if port_config.layer == 0 else len(cfg.get_metals()) - 2)
+        )
 
         angle = port_config.direction / 360 * 2 * math.pi
 
         start = [
-            round(port_config.position[0] - (port_config.width / 2) * round(math.cos(angle))),
-            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
+            round(port_config.position.x - (port_config.width / 2) * round(math.cos(angle))),
+            round(port_config.position.y - (port_config.width / 2) * round(math.sin(angle))),
             round(start_z),
         ]
         stop = [
             round(
-                port_config.position[0]
+                port_config.position.x
                 + (port_config.width / 2) * round(math.cos(angle))
                 - port_config.length * round(math.sin(angle))
             ),
             round(
-                port_config.position[1]
+                port_config.position.y
                 + (port_config.width / 2) * round(math.sin(angle))
                 + port_config.length * round(math.cos(angle))
             ),
@@ -279,71 +298,65 @@ class Simulation:
             dir_map[int(port_config.direction)],
             "z",
             Feed_R=port_config.impedance,
-            priority=100,
+            priority=ObjectPriority.PORT,
             excite=1 if excite else 0,
         )
         self.ports.append(port)
 
-    def add_resistive_port(self, port_config: PortConfig, excite: bool = False) -> None:
-        """Add resistive port based on config."""
-        logger.debug("Adding port number %d", len(self.ports))
+    def add_lumped_port(
+        self, port_config: PortConfig, port_number: int, start_z: float, stop_z: float, excite: bool = False
+    ) -> None:
+        """Add lumped port based on config."""
+        logger.debug(f"Adding port number {port_number}")
 
-        if port_config.position is None or port_config.direction is None:
-            logger.error("Port has no defined position or rotation, skipping")
+        if port_config.position is None:
+            logger.error("Port has no defined position, skipping")
             return
 
-        dir_map = {0: "y", 90: "x", 180: "y", 270: "x"}
-        if int(port_config.direction) not in dir_map:
-            logger.error("Ports rotation is not a multiple of 90 degrees which is not supported, skipping")
-            return
-
-        start_z = self.get_metal_layer_offset(port_config.layer)
-        stop_z = self.get_metal_layer_offset(port_config.plane)
-
-        angle = port_config.direction / 360 * 2 * math.pi
-
-        start = [
-            round(port_config.position[0] - (port_config.width / 2) * round(math.cos(angle))),
-            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
-            round(start_z),
-        ]
-        stop = [
-            round(port_config.position[0] + (port_config.width / 2) * round(math.cos(angle))),
-            round(port_config.position[1] - (port_config.width / 2) * round(math.sin(angle))),
-            round(stop_z),
-        ]
-        logger.debug("Adding resistive port at start: %s end: %s", start, stop)
+        start = [port_config.position.x, port_config.position.y, start_z]
+        stop = [port_config.position.x, port_config.position.y, stop_z]
+        logger.debug("Adding lumped port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddLumpedPort(
-            len(self.ports),
+            port_number,
             port_config.impedance,
             start,
             stop,
             "z",
             excite=1 if excite else 0,
-            priority=100,
+            priority=ObjectPriority.PORT,
         )
         self.ports.append(port)
 
-    def add_virtual_port(self, port_config: PortConfig) -> None:
-        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
-        logger.debug("Adding virtual port number %d", len(self.ports))
-        for i in range(11):
-            self.grid.AddLine("x", i)
-            self.grid.AddLine("y", i)
-        self.grid.AddLine("z", 0)
-        self.grid.AddLine("z", 10)
-        port = self.fdtd.AddMSLPort(
-            len(self.ports),
-            self.csx.AddMetal(f"VirtualPort_{len(self.ports)}"),
-            [0, 0, 0],
-            [10, 10, 10],
-            "x",
-            "z",
-            Feed_R=port_config.impedance,
-            priority=100,
-            excite=0,
+    def add_v2_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
+        """Add V2 port (vertical, lumped port to virtual gnd patch)."""
+        if port_config.position is None:
+            logger.error(f"Port {port_number} has no defined position, skipping")
+            return
+
+        port_config.plane = None
+        start_z, stop_z = self.get_v2_port_z_span(port_config)
+        self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
+        ref_pos, ref_size = port_config.get_ref_pad()
+        self.add_cylinder(self.via_material, ref_pos, ref_size / 2, start_z, stop_z, ObjectPriority.PORT_V2_REF_STITCH)
+
+        patch_start = Point(min(port_config.position.x, ref_pos.x), min(port_config.position.y, ref_pos.y))
+        patch_stop = Point(max(port_config.position.x, ref_pos.x), max(port_config.position.y, ref_pos.y))
+        margin = max(port_config.width, ref_size) / 2
+        self.plane_material.AddBox(
+            [patch_start.x - margin, patch_start.y - margin, stop_z],
+            [patch_stop.x + margin, patch_start.y + margin, stop_z],
+            priority=ObjectPriority.COOPER,
         )
+
+    def add_virtual_port(self, port_config: PortConfig, port_number: int) -> None:
+        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
+        logger.debug("Adding virtual port number %d", port_number)
+        args = [port_number, self.csx.AddMetal(f"VirtualPort_{port_number}"), [0, 0, 0], [10, 10, 10]]
+        kwargs = {"Feed_R": port_config.impedance, "priority": ObjectPriority.PORT, "excite": 0}
+
+        msl = not port_config.is_port_v2()
+        port = self.fdtd.AddMSLPort(*args, "x", "z", **kwargs) if msl else self.fdtd.AddLumpedPort(*args, "z", **kwargs)
         self.ports.append(port)
 
     def add_plane(self, z_height: float) -> None:
@@ -351,7 +364,7 @@ class Simulation:
         self.plane_material.AddBox(
             [0, 0, z_height],
             [cfg.pcb_width, cfg.pcb_height, z_height],
-            priority=1,
+            priority=ObjectPriority.COOPER,
         )
 
     def add_substrates(self) -> None:
@@ -367,7 +380,7 @@ class Simulation:
                     cfg.pcb_height,
                     offset - layer.thickness,
                 ],
-                priority=-i - 1,
+                priority=ObjectPriority.substrate(i),
             )
             logger.debug("Added substrate from %f to %f", offset, offset - layer.thickness)
             offset -= layer.thickness
@@ -379,23 +392,31 @@ class Simulation:
         for via in vias:
             self.add_via(via[0], via[1], via[2])
 
+    def add_cylinder(
+        self,
+        material: CSXCAD.CSProperties.CSProperties,
+        pos: Point,
+        radius: float,
+        z_start: float,
+        z_stop: float,
+        prio: int,
+        aprox_vert: int = VIA_POLYGON,
+    ) -> None:
+        """Add vertical cylinder at specified position with specified diameter."""
+        x_coords = []
+        y_coords = []
+        for i in range(aprox_vert):
+            x_coords.append(pos.x + np.sin(i / aprox_vert * 2 * np.pi) * radius)
+            y_coords.append(pos.y + np.cos(i / aprox_vert * 2 * np.pi) * radius)
+        material.AddLinPoly([x_coords, y_coords], "z", z_start, z_stop, priority=prio)
+
     def add_via(self, x_pos: float, y_pos: float, diameter: float) -> None:
         """Add via at specified position with specified diameter."""
-        thickness = sum(layer.thickness for layer in cfg.get_substrates())
+        h = sum(layer.thickness for layer in cfg.get_substrates())
 
-        x_coords = []
-        y_coords = []
-        for i in range(VIA_POLYGON):
-            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
-            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * diameter / 2)
-        self.via_filling_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=51)
-
-        x_coords = []
-        y_coords = []
-        for i in range(VIA_POLYGON)[::-1]:
-            x_coords.append(x_pos + np.sin(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + cfg.via.plating_thickness))
-            y_coords.append(y_pos + np.cos(i / VIA_POLYGON * 2 * np.pi) * (diameter / 2 + cfg.via.plating_thickness))
-        self.via_material.AddLinPoly([x_coords, y_coords], "z", -thickness, thickness, priority=50)
+        pos = Point(x_pos, y_pos)
+        self.add_cylinder(self.via_filling_material, pos, diameter / 2, -h, h, ObjectPriority.VIA_FILLING)
+        self.add_cylinder(self.via_material, pos, diameter / 2 + cfg.via.plating_thickness, -h, h, ObjectPriority.VIA)
 
     def add_single_dump_box(self, name: str, z: float) -> None:
         """Add electric field dump box in whole bounding box of the PCB at specified Z-position."""
@@ -542,13 +563,23 @@ class Simulation:
         self.ports = []
 
         for index, port_config in enumerate(cfg.ports):
-            self.add_msl_port(port_config, index, True)
+            if port_config.is_port_v2():
+                self.add_v2_port(port_config, index, True)
+            else:
+                self.add_msl_port(port_config, index, True)
 
     def add_virtual_ports(self) -> None:
         """Add virtual ports needed for data postprocessing due to openEMS api design."""
         logger.info("Adding virtual ports")
+
+        for i in range(11):
+            self.grid.AddLine("x", i)
+            self.grid.AddLine("y", i)
+        self.grid.AddLine("z", 0)
+        self.grid.AddLine("z", 10)
+
         for port_config in cfg.ports:
-            self.add_virtual_port(port_config)
+            self.add_virtual_port(port_config, len(self.ports))
 
     def calculate_excitation_length(self) -> int:
         """Calculate how many steps excitation signal will have."""

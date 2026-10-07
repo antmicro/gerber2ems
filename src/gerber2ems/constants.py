@@ -17,4 +17,29 @@ DEFAULT_CONFIG_PATH = "./simulation.json"
 VIA_POLYGON = 12
 
 STACKUP_FORMAT_VERSION = "1.0"
-CONFIG_FORMAT_VERSION = "1.3"
+CONFIG_FORMAT_VERSION = "1.4"
+"""`simulation.json` config file format specification revision
+
+# Changelog:
+
+## v1.4
+* `dB_margin` -> `db_margin` (`dB_margin` support is kept as alias)
+
+## v1.3
+* Add `sim_length`
+"""
+
+
+class ObjectPriority:
+    """Class defining CSXCAD priority of objects."""
+
+    COOPER: int = 1
+    VIA: int = 50
+    VIA_FILLING: int = 51
+    PORT_V2_REF_STITCH: int = 70
+    PORT: int = 100
+
+    @staticmethod
+    def substrate(idx: int) -> int:
+        """Priority for PCB substrate primitive."""
+        return -1 - idx

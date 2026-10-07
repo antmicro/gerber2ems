@@ -19,13 +19,8 @@ import numpy as np
 import PIL.Image
 from nanomesh import Image, Mesher2D
 
-from gerber2ems.config import Config, get_ports_from_file
-from gerber2ems.constants import (
-    BASE_UNIT,
-    GEOMETRY_DIR,
-    STACKUP_FORMAT_VERSION,
-    UNIT_MULTIPLIER,
-)
+from gerber2ems.config import Config, Point, get_ports_from_file
+from gerber2ems.constants import BASE_UNIT, GEOMETRY_DIR, STACKUP_FORMAT_VERSION, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 
@@ -128,14 +123,6 @@ def get_dimensions(input_filename: str) -> tuple[int, int]:
     width = image_width * pixel_size * UNIT_MULTIPLIER
     logger.debug("Board dimensions read from file are: height:%f width:%f", height, width)
     return (width, height)
-
-
-@dataclass(frozen=True)
-class Point:
-    """2D space point coordintes."""
-
-    x: float
-    y: float
 
 
 @dataclass(frozen=True)
