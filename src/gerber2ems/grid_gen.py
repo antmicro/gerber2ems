@@ -14,17 +14,10 @@ import numpy as np
 from CSXCAD.CSRectGrid import CSRectGrid
 from scipy.optimize import fsolve
 
+from gerber2ems.common import Point
 from gerber2ems.config import Config
 from gerber2ems.constants import FAB_DIR
-from gerber2ems.gerber_io import (
-    Aperture,
-    GerberFile,
-    Pad,
-    PlotMode,
-    Position,
-    Trace,
-    TraceSegment,
-)
+from gerber2ems.gerber_io import Aperture, GerberFile, Pad, PlotMode, Trace, TraceSegment
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -59,8 +52,9 @@ class GridGenerator:
             sys.exit(1)
         self.x = GridGeneratorAxis("x", Region(-margin, pcb_width + margin))
         self.y = GridGeneratorAxis("y", Region(-margin, pcb_height + margin))
-        self.add_pads: List[Pad] = []
-        self.add_apertures: Dict[str, Aperture] = {}
+        self.add_pads: list[Pad] = []
+        self.add_z_lines: list[int] = []
+        self.add_apertures: dict[str, Aperture] = {}
         self.get_board_offset()
 
     def get_board_offset(self) -> None:
@@ -78,7 +72,7 @@ class GridGenerator:
             self.xmax = max(seg.start.x, seg.stop.x, self.xmax)
             self.ymax = max(seg.start.y, seg.stop.y, self.ymax)
 
-    def generate_z(self) -> List[int]:
+    def generate_z(self) -> list[int]:
         """Generate grid in Z axis."""
         logger.info("### Grid Generator: generate Z axis ###")
         cell_ratio = cfg.grid.cell_ratio.z
@@ -102,11 +96,12 @@ class GridGenerator:
         z_lines = list(z_lines_np)
         (zmin, zmax) = min(z_lines), max(z_lines)
         z_lines.extend([cfg.grid.margin.z, offset - cfg.grid.margin.z])
+        z_lines.extend(self.add_z_lines)
 
         # Smooth grid
-        z_lines = Region(zmin, zmax).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
-        z_lines = Region(zmax, margin).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
-        z_lines = Region(offset - margin, zmin).densify_region_grid(list(z_lines), grid_max, grid_min, cell_ratio)
+        z_lines = Region(zmin, zmax).densify_region_grid(z_lines, grid_max, grid_min, cell_ratio)
+        z_lines = Region(zmax, margin).densify_region_grid(z_lines, grid_max, grid_min, cell_ratio)
+        z_lines = Region(offset - margin, zmin).densify_region_grid(z_lines, grid_max, grid_min, cell_ratio)
         return [int(x) for x in dedup_grid(z_lines, grid_min, [])]
 
     def generate(self, grid: CSRectGrid) -> CSRectGrid:
@@ -294,7 +289,6 @@ class SubRegion:
         break_cond = False
 
         for _ in range(n_opt + m_opt):
-
             calc_left_dist = partial(self.calc_left_dist, m_opt, n_opt)
             left_dist = calc_left_dist(self.final_cell_ratio if self.final_cell_ratio != 0 else self.cell_ratio)
             k = 0
@@ -539,7 +533,7 @@ class GridGeneratorAxis:
         oaxis = "x" if self.axis == "y" else "y"
         w3 = cfg.grid.optimal / 3
         for seg in segments:
-            slen = Position(abs(seg.start.x - seg.stop.x), abs(seg.start.y - seg.stop.y))
+            slen = Point(abs(seg.start.x - seg.stop.x), abs(seg.start.y - seg.stop.y))
             ang = atan2(slen.y, slen.x)
             deg5 = pi / 36  # angle smaller than 5 degrees
 

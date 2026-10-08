@@ -9,41 +9,44 @@ import sys
 from argparse import Namespace
 from dataclasses import dataclass
 from enum import Enum
-from math import sqrt
+from math import cos, pi, sin, sqrt
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import yaml
-from serde import coerce, field, from_dict, serde
+from serde import Untagged, coerce, field, from_dict, serde
 from serde.json import to_json
 
-from gerber2ems.constants import (
-    BASE_UNIT,
-    CONFIG_FORMAT_VERSION,
-    DEFAULT_CONFIG_PATH,
-    FAB_DIR,
-    GUIDELINES_FILE,
-    UNIT_MULTIPLIER,
-)
+from gerber2ems.common import Point, mm_to_sim_space
+from gerber2ems.constants import CONFIG_FORMAT_VERSION, DEFAULT_CONFIG_PATH, FAB_DIR, GUIDELINES_FILE, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
 
 
 @serde(type_check=coerce)
-@dataclass(frozen=True)
-class Point:
-    """2D space point coordinates."""
+@dataclass
+class PadProp:
+    position: Point
+    """Position of pad that is reference point for port"""
+    size: Point
+    """Size of pad that is reference point for port"""
+    id: str | None = None
+    """Expected name format: `J15,9` (component-designator,pin-number)
+    This will be matched to pad designated with `%TO.P,J15,9,net_name*%` in gerber file"""
 
-    x: float
-    y: float
+    def sim_pad(self) -> PadProp:
+        return PadProp(self.position.mm_to_sim_space(), self.size.mm_to_sim_space())
 
-    def mm_to_sim_space(self) -> Point:
-        return Point(mm_to_sim_space(self.x), mm_to_sim_space(self.y))
+    @classmethod
+    def from_id(cls, id: str) -> PadProp:
+        raise NotImplementedError(
+            "Getting pad position/size by pad name is not yet supported! Use `reference_pad.position`!"
+        )
 
 
-@serde(type_check=coerce)
+@serde(type_check=coerce, tagging=Untagged)
 class PortConfig:
     """Class representing and parsing port config."""
 
@@ -55,14 +58,19 @@ class PortConfig:
     impedance: float = 50
     layer: int = 0
     plane: int | None = None
-    reference_pad: str | None = None
-    """Name of pad that is reference point for port
-    Expected format: `J15,9` (component-designator,pin-number)
-    This will be matched to pad designated with `%TO.P,J15,9,net_name*%` in gerber file"""
-    reference_pad_position: Point | None = None
-    """Position of pad that is reference point for port"""
+    reference_pad: list[PadProp | str] = field(default_factory=list)
+    """List of pads that are reference point for port (eg. ground pin of IC)
+    Can be either `PadProp` or name of pad"""
     db_margin: float = field(default=-15, alias=["dB_margin"])
     excite: bool = False
+
+    def __post_init__(self) -> None:
+        if self.is_port_v2():
+            self.plane = None
+            for i in range(len(self.reference_pad)):
+                pad = self.reference_pad[i]
+                if isinstance(pad, str):
+                    self.reference_pad[i] = PadProp.from_id(pad)
 
     @staticmethod
     def with_name(p: str) -> PortConfig:
@@ -73,15 +81,22 @@ class PortConfig:
 
     def is_port_v2(self) -> bool:
         """Return true if port is V2 port (vertical, lumped port to virtual gnd patch)."""
-        return (self.reference_pad_position or self.reference_pad) is not None
+        return bool(self.reference_pad)
 
-    def get_ref_pad(self) -> tuple[Point, float]:
+    def get_ref_pads(self) -> list[PadProp]:
         """Return reference pad position & size."""
-        if self.reference_pad_position:
-            return self.reference_pad_position.mm_to_sim_space(), self.width
-        raise NotImplementedError(
-            "Getting pad position/size by pad name is not yet supported! Specify `reference_pad_position`!"
-        )
+        return [pad.sim_pad() for pad in self.reference_pad if not isinstance(pad, str)]
+
+    def get_pad(self) -> PadProp:
+        """Return simulation pad position & size."""
+        if not self.position or not self.direction:
+            raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
+        angle = self.direction / 360 * 2 * pi
+        w, h = self.width, self.length
+        size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
+        # TODO: verify position calc correctness
+        pos = Point(self.position.x + size.x / 2, self.position.y)
+        return PadProp(pos, size)
 
 
 @serde(type_check=coerce)
@@ -516,10 +531,6 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
                 }
             ]
     return json_cfg
-
-
-def mm_to_sim_space(val: float) -> float:
-    return val / 1000 / BASE_UNIT * UNIT_MULTIPLIER
 
 
 def get_ports_from_file(filename: Path) -> list[tuple[int, Point, float]]:

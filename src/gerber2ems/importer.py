@@ -19,7 +19,8 @@ import numpy as np
 import PIL.Image
 from nanomesh import Image, Mesher2D
 
-from gerber2ems.config import Config, Point, get_ports_from_all_pos_files, mm_to_sim_space
+from gerber2ems.common import Point, mm_to_sim_space
+from gerber2ems.config import Config, get_ports_from_all_pos_files
 from gerber2ems.constants import BASE_UNIT, FAB_DIR, GEOMETRY_DIR, STACKUP_FORMAT_VERSION, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
@@ -298,13 +299,12 @@ class TriangleMerger:
             for poly1_idx, poly1 in enumerate(polygons):
                 if not poly1:
                     continue
-                poly1_set = set(poly1) | {edge.rev() for edge in poly1}
                 for poly2 in polygons[poly1_idx + 1 :]:
                     if not poly2:
                         continue
 
                     # Find common edges between the two polys
-                    common = poly1_set & set(poly2)
+                    common = [p2e for p2e in poly2 if p2e in poly1] + [p2e.rev() for p2e in poly2 if p2e.rev() in poly1]
 
                     # This is simple impl -> merge only merge if exactly one shared edge
                     if len(common) != 1:
@@ -318,7 +318,6 @@ class TriangleMerger:
                     if merged is not None:
                         poly1.clear()
                         poly1.extend(merged)
-                        poly1_set.remove(edge)
                         poly2.clear()
                         break
 
@@ -436,7 +435,7 @@ def get_vias() -> list[list[float]]:
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
     vias: list[list[float]] = []
-    with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
+    with open(FAB_DIR / drill_filename, "r", encoding="utf-8") as drill_file:
         for line in drill_file.readlines():
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
@@ -460,7 +459,7 @@ def get_vias() -> list[list[float]]:
                         [
                             mm_to_sim_space(float(match.group(1))),
                             mm_to_sim_space(float(match.group(2))),
-                            drills[current_drill]
+                            drills[current_drill],
                         ]
                     )
                 else:

@@ -10,6 +10,7 @@ from math import cos, radians, sin
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional
 
+from gerber2ems.common import Point
 from gerber2ems.constants import BASE_UNIT, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
@@ -38,30 +39,6 @@ class NumberFormat:
 
 
 @dataclass
-class Position:
-    """Coordinates of 2D point."""
-
-    x: float
-    y: float
-
-    def mirror(self, axis: str) -> None:
-        """Mirror point using `axis` axis."""
-        setattr(self, axis, -getattr(self, axis))
-
-    def rotate(self, angle: float) -> None:
-        """Rotate point around (0,0)."""
-        (self.x, self.y) = (self.x * cos(angle) + self.y * sin(angle), self.x * sin(angle) + self.y * cos(angle))
-
-    def scale(self, scale: float) -> None:
-        """Scale position by `scale`."""
-        (self.x, self.y) = (self.x * scale, self.y * scale)
-
-    def move(self, offset: "Position") -> None:
-        """Move point by `offset`."""
-        (self.x, self.y) = (self.x + offset.x, self.y + offset.y)
-
-
-@dataclass
 class PadMeta:
     """Class stores metadata about pad."""
 
@@ -81,7 +58,7 @@ class Pad:
     """Name/key of aperture used to create ths pad"""
     net: str
     """Net this pad is connected to"""
-    pos: Position
+    pos: Point
     """Pad coordinates"""
     pin_ref: Optional[PadMeta] = None
     """Pad metadata"""
@@ -99,9 +76,9 @@ class Pad:
 class TraceSegment:
     """Class represents single trace segment (one line)."""
 
-    start: Position
+    start: Point
     """Coordinates of point on line start"""
-    stop: Position
+    stop: Point
     """Coordinates of point on line end"""
 
     aperture: str
@@ -156,7 +133,7 @@ class ApertureType:
         return []
 
     def contours(
-        self, pos: Optional[Position] = None, rot: float = 0, scale: float = 1, mirror: str = "N", post_rot: float = 0
+        self, pos: Optional[Point] = None, rot: float = 0, scale: float = 1, mirror: str = "N", post_rot: float = 0
     ) -> List[TraceSegment]:
         """Return contours of an aperture with transform applied.
 
@@ -176,7 +153,7 @@ class ApertureType:
             c.start.scale(scale)
             c.stop.scale(scale)
             c.normal = c.normal if scale > 0 else not c.normal
-            pos = Position(0, 0) if pos is None else pos
+            pos = Point(0, 0) if pos is None else pos
             c.start.move(pos)
             c.stop.move(pos)
             c.rotate(post_rot)
@@ -193,10 +170,10 @@ class ApertureCircle(ApertureType):
         """Return contours of an aperture."""
         d2 = self.diameter / 2
         points = [
-            Position(0, d2),
-            Position(d2, 0),
-            Position(-d2, 0),
-            Position(0, -d2),
+            Point(0, d2),
+            Point(d2, 0),
+            Point(-d2, 0),
+            Point(0, -d2),
         ]
         seg = partial(TraceSegment, aperture="", width=0, mode=PlotMode.CIRCULAR_CLOCK)
         return [
@@ -221,10 +198,10 @@ class ApertureRect(ApertureType):
         x2 = self.x / 2
         y2 = self.y / 2
         points = [
-            Position(x2, y2),
-            Position(-x2, y2),
-            Position(-x2, -y2),
-            Position(x2, -y2),
+            Point(x2, y2),
+            Point(-x2, y2),
+            Point(-x2, -y2),
+            Point(x2, -y2),
         ]
         seg = partial(TraceSegment, aperture="", width=0, mode=PlotMode.LINEAR)
         return [
@@ -245,12 +222,12 @@ class ApertureObround(ApertureRect):
         y2 = self.y / 2
         d = y2 - x2
         rect = [
-            Position(d, y2),
-            Position(-d, y2),
-            Position(-d, -y2),
-            Position(d, -y2),
+            Point(d, y2),
+            Point(-d, y2),
+            Point(-d, -y2),
+            Point(d, -y2),
         ]
-        circ = [Position(x2, 0), Position(-x2, 0)]
+        circ = [Point(x2, 0), Point(-x2, 0)]
         seg_c = partial(TraceSegment, aperture="", width=0, mode=PlotMode.CIRCULAR_CLOCK)
         seg_l = partial(TraceSegment, aperture="", width=0, mode=PlotMode.LINEAR)
         return [
@@ -263,7 +240,7 @@ class ApertureObround(ApertureRect):
         ]
 
 
-def _points2outline(points: List[Position]) -> List[TraceSegment]:
+def _points2outline(points: List[Point]) -> List[TraceSegment]:
     """Connect `points` with trace segments."""
     seg = partial(TraceSegment, aperture="", width=0, mode=PlotMode.LINEAR)
     segments = []
@@ -303,7 +280,7 @@ class AperturePolygon(ApertureType):
         d2 = self.diameter
         for i in range(self.vertices):
             ang = radians(self.rotation + 360 * i / self.vertices)
-            points.append(Position(d2 * cos(ang), d2 * sin(ang)))
+            points.append(Point(d2 * cos(ang), d2 * sin(ang)))
         return _points2outline(points)
 
 
@@ -347,7 +324,7 @@ class ApertureMacro(ApertureType):
                     ap = ApertureCircle(diameter=param[1] * FileFormat.gbr2sim)
                     rot = param[4] if len(param) > 4 else 0
                     return ap.contours(
-                        pos=Position(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim), post_rot=rot
+                        pos=Point(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim), post_rot=rot
                     )
 
             elif op == "20":
@@ -355,8 +332,8 @@ class ApertureMacro(ApertureType):
                 def f(args: List[float], sline: List[Callable] = sline) -> List[TraceSegment]:
                     param = [p(args) for p in sline]
                     trace = TraceSegment(
-                        start=Position(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim),
-                        stop=Position(param[4] * FileFormat.gbr2sim, param[5] * FileFormat.gbr2sim),
+                        start=Point(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim),
+                        stop=Point(param[4] * FileFormat.gbr2sim, param[5] * FileFormat.gbr2sim),
                         aperture="",
                         width=param[1] * FileFormat.gbr2sim,
                     )
@@ -369,8 +346,8 @@ class ApertureMacro(ApertureType):
                     param = [p(args) for p in sline]
                     len2 = FileFormat.gbr2sim * param[1] / 2
                     trace = TraceSegment(
-                        start=Position(param[3] * FileFormat.gbr2sim - len2, param[4] * FileFormat.gbr2sim),
-                        stop=Position(param[3] * FileFormat.gbr2sim + len2, param[4] * FileFormat.gbr2sim),
+                        start=Point(param[3] * FileFormat.gbr2sim - len2, param[4] * FileFormat.gbr2sim),
+                        stop=Point(param[3] * FileFormat.gbr2sim + len2, param[4] * FileFormat.gbr2sim),
                         aperture="",
                         width=param[2] * FileFormat.gbr2sim,
                     )
@@ -384,7 +361,7 @@ class ApertureMacro(ApertureType):
                     points = []
                     for i in range(param[1] + 1):
                         points.append(
-                            Position(param[2 + i * 2] * FileFormat.gbr2sim, param[3 + i * 2] * FileFormat.gbr2sim)
+                            Point(param[2 + i * 2] * FileFormat.gbr2sim, param[3 + i * 2] * FileFormat.gbr2sim)
                         )
                     contours = _points2outline(points)
                     for seg in contours:
@@ -397,7 +374,7 @@ class ApertureMacro(ApertureType):
                     param = [p(args) for p in sline]
                     ap = AperturePolygon(vertices=param[1], diameter=param[4] * FileFormat.gbr2sim, rotation=0)
                     return ap.contours(
-                        pos=Position(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim), post_rot=param[5]
+                        pos=Point(param[2] * FileFormat.gbr2sim, param[3] * FileFormat.gbr2sim), post_rot=param[5]
                     )
 
             elif op == "7":
@@ -447,9 +424,9 @@ class FileFormat:
     """Format used to encode position in Y-axis"""
     gbr2sim: ClassVar[float]
 
-    def parse_position(self, x: str, y: str) -> Position:
+    def parse_position(self, x: str, y: str) -> Point:
         """Convert position from format used in gerber file to `Position` class."""
-        pos = Position(self.x_format.parse(x), self.y_format.parse(y))
+        pos = Point(self.x_format.parse(x), self.y_format.parse(y))
         pos.x *= FileFormat.gbr2sim
         pos.y *= FileFormat.gbr2sim
 
@@ -478,7 +455,7 @@ class ParserState:
     """Recently set pad metadata (will be used for upcoming pad flashing)"""
     unparsed_region: bool = False
     """Region of code that is currently ignored by parser"""
-    pos: Position = field(default_factory=lambda: Position(x=0, y=0))
+    pos: Point = field(default_factory=lambda: Point(x=0, y=0))
     """Current position (will be used for upcoming trace creation)"""
     plot_mode: PlotMode = PlotMode.LINEAR
     """Current plot mode (will be used for upcoming trace creation)"""

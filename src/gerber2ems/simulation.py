@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import threading
+from copy import deepcopy
 from multiprocessing import Pool
 from pathlib import Path
 from types import TracebackType
@@ -16,16 +17,10 @@ import numpy as np
 import openEMS
 
 import gerber2ems.importer as importer
-from gerber2ems.config import Config, LayerKind, Point, PortConfig
-from gerber2ems.constants import (
-    BASE_UNIT,
-    GEOMETRY_FILE,
-    SIMULATION_DIR,
-    UNIT_MULTIPLIER,
-    VIA_POLYGON,
-    ObjectPriority,
-)
-from gerber2ems.gerber_io import Aperture, ApertureRect, Pad, Position
+from gerber2ems.common import Point
+from gerber2ems.config import Config, LayerKind, PortConfig
+from gerber2ems.constants import BASE_UNIT, GEOMETRY_FILE, SIMULATION_DIR, UNIT_MULTIPLIER, VIA_POLYGON, ObjectPriority
+from gerber2ems.gerber_io import Aperture, ApertureRect, Pad
 from gerber2ems.grid_gen import GridGenerator
 
 logger = logging.getLogger(__name__)
@@ -222,30 +217,15 @@ class Simulation:
         logger.info("Adding ports grid")
 
         for port_config in cfg.ports:
-            if port_config.position is None or port_config.direction is None:
-                logger.error("Port has no defined position or rotation, skipping")
-                return
-            angle = port_config.direction / 360 * 2 * math.pi
-            ap = f"PORT{len(self.grid_gen.add_apertures) + 1}"
-            w, h = ((port_config.width), (port_config.length))
-            width, height = (
-                w * round(math.cos(angle)) - h * round(math.sin(angle)),
-                w * round(math.sin(angle)) + h * round(math.cos(angle)),
-            )
-            self.grid_gen.add_pads.append(
-                Pad(
-                    ap,
-                    "PORT",
-                    Position(
-                        port_config.position.x + self.grid_gen.xmin + width / 2,
-                        port_config.position.y + self.grid_gen.ymin,
-                    ),
-                )
-            )
-            self.grid_gen.add_apertures[ap] = Aperture(
-                "",
-                ApertureRect(width, height),
-            )
+            if port_config.is_port_v2():
+                _port_start, port_end = self.get_v2_port_z_span(port_config)
+                self.grid_gen.add_z_lines.append(round(port_end))
+            for idx, pp in enumerate((port_config.get_pad(), *port_config.get_ref_pads())):
+                ap = f"PORT{len(self.grid_gen.add_apertures) + 1}" + f"_{idx}" if port_config.reference_pad else ""
+
+                pp.position.move(Point(self.grid_gen.xmin, self.grid_gen.ymin))
+                self.grid_gen.add_pads.append(Pad(ap, "PORT", pp.position))
+                self.grid_gen.add_apertures[ap] = Aperture("", ApertureRect(pp.size.x, pp.size.y))
 
     def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
         """Add MicroStripLine port based on config."""
@@ -336,15 +316,19 @@ class Simulation:
             logger.error(f"Port {port_number} has no defined position, skipping")
             return
 
-        port_config.plane = None
         start_z, stop_z = self.get_v2_port_z_span(port_config)
         self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
-        ref_pos, ref_size = port_config.get_ref_pad()
-        self.add_cylinder(self.via_material, ref_pos, ref_size / 2, start_z, stop_z, ObjectPriority.PORT_V2_REF_STITCH)
 
-        patch_start = Point(min(port_config.position.x, ref_pos.x), min(port_config.position.y, ref_pos.y))
-        patch_stop = Point(max(port_config.position.x, ref_pos.x), max(port_config.position.y, ref_pos.y))
-        margin = max(port_config.width, ref_size) / 2
+        patch_start, patch_stop = deepcopy(port_config.position), deepcopy(port_config.position)
+        margin = port_config.width / 2
+
+        for ref in port_config.get_ref_pads():
+            ref_pos, ref_size = ref.position, min(ref.size.x, ref.size.y) / 2
+            self.add_cylinder(self.via_material, ref_pos, ref_size, start_z, stop_z, ObjectPriority.PORT_V2_REF_STITCH)
+            patch_start = Point(min(patch_start.x, ref_pos.x), min(patch_start.y, ref_pos.y))
+            patch_stop = Point(max(patch_stop.x, ref_pos.x), max(patch_stop.y, ref_pos.y))
+            margin = max(margin, ref_size)
+
         self.plane_material.AddBox(
             [patch_start.x - margin, patch_start.y - margin, stop_z],
             [patch_stop.x + margin, patch_stop.y + margin, stop_z],
@@ -352,7 +336,7 @@ class Simulation:
         )
 
     def add_virtual_port(self, port_config: PortConfig, port_number: int) -> None:
-        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api desing."""
+        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api design."""
         logger.debug("Adding virtual port number %d", port_number)
         box = [[0, 0, 0], [10, 10, 10]]
         kwargs = {"Feed_R": port_config.impedance, "priority": ObjectPriority.PORT, "excite": 0}
