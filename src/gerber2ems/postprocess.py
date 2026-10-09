@@ -169,9 +169,9 @@ class Postprocesor:
                 for j in range(self.count):
                     s_param = self.s_params[j][i]
                     if i > 9 or j > 9:
-                        s_label = "$S_{" + f"{j+1},{i+1}" + "}$"
+                        s_label = "$S_{" + f"{j + 1},{i + 1}" + "}$"
                     else:
-                        s_label = "$S_{" + f"{j+1}{i+1}" + "}$"
+                        s_label = "$S_{" + f"{j + 1}{i + 1}" + "}$"
                     if self.is_valid(s_param):
                         ax1.plot(
                             self.frequencies / 1e9,
@@ -189,9 +189,9 @@ class Postprocesor:
                     for j in range(self.count):
                         s_param = self.s_params[j][i]
                         if i > 9 or j > 9:
-                            s_label = "$S_{" + f"{j+1},{i+1}" + "}$"
+                            s_label = "$S_{" + f"{j + 1},{i + 1}" + "}$"
                         else:
-                            s_label = "$S_{" + f"{j+1}{i+1}" + "}$"
+                            s_label = "$S_{" + f"{j + 1}{i + 1}" + "}$"
                         if self.is_valid(s_param):
                             ax2.plot(
                                 self.frequencies / 1e9,
@@ -202,7 +202,7 @@ class Postprocesor:
                     ax2.grid(True)
 
                 fig.savefig(
-                    cfg.arguments.output / f"S_x{i+1}.png", bbox_inches="tight", transparent=cfg.arguments.transparent
+                    cfg.arguments.output / f"S_x{i + 1}.png", bbox_inches="tight", transparent=cfg.arguments.transparent
                 )
 
     def render_diff_pair_s_params(self) -> None:
@@ -333,7 +333,9 @@ class Postprocesor:
                 axs[1].set_ylim([min(bottom, -90), max(top, 90)])
 
                 fig.savefig(
-                    cfg.arguments.output / f"Z_{port+1}.png", bbox_inches="tight", transparent=cfg.arguments.transparent
+                    cfg.arguments.output / f"Z_{port + 1}.png",
+                    bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
                 )
 
     def get_impedance_boundaries(self, port: int, diff: bool = False) -> tuple[float, float]:
@@ -439,7 +441,7 @@ class Postprocesor:
                 )
                 axes.legend(bbox_to_anchor=(1.0, 0.5), loc="center left")
                 fig.savefig(
-                    cfg.arguments.output / f"S_{port+1}{port+1}_smith.png",
+                    cfg.arguments.output / f"S_{port + 1}{port + 1}_smith.png",
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )

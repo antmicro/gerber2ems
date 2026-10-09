@@ -14,8 +14,10 @@ import numpy as np
 
 import gerber2ems.importer as importer
 from gerber2ems.config import Config
-from gerber2ems.constants import BASE_DIR, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
+from gerber2ems.constants import BASE_DIR, FAB_DIR, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
+from gerber2ems.gerber_io import GerberFile
 from gerber2ems.postprocess import Postprocesor
+from gerber2ems.preprocess import extract_ports_from_gerbers
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -34,6 +36,7 @@ def main() -> None:
             args.geometry,
             args.simulate,
             args.postprocess,
+            args.preprocess,
             args.all,
         ]
     ):
@@ -42,13 +45,29 @@ def main() -> None:
 
     create_dir(BASE_DIR)
 
+    if args.preprocess:
+        logger.info("Preprocessing board before simulation")
+        importer.import_stackup()
+        importer.import_port_positions()
+        if not cfg.trace_under_test:
+            raise ValueError("`gerber2ems --preprocess` requires `trace_under_test` in simulation.json")
+        nn = (
+            [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
+            if cfg.trace_under_test.endswith("_Diff")
+            else cfg.trace_under_test
+        )
+        cfg.ports = extract_ports_from_gerbers(
+            {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
+            nn,
+        )
+
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
         geometry()
     if args.simulate or args.all:
         logger.info("Running simulation")
-        # create_dir(SIMULATION_DIR, cleanup=True)
+        create_dir(SIMULATION_DIR, cleanup=True)
         simulate()
     if args.postprocess or args.all:
         logger.info("Postprocessing")
@@ -62,7 +81,9 @@ def geometry() -> None:
 
     sim = Simulation()
     importer.import_stackup()
-    importer.import_port_positions()
+    if any(p.position is None and p.pad is None for p in cfg.ports):
+        # skip loading ports if they've been loaded in `--preprocess`
+        importer.import_port_positions()
     importer.process_gbrs_to_pngs()
 
     top_layer_name = cfg.get_metals()[0].file
@@ -95,7 +116,10 @@ def simulate() -> None:
             sim.run(index)
 
     if len(sim.ports) == 0:
-        sim.add_virtual_ports()
+        if all(p.is_port_v2() for p in cfg.ports):
+            sim.add_ports()
+        else:
+            sim.add_virtual_ports()
 
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
     post = Postprocesor(frequencies, len(cfg.ports))
@@ -139,6 +163,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-g", "--geometry", action="store_true", help="Create geometry")
     parser.add_argument("-s", "--simulate", action="store_true", help="Run simulation")
     parser.add_argument("-p", "--postprocess", action="store_true", help="Postprocess the data")
+    parser.add_argument("--preprocess", action="store_true", help="Preprocess the data")
     parser.add_argument(
         "-a", "--all", action="store_true", help="Execute all steps (geometry, simulation, postprocessing)"
     )

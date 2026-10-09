@@ -25,6 +25,7 @@ CONFIG_FORMAT_VERSION = "1.4"
 
 ## v1.4
 * `dB_margin` -> `db_margin` (`dB_margin` support is kept as alias)
+* Add `trace_under_test`
 
 ## v1.3
 * Add `sim_length`

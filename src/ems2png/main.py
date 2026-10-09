@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Export pngs used for blender visualization purposes."""
+
 import logging
 import re
 import sys

@@ -200,7 +200,7 @@ class Simulation:
         """Get z offset of virtual ref plane linked to port layer."""
         if port_config.layer == 0:
             return port_config.length
-        return self.get_metal_layer_offset(len(cfg.get_metals())) - port_config.length
+        return self.get_metal_layer_offset(len(cfg.get_metals()) - 1) - port_config.length
 
     def get_v2_port_z_span(self, port_config: PortConfig) -> tuple[float, float]:
         """Get Z coordinates that limit port."""
@@ -210,6 +210,7 @@ class Simulation:
             if port_config.plane
             else self.get_virt_ref_plane_offset(port_config)
         )
+        print(start_z, stop_z)
         return start_z, stop_z
 
     def add_port_grid(self) -> None:
@@ -294,9 +295,11 @@ class Simulation:
             return
 
         pos = port_config.position
-        w2 = port_config.width / 2
-        start = [pos.x - w2, pos.y - w2, start_z]
-        stop = [pos.x + w2, pos.y + w2, stop_z]
+        pp = port_config.get_pad()
+        w2 = deepcopy(pp.size)
+        w2.scale(0.5)
+        start = [pos.x - w2.x, pos.y - w2.y, start_z]
+        stop = [pos.x + w2.x, pos.y + w2.y, stop_z]
         logger.debug("Adding lumped port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddLumpedPort(
@@ -320,13 +323,20 @@ class Simulation:
         self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
 
         patch_start, patch_stop = deepcopy(port_config.position), deepcopy(port_config.position)
-        margin = port_config.width / 2
+        margin = port_config.get_pad().size.x / 2
 
         for ref in port_config.get_ref_pads():
             ref_pos, ref_size = ref.position, min(ref.size.x, ref.size.y) / 2
-            self.add_cylinder(self.via_material, ref_pos, ref_size, start_z, stop_z, ObjectPriority.PORT_V2_REF_STITCH)
-            patch_start = Point(min(patch_start.x, ref_pos.x), min(patch_start.y, ref_pos.y))
-            patch_stop = Point(max(patch_stop.x, ref_pos.x), max(patch_stop.y, ref_pos.y))
+            self.add_cylinder(
+                self.via_material,
+                ref_pos,
+                ref_size,
+                min(start_z, stop_z),
+                abs(start_z - stop_z),
+                ObjectPriority.PORT_V2_REF_STITCH,
+            )
+            patch_start = patch_start.bbox_min(ref_pos)
+            patch_stop = patch_stop.bbox_max(ref_pos)
             margin = max(margin, ref_size)
 
         self.plane_material.AddBox(
@@ -388,7 +398,7 @@ class Simulation:
         pos: Point,
         radius: float,
         z_start: float,
-        z_stop: float,
+        height: float,
         prio: int,
         aprox_vert: int = VIA_POLYGON,
     ) -> None:
@@ -398,7 +408,7 @@ class Simulation:
         for i in range(aprox_vert):
             x_coords.append(pos.x + np.sin(i / aprox_vert * 2 * np.pi) * radius)
             y_coords.append(pos.y + np.cos(i / aprox_vert * 2 * np.pi) * radius)
-        material.AddLinPoly([x_coords, y_coords], "z", z_start, z_stop, priority=prio)
+        material.AddLinPoly([x_coords, y_coords], "z", z_start, height, priority=prio)
 
     def add_via(self, x_pos: float, y_pos: float, diameter: float) -> None:
         """Add via at specified position with specified diameter."""
@@ -520,10 +530,10 @@ class Simulation:
 
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
-        for index, port in enumerate(self.ports):
+        for idx, port in enumerate(self.ports):
             try:
-                port.CalcPort(str(result_path), frequencies)
-                logger.debug("Found data for port %d", index)
+                port.CalcPort(str(result_path), frequencies, ref_impedance=cfg.ports[idx].impedance)
+                logger.debug("Found data for port %d", idx)
             except IOError:
                 logger.error("Port data files do not exist. Did you run simulation step?")
                 sys.exit(1)

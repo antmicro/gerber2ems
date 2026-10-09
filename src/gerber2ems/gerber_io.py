@@ -1,16 +1,18 @@
 """Module provides classes related to gerber file parsing and representation."""
 
+from __future__ import annotations
+
 import logging
 import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import partial
-from math import cos, radians, sin
+from math import cos, inf, radians, sin
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional
 
-from gerber2ems.common import Point
+from gerber2ems.common import PadProp, Point
 from gerber2ems.constants import BASE_UNIT, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,7 @@ class Pad:
     """Net this pad is connected to"""
     pos: Point
     """Pad coordinates"""
-    pin_ref: Optional[PadMeta] = None
+    pin_ref: PadMeta | None = None
     """Pad metadata"""
     additive: bool = True
     """If false pad draw will work like eraser"""
@@ -70,6 +72,18 @@ class Pad:
     """Rotation of aperture"""
     scale: float = 1
     """Scale of aperture"""
+    _aperture_data: Aperture | None = None
+    """Name/key of aperture used to create ths pad"""
+    layer: int | None = None
+    """index of cooper layer"""
+
+    def to_pad_prop(self) -> PadProp:
+        """Convert to `PadProp`."""
+        if not self._aperture_data:
+            raise ValueError(f"Aperture data can not be retrieved for {self}")
+        ap_bbox = self._aperture_data.data.bbox(self.pos, self.rotation, self.scale, self.mirror, 0)
+        pad_id = (self.pin_ref.comp_ref + "," + self.pin_ref.pin_num) if self.pin_ref else None
+        return PadProp(self.pos, ap_bbox[0].vector_to(ap_bbox[1]), pad_id)
 
 
 @dataclass
@@ -158,6 +172,16 @@ class ApertureType:
             c.stop.move(pos)
             c.rotate(post_rot)
         return cont
+
+    def bbox(self, pos: Point | None, rot: float, scale: float, mirror: str, post_rot: float) -> tuple[Point, Point]:
+        """Calculate bbox of pad aperture."""
+        pmin, pmax = Point(inf, inf), Point(-inf, -inf)
+        contour_points = (
+            p for cont in self.contours(pos, rot, scale, mirror, post_rot) for p in (cont.start, cont.stop)
+        )
+        for p in contour_points:
+            pmin, pmax = pmin.bbox_min(p), pmax.bbox_max(p)
+        return pmin, pmax
 
 
 @dataclass
@@ -661,13 +685,13 @@ class GerberFile:
             self.parser.pos = pos
         elif opi == 3:
             aperture = self.apertures.get(self.parser.aperture, None)
-            pin_ref = None if aperture is None or aperture.function != "ComponentPad" else self.parser.refpin
             self.pads.append(
                 Pad(
                     aperture=self.parser.aperture,
+                    _aperture_data=aperture,
                     net=self.parser.net,
                     pos=pos,
-                    pin_ref=pin_ref,
+                    pin_ref=self.parser.refpin,
                     additive=self.parser.additive,
                     mirror=self.parser.mirror,
                     rotation=self.parser.rotation,

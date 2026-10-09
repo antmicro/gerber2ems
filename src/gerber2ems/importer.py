@@ -19,7 +19,7 @@ import numpy as np
 import PIL.Image
 from nanomesh import Image, Mesher2D
 
-from gerber2ems.common import Point, mm_to_sim_space
+from gerber2ems.common import Point, mm_to_sim
 from gerber2ems.config import Config, get_ports_from_all_pos_files
 from gerber2ems.constants import BASE_UNIT, FAB_DIR, GEOMETRY_DIR, STACKUP_FORMAT_VERSION, UNIT_MULTIPLIER
 
@@ -440,7 +440,7 @@ def get_vias() -> list[list[float]]:
             # Regex for finding drill sizes (in mm)
             match = re.fullmatch("T([0-9]+)C([0-9]+.[0-9]+)\\n", line)
             if match is not None:
-                drills[int(match.group(1))] = mm_to_sim_space(float(match.group(2)))
+                drills[int(match.group(1))] = mm_to_sim(float(match.group(2)))
 
             # Regex for finding drill switches (in mm)
             match = re.fullmatch("T([0-9]+)\\n", line)
@@ -452,13 +452,13 @@ def get_vias() -> list[list[float]]:
             if match is not None:
                 if current_drill in drills:
                     logger.debug(
-                        f"Adding via at: X{mm_to_sim_space(float(match.group(1)))} \
-                        Y{mm_to_sim_space(float(match.group(2)))}"
+                        f"Adding via at: X{mm_to_sim(float(match.group(1)))} \
+                        Y{mm_to_sim(float(match.group(2)))}"
                     )
                     vias.append(
                         [
-                            mm_to_sim_space(float(match.group(1))),
-                            mm_to_sim_space(float(match.group(2))),
+                            mm_to_sim(float(match.group(1))),
+                            mm_to_sim(float(match.group(2))),
                             drills[current_drill],
                         ]
                     )

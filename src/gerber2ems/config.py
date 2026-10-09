@@ -7,6 +7,7 @@ import json
 import logging
 import sys
 from argparse import Namespace
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import cos, pi, sin, sqrt
@@ -18,59 +19,39 @@ import yaml
 from serde import Untagged, coerce, field, from_dict, serde
 from serde.json import to_json
 
-from gerber2ems.common import Point, mm_to_sim_space
+from gerber2ems.common import PadProp, Point, mm_to_sim
 from gerber2ems.constants import CONFIG_FORMAT_VERSION, DEFAULT_CONFIG_PATH, FAB_DIR, GUIDELINES_FILE, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
 
 
-@serde(type_check=coerce)
+@serde(type_check=coerce, tagging=Untagged, skip_if_none=True)
 @dataclass
-class PadProp:
-    position: Point
-    """Position of pad that is reference point for port"""
-    size: Point
-    """Size of pad that is reference point for port"""
-    id: str | None = None
-    """Expected name format: `J15,9` (component-designator,pin-number)
-    This will be matched to pad designated with `%TO.P,J15,9,net_name*%` in gerber file"""
-
-    def sim_pad(self) -> PadProp:
-        return PadProp(self.position.mm_to_sim_space(), self.size.mm_to_sim_space())
-
-    @classmethod
-    def from_id(cls, id: str) -> PadProp:
-        raise NotImplementedError(
-            "Getting pad position/size by pad name is not yet supported! Use `reference_pad.position`!"
-        )
-
-
-@serde(type_check=coerce, tagging=Untagged)
 class PortConfig:
     """Class representing and parsing port config."""
 
     name: str = "Unnamed"
     position: Point | None = field(default=None, skip=True)
+    """[DEPRECATED: Use PortConfig.pad]"""
     direction: float | None = field(default=None, skip=True)
     width: float = 200
+    """[DEPRECATED: Use PortConfig.pad]"""
     length: float = 1000
     impedance: float = 50
     layer: int = 0
     plane: int | None = None
-    reference_pad: list[PadProp | str] = field(default_factory=list)
+    pad: PadProp | None = None
+    reference_pad: Sequence[PadProp | str] = field(default_factory=list)
     """List of pads that are reference point for port (eg. ground pin of IC)
     Can be either `PadProp` or name of pad"""
     db_margin: float = field(default=-15, alias=["dB_margin"])
     excite: bool = False
 
     def __post_init__(self) -> None:
+        """Resolve v2 port properties."""
         if self.is_port_v2():
             self.plane = None
-            for i in range(len(self.reference_pad)):
-                pad = self.reference_pad[i]
-                if isinstance(pad, str):
-                    self.reference_pad[i] = PadProp.from_id(pad)
 
     @staticmethod
     def with_name(p: str) -> PortConfig:
@@ -85,10 +66,16 @@ class PortConfig:
 
     def get_ref_pads(self) -> list[PadProp]:
         """Return reference pad position & size."""
+        for i in range(len(self.reference_pad)):
+            pad = self.reference_pad[i]
+            if isinstance(pad, str):
+                f"{self.name} reference_pad {i} ({pad}) has not been resolved: run `gerber2ems -c`"
         return [pad.sim_pad() for pad in self.reference_pad if not isinstance(pad, str)]
 
     def get_pad(self) -> PadProp:
         """Return simulation pad position & size."""
+        if self.pad:
+            return self.pad.sim_pad()
         if not self.position or not self.direction:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
         angle = self.direction / 360 * 2 * pi
@@ -96,7 +83,9 @@ class PortConfig:
         size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
         # TODO: verify position calc correctness
         pos = Point(self.position.x + size.x / 2, self.position.y)
-        return PadProp(pos, size)
+        self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())
+
+        return self.pad.sim_pad()
 
 
 @serde(type_check=coerce)
@@ -173,7 +162,7 @@ class LayerConfig:
         self.thickness = 0
         self.name = config["name"]
         if config["thickness"] is not None:
-            self.thickness = mm_to_sim_space(config["thickness"])
+            self.thickness = mm_to_sim(config["thickness"])
         if self.kind == LayerKind.METAL:
             self.file = config["name"].replace(".", "_")
         elif self.kind == LayerKind.SUBSTRATE:
@@ -265,6 +254,7 @@ class _Config:
     pcb_width: int = field(default=0, skip=True)
     pcb_height: int = field(default=0, skip=True)
     layers: List[LayerConfig] = field(default_factory=list, skip=True)
+    trace_under_test: str | None = None
     arguments: Namespace = field(
         default_factory=Namespace, skip=True, deserializer=lambda _: None, serializer=lambda _: None
     )
@@ -498,6 +488,7 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
         logger.error("Config file doesn't exist: %s", cfg_path)
         sys.exit(1)
 
+    json_cfg: dict[str, Any] = {}
     with cfg_path.open(mode="r", encoding="utf-8") as file:
         try:
             json_cfg = json.load(file)
@@ -508,28 +499,25 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
     if len(json_cfg) == 0:
         json_cfg = {"format_version": CONFIG_FORMAT_VERSION}
 
-    if not json_cfg.get("ports", []):
-        ports = [PortConfig.with_name(str(p[0])) for p in get_ports_from_all_pos_files()]
-        ports[-1].excite = True
-        if len(ports) >= 4:
-            ports[-3].excite = True
-        json_cfg["ports"] = ports
-        if len(ports) in [2, 3]:
-            json_cfg["traces"] = [
-                {
-                    "start": ports_pnp[-1][0] - 1,
-                    "stop": ports_pnp[-2][0] - 1,
-                }
-            ]
-        if len(ports) >= 4:
-            json_cfg["differential_pairs"] = [
-                {
-                    "start_p": ports_pnp[-1][0] - 1,
-                    "stop_p": ports_pnp[-2][0] - 1,
-                    "start_n": ports_pnp[-3][0] - 1,
-                    "stop_n": ports_pnp[-4][0] - 1,
-                }
-            ]
+    # if not json_cfg.get("ports", []):
+    #     ports_numbers = [p[0] for p in get_ports_from_all_pos_files()]
+    #     ports = [PortConfig.with_name(str(p)) for p in ports_numbers]
+    #     ports[-1].excite = True
+    #     if len(ports) >= 4:
+    #         ports[-3].excite = True
+    #     json_cfg["ports"] = ports
+    #     if len(ports) in [2, 3]:
+    #         json_cfg["traces"] = [{"start": ports_numbers[-1], "stop": ports_numbers[-2]}]
+    #     if len(ports) >= 4:
+    #         json_cfg["differential_pairs"] = [
+    #             {
+    #                 "start_p": ports_numbers[-1],
+    #                 "stop_p": ports_numbers[-2],
+    #                 "start_n": ports_numbers[-3],
+    #                 "stop_n": ports_numbers[-4],
+    #             }
+    #         ]
+    json_cfg.setdefault("ports", [])
     return json_cfg
 
 
@@ -545,7 +533,7 @@ def get_ports_from_file(filename: Path) -> list[tuple[int, Point, float]]:
                 ports.append(
                     (
                         number - 1,
-                        Point(mm_to_sim_space(float(row[3])), mm_to_sim_space(float(row[4]))),
+                        Point(mm_to_sim(float(row[3])), mm_to_sim(float(row[4]))),
                         float(row[5]),
                     )
                 )
