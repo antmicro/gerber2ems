@@ -31,7 +31,7 @@ port_count: int = 0
 class PortConfig:
     """Class representing and parsing port config."""
 
-    name: str = "Unnamed"
+    name: str = field(default="Unnamed", alias=["number"])
     position: Point | None = field(default=None, skip=True)
     """[DEPRECATED: Use PortConfig.pad]"""
     direction: float | None = field(default=None, skip=True)
