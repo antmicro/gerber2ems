@@ -18,21 +18,6 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
     and build a port config referencing them as reference pads.
 
     """
-    # Pads of the requested net, grouped by component
-    net_pads_by_comp: dict[str, list[Pad]] = defaultdict(list)
-    # All ground pads, grouped by component
-    gnd_pads_by_comp: dict[str, list[PadProp]] = defaultdict(list)
-
-    for layer, gerber in gerbers.items():
-        for pad in gerber.pads:
-            if pad.net in net_name and pad.pin_ref is not None:
-                pad.layer = layer
-                net_pads_by_comp[pad.pin_ref.comp_ref].append(pad)
-
-        for pad in gerber.pads:
-            if pad.net == "GND" and pad.pin_ref is not None:
-                pad.layer = layer
-                gnd_pads_by_comp[pad.pin_ref.comp_ref].append(pad.to_pad_prop())
 
     def get_board_offset() -> tuple[float, float]:
         """Calculate board offset in gerber files."""
@@ -51,17 +36,38 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
 
     offset = Point(*get_board_offset())
     offset.scale(-1)
+    # Pads of the requested net, grouped by component
+    net_pads_by_comp: dict[str, list[Pad]] = defaultdict(list)
+    # All ground pads, grouped by component
+    gnd_pads_by_comp: dict[str, list[PadProp]] = defaultdict(list)
+    all_gnd = []
+
+    for layer, gerber in gerbers.items():
+        for pad in gerber.pads:
+            if pad.net in net_name and pad.pin_ref is not None:
+                pad.layer = layer
+                net_pads_by_comp[pad.pin_ref.comp_ref].append(pad)
+
+        for pad in gerber.pads:
+            if pad.net == "GND" and pad.pin_ref is not None:
+                pad.layer = layer
+                p = pad.to_pad_prop()
+                p.position.move(offset)
+                gnd_pads_by_comp[pad.pin_ref.comp_ref].append(p)
+                all_gnd.append(p)
 
     ports: list[PortConfig] = []
     net_w_added_port = []
+
+    def find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp]):
+        # Closest distance to any ground pad -> search radius (3x this)
+        closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
+        radius = closest_gnd_distance * 3
+
+        return [p.mm_pad() for p in gnd_pads if p.position.distance_to(signal_pad.position) <= radius]
+
     for comp_ref, pads in net_pads_by_comp.items():
         gnd_pads = gnd_pads_by_comp.get(comp_ref, [])
-        if not gnd_pads:
-            continue
-
-        for p in gnd_pads:
-            p.position.move(offset)
-            # p.position=p.position.mm_to_sim_space()
 
         for gerber_pad in pads:
             gerber_pad.pos.move(offset)
@@ -76,13 +82,11 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             if not matching_port_from_pnp:
                 # pad not in pnp (probably slicer has mindfully excluded it)
                 continue
+            if gerber_pad.layer != matching_port_from_pnp.layer:
+                # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
+                continue
 
-            # Closest distance to any ground pad -> search radius (3x this)
-            closest_gnd_distance = min((pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
-            print(closest_gnd_distance)
-            radius = closest_gnd_distance * 3
-
-            close_pads = [p.mm_pad() for p in gnd_pads if p.position.distance_to(pad.position) <= radius]
+            close_gnd_pads = find_gnd(pad, gnd_pads) if gnd_pads else find_gnd(pad, all_gnd)
 
             if matching_port_from_pnp.length == 10000 and matching_port_from_pnp.width == 2000:
                 matching_port_from_pnp.length = 0
@@ -94,8 +98,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 matching_port_from_pnp.pad.size = Point(
                     matching_port_from_pnp.width, matching_port_from_pnp.width
                 ).sim_to_mm()
-            matching_port_from_pnp.reference_pad = close_pads
-            matching_port_from_pnp.layer = gerber_pad.layer or matching_port_from_pnp.layer or 0
+            matching_port_from_pnp.reference_pad = close_gnd_pads
             matching_port_from_pnp.name = (
                 str(len(ports) + 1)
                 if matching_port_from_pnp.name in ("Unnamed", "", None)
