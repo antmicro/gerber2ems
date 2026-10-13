@@ -2,6 +2,8 @@
 
 """Main module of EM-Simulator."""
 
+import json
+
 import argparse
 import logging
 import shutil
@@ -51,11 +53,16 @@ def main() -> None:
         importer.import_port_positions()
         if not cfg.trace_under_test:
             raise ValueError("`gerber2ems --preprocess` requires `trace_under_test` in simulation.json")
-        nn = (
-            [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
-            if cfg.trace_under_test.endswith("_Diff")
-            else cfg.trace_under_test
-        )
+        netinfo_path = Path.cwd() / "netinfo.json"
+        if netinfo_path.exists():
+            netinfo = json.load(open(netinfo_path))
+            nn = [net["name"].replace(",", r"\u002C") for net in netinfo["nets"]]
+        else:
+            nn = (
+                [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
+                if cfg.trace_under_test.endswith("_Diff")
+                else cfg.trace_under_test
+            )
         cfg.ports = extract_ports_from_gerbers(
             {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
             nn,
