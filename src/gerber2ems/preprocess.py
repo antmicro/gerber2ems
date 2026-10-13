@@ -53,6 +53,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 pad.layer = layer
                 p = pad.to_pad_prop()
                 p.position.move(offset)
+                p.size.scale(0.7)
                 gnd_pads_by_comp[pad.pin_ref.comp_ref].append(p)
                 all_gnd.append(p)
 
@@ -94,6 +95,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             matching_port_from_pnp.length = matching_port_from_pnp.length or 3600
             matching_port_from_pnp.plane = None
             matching_port_from_pnp.pad = pad.mm_pad()
+            matching_port_from_pnp.pad.size.scale(0.7)
             if matching_port_from_pnp.width:
                 matching_port_from_pnp.pad.size = Point(
                     matching_port_from_pnp.width, matching_port_from_pnp.width
