@@ -3,8 +3,9 @@
 
 import os
 from pathlib import Path
+from typing import Dict, List
+
 from paraview.simple import *  # type: ignore #noqa: F403
-from typing import List, Dict
 
 
 def get_sim_results(port: str) -> list[str]:

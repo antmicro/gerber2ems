@@ -1,14 +1,15 @@
 """Module provides classes related to gerber file parsing and representation."""
 
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Dict, Optional, Callable, Any, ClassVar
-from enum import Enum
-import re
 import logging
-from functools import partial
-from math import cos, sin, radians
+import re
 from copy import deepcopy
+from dataclasses import dataclass, field
+from enum import Enum
+from functools import partial
+from math import cos, radians, sin
+from pathlib import Path
+from typing import Any, Callable, ClassVar, Dict, List, Optional
+
 from gerber2ems.constants import BASE_UNIT, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)

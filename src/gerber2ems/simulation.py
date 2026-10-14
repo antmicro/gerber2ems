@@ -9,23 +9,23 @@ import threading
 from multiprocessing import Pool
 from pathlib import Path
 from types import TracebackType
-from typing import Tuple, List, Any, Self
+from typing import Any, List, Self, Tuple
 
 import CSXCAD
 import numpy as np
 import openEMS
 
-from gerber2ems.config import Config, PortConfig, LayerKind
+import gerber2ems.importer as importer
+from gerber2ems.config import Config, LayerKind, PortConfig
 from gerber2ems.constants import (
-    UNIT_MULTIPLIER,
     BASE_UNIT,
-    SIMULATION_DIR,
     GEOMETRY_FILE,
+    SIMULATION_DIR,
+    UNIT_MULTIPLIER,
     VIA_POLYGON,
 )
-import gerber2ems.importer as importer
+from gerber2ems.gerber_io import Aperture, ApertureRect, Pad, Position
 from gerber2ems.grid_gen import GridGenerator
-from gerber2ems.gerber_io import Pad, ApertureRect, Aperture, Position
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -159,7 +159,6 @@ class Simulation:
 
         offset = 0
         index = 0
-        contours = []
         with Pool(processes=4, initargs=(cfg._config,), initializer=Config.set_config) as p:
             contours = p.map(
                 importer.get_triangles,
@@ -175,15 +174,15 @@ class Simulation:
                 self.add_contours(next(icontours), offset, index)
                 index += 1
 
-    def add_contours(self, contours: np.ndarray, z_height: float, layer_index: int) -> None:
+    def add_contours(self, contours: list[importer.Polygon], z_height: float, layer_index: int) -> None:
         """Add contours as flat polygons on specified z-height."""
         logger.debug("Adding contours on z=%f", z_height)
         for contour in contours:
             points: List[List[float]] = [[], []]
             for point in contour:
                 # Half of the border thickness is subtracted as image is shifted by it
-                points[0].append((point[1]))
-                points[1].append(cfg.pcb_height - point[0])
+                points[0].append((point.y))
+                points[1].append(cfg.pcb_height - point.x)
 
             self.gerber_materials[layer_index].AddPolygon(points, "z", z_height, priority=1)
 

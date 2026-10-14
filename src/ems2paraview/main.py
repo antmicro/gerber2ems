@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Main script."""
 
-import os
 import argparse
+import os
 import subprocess
 from pathlib import Path
 

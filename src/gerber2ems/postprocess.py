@@ -1,18 +1,18 @@
 """Module contains functions useful for postprocessing data."""
 
-from typing import Tuple, Optional, Dict, List
+import csv
 import logging
 import os
-import sys
-import csv
 import re
+import sys
 from cmath import rect
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
+import numpy as np
 import skrf
+from matplotlib.axes import Axes
 
 from gerber2ems.config import Config, Interface
 from gerber2ems.constants import PLOT_STYLE, SIMULATION_DIR

@@ -1,26 +1,30 @@
 """Module containing functions for importing gerbers."""
 
+from __future__ import annotations
+
+import enum
 import json
-import subprocess
-import os
 import logging
-from typing import List, Tuple
-import sys
+import os
 import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from enum import IntEnum
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
-import PIL.Image
+
 import numpy as np
+import PIL.Image
 from nanomesh import Image, Mesher2D
-import matplotlib as mpl
 
 from gerber2ems.config import Config, get_ports_from_file
 from gerber2ems.constants import (
-    GEOMETRY_DIR,
-    UNIT_MULTIPLIER,
     BASE_UNIT,
+    GEOMETRY_DIR,
     STACKUP_FORMAT_VERSION,
+    UNIT_MULTIPLIER,
 )
 
 logger = logging.getLogger(__name__)
@@ -110,7 +114,7 @@ def gbr_to_png(edge_filename: Path, gerber_filename: Path) -> None:
         os.remove(not_cropped_name)
 
 
-def get_dimensions(input_filename: str) -> Tuple[int, int]:
+def get_dimensions(input_filename: str) -> tuple[int, int]:
     """Return board dimensions based on png.
 
     Opens PNG found in `ems/geometry` directory,
@@ -126,7 +130,216 @@ def get_dimensions(input_filename: str) -> Tuple[int, int]:
     return (width, height)
 
 
-def get_triangles(input_filename: str) -> np.ndarray:
+@dataclass(frozen=True)
+class Point:
+    """2D space point coordintes."""
+
+    x: float
+    y: float
+
+
+@dataclass(frozen=True)
+class Edge:
+    """Starting/ending points defining a segment in 2D space."""
+
+    start: Point
+    end: Point
+
+    def rev(self) -> Edge:
+        """Return reversed segment."""
+        return Edge(self.end, self.start)
+
+
+Polygon = list[Point]
+PolygonEdges = list[Edge]
+
+
+class TriangleMerger:
+    """Class for merging list of triangles into larger polygons."""
+
+    class __TripletOrientation(IntEnum):
+        CLOCKWISE = enum.auto()
+        COUNTERCLOCKWISE = enum.auto()
+        COLINEAR = enum.auto()
+        COLINEAR_DISJOINT = enum.auto()
+
+    @classmethod
+    def _orientation(cls, p1: Point, p2: Point, p3: Point) -> __TripletOrientation:
+        """Determine the orientation of three points (counter-clockwise test)."""
+        cross = (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x)
+        if cross > 0:
+            return TriangleMerger.__TripletOrientation.CLOCKWISE
+        if cross < 0:
+            return TriangleMerger.__TripletOrientation.COUNTERCLOCKWISE
+        if TriangleMerger._on_segment(p3, p1, p2):
+            return TriangleMerger.__TripletOrientation.COLINEAR
+        return TriangleMerger.__TripletOrientation.COLINEAR_DISJOINT
+
+    @classmethod
+    def _on_segment(cls, p: Point, a: Point, b: Point) -> bool:
+        """Check if point p lies on segment ab (assuming p, a, b are collinear).
+
+        Performs a bounding box check to determine if the point is within the
+        segment's extent. Used to detect shared vertices in collinear cases.
+
+        Returns:
+        True if p lies on segment ab, False otherwise.
+
+        """
+        return min(a.x, b.x) <= p.x <= max(a.x, b.x) and min(a.y, b.y) <= p.y <= max(a.y, b.y)
+
+    @classmethod
+    def _segments_intersect(cls, e1: Edge, e2: Edge) -> bool:
+        """Determine if segment `e1` intersects segment `e2` using the CCW orientation method.
+
+        Returns:
+        True if the segments intersect, False otherwise.
+
+        """
+        d1 = TriangleMerger._orientation(e1.start, e2.start, e1.end)
+        d2 = TriangleMerger._orientation(e1.start, e2.end, e1.end)
+        d3 = TriangleMerger._orientation(e2.start, e1.start, e2.end)
+        d4 = TriangleMerger._orientation(e2.start, e1.end, e2.end)
+
+        # Collinear cases
+        if any(d == TriangleMerger.__TripletOrientation.COLINEAR for d in (d1, d2, d3, d4)):
+            return True
+
+        # General case:
+        # The endpoints of both segments lie on opposite sides of the other segment's line.
+        if d1 != d2 and d3 != d4:
+            return True
+
+        return False
+
+    @classmethod
+    def _polygon_self_intersects(cls, polygon: PolygonEdges) -> bool:
+        """Check if a polygon self-intersects by testing all non-adjacent edge pairs.
+
+        Returns:
+        True if the polygon self-intersects, False otherwise.
+
+        """
+        n = len(polygon)
+        for i in range(n):
+            for j in range(i + 2, n):
+                # Skip adjacent edges that share a vertex
+                if i == 0 and j == n - 1:
+                    continue
+                if cls._segments_intersect(polygon[i], polygon[j]):
+                    return True
+        return False
+
+    @classmethod
+    def _polygon_edges(cls, vertices: Polygon) -> PolygonEdges:
+        """Return the directed edges of a polygon.
+
+        Edges are returned in counterclockwise order as tuples of (start, end) points.
+
+        Arguments:
+        vertices: List of vertices defining the polygon
+
+        Returns:
+        List of (start, end) edge tuples in CCW order.
+
+        """
+        n = len(vertices)
+        return [Edge(vertices[k], vertices[(k + 1) % n]) for k in range(n)]
+
+    @classmethod
+    def _merge_two_polygons(cls, fa: PolygonEdges, fb: PolygonEdges, edge: Edge) -> PolygonEdges | None:
+        """Merge two adjacent polygons that share a common edge.
+
+        The polygons are represented as dictionaries mapping edges to None values.
+        The merge rotates each polygon to start at the shared edge, removes the shared
+        edge, and concatenates the remaining vertices in the correct order.
+
+        Arguments:
+        fa: List of edges for the first polygon
+        fb: List of edges for the second polygon
+        edge: The shared edge (start, end) being merged along
+
+        Returns:
+        The merged polygon as a list of vertices, or None if the result
+        self-intersects.
+
+        """
+        edge_rev = edge.rev()
+        a_rev, b_rev = edge_rev in fa, edge_rev in fb
+
+        a_idx = fa.index(edge_rev if a_rev else edge)
+        b_idx = fb.index(edge_rev if b_rev else edge)
+
+        # Rotate each polygon to start at the shared edge
+        a = fa[a_idx + 1 :] + fa[:a_idx]
+        b = fb[b_idx + 1 :] + fb[:b_idx]
+
+        # Determine rotation for b based on edge orientation
+        b = list(reversed(b)) if b_rev == a_rev else b
+
+        # Combine the polygons, removing the shared edge
+        merged = a + b
+
+        # Verify the merged polygon doesn't self-intersect
+        if cls._polygon_self_intersects(merged):
+            return None
+
+        return merged
+
+    @classmethod
+    def merge_triangles(cls, triangles: list[Polygon]) -> list[Polygon]:
+        """Merge a list of triangles into maximal non-self-intersecting polygons.
+
+        Two triangles can be merged if they share exactly one edge. The merging
+        process continues until no more merges are possible, producing polygons
+        that exactly fill the same space as the input triangles without holes.
+
+        Arguments:
+        triangles: NumPy array of shape (n, 3, 2) where each triangle has 3
+        vertices with (x, y) coordinates
+
+        Returns:
+        List of merged polygons.
+
+        """
+        polygons = [cls._polygon_edges(tri) for tri in triangles]
+
+        for iteration in range(12):
+            if iteration % 3 == 2:
+                polygons = [poly for poly in reversed(polygons) if poly]
+
+            for poly1_idx, poly1 in enumerate(polygons):
+                if not poly1:
+                    continue
+                poly1_set = set(poly1) | {edge.rev() for edge in poly1}
+                for poly2 in polygons[poly1_idx + 1 :]:
+                    if not poly2:
+                        continue
+
+                    # Find common edges between the two polys
+                    common = poly1_set & set(poly2)
+
+                    # This is simple impl -> merge only merge if exactly one shared edge
+                    if len(common) != 1:
+                        continue
+
+                    # Get the single shared edge
+                    edge = next(iter(common))
+
+                    # Try to merge the polys
+                    merged = cls._merge_two_polygons(poly1, poly2, edge)
+                    if merged is not None:
+                        poly1.clear()
+                        poly1.extend(merged)
+                        poly1_set.remove(edge)
+                        poly2.clear()
+                        break
+
+        # Convert final polys to polygon vertex lists
+        return [[edge.start for edge in poly] for poly in polygons if poly]
+
+
+def get_triangles(input_filename: str) -> list[Polygon]:
     """Triangulate image.
 
     Processes file from `ems/geometry`.
@@ -139,7 +352,7 @@ def get_triangles(input_filename: str) -> np.ndarray:
     gray = image.getchannel("G")
     if gray.getextrema()[1] < 230:  # type:ignore
         # Image is empty - no cooper features on this layer
-        return np.empty((0, 3, 2))
+        return []
     thresh = gray.point(lambda p: 255 if p < 230 else 0)
     cooper_np = np.array(thresh)
     copper = Image(cooper_np)
@@ -147,10 +360,10 @@ def get_triangles(input_filename: str) -> np.ndarray:
     mesher = Mesher2D(copper)
     # These constants are set so there won't be to many triangles.
     # If in some case triangles are too coarse they should be adjusted
-    max_edge_dist = int(60000 / (cfg.pixel_size**2 / 25))
+    max_edge_dist = int(6000000 / cfg.pixel_size**2)
     mesher.generate_contour(max_edge_dist=max_edge_dist, precision=1, group_regions=False)
     mesher.plot_contour()
-    mesh = mesher.triangulate(opts=f"epAq15a{max_edge_dist}")
+    mesh = mesher.triangulate(opts=f"pAq10a{max_edge_dist}S0u")
 
     points = mesh.get("triangle").points
     cells = mesh.get("triangle").cells
@@ -164,54 +377,64 @@ def get_triangles(input_filename: str) -> np.ndarray:
         if not is_copper:
             continue
         cu_triangles.append(
-            [
-                image_to_board_coordinates(t[0]),
-                image_to_board_coordinates(t[1]),
-                image_to_board_coordinates(t[2]),
-            ]
+            Polygon(
+                [
+                    image_to_board_coordinates(t[0]),
+                    image_to_board_coordinates(t[1]),
+                    image_to_board_coordinates(t[2]),
+                ]
+            )
         )
-    cu_triangles_np = np.stack(cu_triangles, axis=0)
 
+    brd_size = image_to_board_coordinates(image.size)
     logger.debug("Found %d triangles for %s", len(cu_triangles), input_filename)
 
     if cfg.arguments.debug:
-        plot_mesh(img_path, image.size, cu_triangles_np)
+        plot_polygons(img_path, cu_triangles, brd_size, "")
 
-    return cu_triangles_np
+    polygons = TriangleMerger.merge_triangles(cu_triangles)
+
+    logger.debug(f"Reduced to {len(polygons)} for {input_filename}")
+    if cfg.arguments.debug:
+        plot_polygons(img_path, polygons, brd_size, "final")
+
+    return polygons
 
 
-def plot_mesh(img_path: Path, img_size: Tuple[int, int], cu_triangles_np: np.ndarray) -> None:
+def plot_polygons(img_path: Path, polygons: list[Polygon], brd_size: Point, name_suffix: str) -> None:
     """Plot cooper mesh to file."""
-    filename = img_path.with_stem(img_path.stem + "_mesh")
-    logger.debug("Saving mesh to file: %s", filename)
-    fig, ax = mpl.pyplot.subplots()
+    from matplotlib import pyplot
+    from matplotlib.patches import Polygon as MplPolygon
 
-    ax.set_xlim(0, image_to_board_coordinates(img_size[0]) / 1000)
-    ylim = image_to_board_coordinates(img_size[1]) / 1000
+    filename = img_path.with_stem(img_path.stem + "_" + name_suffix + "mesh")
+    logger.debug("Saving mesh to file: %s", filename)
+    # Create plot
+    fig, ax = pyplot.subplots()
+
+    # Set limits and aspect
+    ax.set_xlim(0, brd_size.x / 1000)
+    ylim = brd_size.y / 1000
     ax.set_ylim(0, ylim)
-    x, y = cu_triangles_np[:, :, 1].flatten() / 1000, -cu_triangles_np[:, :, 0].flatten() / 1000 + ylim
-    cu_count = cu_triangles_np.shape[0]
     ax.set_aspect("equal")
     ax.set_xlabel("Slice X position [mm]")
     ax.set_ylabel("Slice Y position [mm]")
-    ax.set_title(f"{img_path.stem} triangle mesh")
-    c = np.ones(cu_count)
-    cmap = mpl.colors.ListedColormap("#B87333")
-    ax.tripcolor(x, y, c, triangles=np.arange(cu_count * 3).reshape((cu_count, 3)), edgecolor="k", lw=0.05, cmap=cmap)
-    fig.savefig(
-        filename,
-        dpi=2400,
-        bbox_inches="tight",
-    )
-    mpl.pyplot.close()
+    ax.set_title(f"{img_path.stem} {name_suffix} mesh")
+
+    for poly in polygons:
+        spoly = [(p.y / 1000, -p.x / 1000 + ylim) for p in poly]
+        patch = MplPolygon(spoly, closed=True, lw=0.05, facecolor="skyblue", edgecolor="black")
+        ax.add_patch(patch)
+
+    fig.savefig(filename, dpi=2400, bbox_inches="tight")
+    pyplot.close()
 
 
-def image_to_board_coordinates(point: np.ndarray | int) -> np.ndarray:
+def image_to_board_coordinates(point: tuple[float, float]) -> Point:
     """Transform point coordinates from image to board coordinates."""
-    return point * cfg.pixel_size * UNIT_MULTIPLIER
+    return Point(point[0] * cfg.pixel_size * UNIT_MULTIPLIER, point[1] * cfg.pixel_size * UNIT_MULTIPLIER)
 
 
-def get_vias() -> List[List[float]]:
+def get_vias() -> list[list[float]]:
     """Get via information from excellon file.
 
     Looks for excellon file in `fab` directory. Its filename should end with `-PTH.drl`
@@ -225,7 +448,7 @@ def get_vias() -> List[List[float]]:
 
     drills = {0: 0.0}  # Drills are numbered from 1. 0 is added as a "no drill" option
     current_drill = 0
-    vias: List[List[float]] = []
+    vias: list[list[float]] = []
     with open(os.path.join(os.getcwd(), "fab", drill_filename), "r", encoding="utf-8") as drill_file:
         for line in drill_file.readlines():
             # Regex for finding drill sizes (in mm)
@@ -295,7 +518,7 @@ def import_port_positions() -> None:
     Looks for all PnP files in `fab` folder (files ending with `-pos.csv`)
     Parses them to find port footprints and inserts their position information to config object.
     """
-    ports: List[Tuple[int, Tuple[float, float], float]] = []
+    ports: list[tuple[int, tuple[float, float], float]] = []
     for filename in (Path.cwd() / "fab").glob("*pos.csv"):
         ports += get_ports_from_file(filename)
 

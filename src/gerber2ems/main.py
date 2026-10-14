@@ -2,20 +2,20 @@
 
 """Main module of EM-Simulator."""
 
-import sys
 import argparse
 import logging
-from typing import Any
 import shutil
+import sys
 from pathlib import Path
+from typing import Any
 
 import coloredlogs
 import numpy as np
 
-from gerber2ems.constants import BASE_DIR, SIMULATION_DIR, GEOMETRY_DIR, RESULTS_DIR, GEOMETRY_FILE
-from gerber2ems.postprocess import Postprocesor
-from gerber2ems.config import Config
 import gerber2ems.importer as importer
+from gerber2ems.config import Config
+from gerber2ems.constants import BASE_DIR, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
+from gerber2ems.postprocess import Postprocesor
 
 logger = logging.getLogger(__name__)
 cfg = Config()

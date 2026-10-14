@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
-import sys
+import csv
+import json
 import logging
-from typing import Any, List, Optional, Tuple, Dict
+import sys
+from argparse import Namespace
 from enum import Enum
 from math import sqrt
-from serde import serde, field, coerce, from_dict
-from serde.json import to_json
 from pathlib import Path
-import numpy as np
-import json
-import yaml
-from argparse import Namespace
-import csv
+from typing import Any, Dict, List, Optional, Tuple
 
-from gerber2ems.constants import CONFIG_FORMAT_VERSION, UNIT_MULTIPLIER, BASE_UNIT, DEFAULT_CONFIG_PATH, GUIDELINES_FILE
+import numpy as np
+import yaml
+from serde import coerce, field, from_dict, serde
+from serde.json import to_json
+
+from gerber2ems.constants import BASE_UNIT, CONFIG_FORMAT_VERSION, DEFAULT_CONFIG_PATH, GUIDELINES_FILE, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 port_count: int = 0

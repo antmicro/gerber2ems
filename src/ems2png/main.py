@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """Export pngs used for blender visualization purposes."""
-import typer
-from typing import Annotated
-from pathlib import Path
-import numpy as np
-import vtk
-from vtk.util.numpy_support import vtk_to_numpy
-from scipy import interpolate
-from PIL import Image
-import re
 import logging
-import coloredlogs
+import re
 import sys
-from multiprocessing import Pool, Value, Lock
 from functools import partial
 from math import inf, sqrt
-from typing import Tuple, List, Any
+from multiprocessing import Lock, Pool, Value
+from pathlib import Path
+from typing import Annotated, Any, List, Tuple
+
+import coloredlogs
+import numpy as np
+import typer
+import vtk
+from PIL import Image
+from scipy import interpolate
+from vtk.util.numpy_support import vtk_to_numpy
 
 app = typer.Typer()
 progress_counter = Value("i", 0)

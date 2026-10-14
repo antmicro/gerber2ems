@@ -1,27 +1,29 @@
 """Module provides classes that enable dynamic simulation grid generation."""
 
-from gerber2ems.gerber_io import (
-    GerberFile,
-    TraceSegment,
-    Trace,
-    Position,
-    Pad,
-    Aperture,
-    PlotMode,
-)
-from gerber2ems.config import Config
-from CSXCAD.CSRectGrid import CSRectGrid
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import List, Dict, Callable
 import json
-from math import atan2, pi, floor, log, inf
 import logging
 import sys
 from copy import deepcopy
-from scipy.optimize import fsolve
-import numpy as np
+from dataclasses import dataclass, field
 from functools import partial
+from math import atan2, floor, inf, log, pi
+from pathlib import Path
+from typing import Callable, Dict, List
+
+import numpy as np
+from CSXCAD.CSRectGrid import CSRectGrid
+from scipy.optimize import fsolve
+
+from gerber2ems.config import Config
+from gerber2ems.gerber_io import (
+    Aperture,
+    GerberFile,
+    Pad,
+    PlotMode,
+    Position,
+    Trace,
+    TraceSegment,
+)
 
 logger = logging.getLogger(__name__)
 cfg = Config()
