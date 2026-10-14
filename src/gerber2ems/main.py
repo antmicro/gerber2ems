@@ -2,8 +2,6 @@
 
 """Main module of EM-Simulator."""
 
-import json
-
 import argparse
 import logging
 import shutil
@@ -16,10 +14,9 @@ import numpy as np
 
 import gerber2ems.importer as importer
 from gerber2ems.config import Config
-from gerber2ems.constants import BASE_DIR, FAB_DIR, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
-from gerber2ems.gerber_io import GerberFile
+from gerber2ems.constants import BASE_DIR, DEFAULT_CONFIG_PATH, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
 from gerber2ems.postprocess import Postprocesor
-from gerber2ems.preprocess import extract_ports_from_gerbers
+from gerber2ems.preprocess import preprocess
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -28,9 +25,13 @@ cfg = Config()
 def main() -> None:
     """Run the script."""
     args = parse_arguments()
+
     setup_logging(args)
-    Config.load(args)
+
+    cfg_path = Path(args.config or DEFAULT_CONFIG_PATH).absolute()
+    Config.load(cfg_path, args)
     if args.update_config:
+        cfg.save()
         sys.exit(0)
 
     if not any(
@@ -48,25 +49,7 @@ def main() -> None:
     create_dir(BASE_DIR)
 
     if args.preprocess:
-        logger.info("Preprocessing board before simulation")
-        importer.import_stackup()
-        importer.import_port_positions()
-        if not cfg.trace_under_test:
-            raise ValueError("`gerber2ems --preprocess` requires `trace_under_test` in simulation.json")
-        netinfo_path = Path.cwd() / "netinfo.json"
-        if netinfo_path.exists():
-            netinfo = json.load(open(netinfo_path))
-            nn = [net["name"].replace(",", r"\u002C") for net in netinfo["nets"]]
-        else:
-            nn = (
-                [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
-                if cfg.trace_under_test.endswith("_Diff")
-                else cfg.trace_under_test
-            )
-        cfg.ports = extract_ports_from_gerbers(
-            {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
-            nn,
-        )
+        preprocess()
 
     if args.geometry or args.all:
         logger.info("Creating geometry")

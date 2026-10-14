@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import cos, sin, sqrt
+from math import cos, inf, sin, sqrt
 from typing import Self
 
 from serde import coerce, serde
@@ -93,3 +93,11 @@ class PadProp:
     def mm_pad(self) -> PadProp:
         """Convert pad coordinates from simulation space to real world millimeters."""
         return PadProp(self.position.sim_to_mm(), self.size.sim_to_mm())
+
+
+@dataclass
+class BBox:
+    """Point defining Bounding box in 2D space."""
+
+    min: Point = Point(inf, inf)
+    max: Point = Point(-inf, -inf)

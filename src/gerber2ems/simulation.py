@@ -232,9 +232,10 @@ class Simulation:
         """Add MicroStripLine port based on config."""
         logger.debug(f"Adding port number {port_number}")
 
-        if port_config.position is None or port_config.direction is None:
-            logger.error("Port has no defined position or rotation, skipping")
-            return
+        if port_config.direction is None:
+            raise AssertionError("PortConfig direction is expected to be loaded before adding ports")
+
+        pp = port_config.get_pad()
 
         while port_config.direction < 0:
             port_config.direction += 360
@@ -249,26 +250,10 @@ class Simulation:
             port_config.plane or (1 if port_config.layer == 0 else len(cfg.get_metals()) - 2)
         )
 
-        angle = port_config.direction / 360 * 2 * math.pi
-
-        start = [
-            round(port_config.position.x - (port_config.width / 2) * round(math.cos(angle))),
-            round(port_config.position.y - (port_config.width / 2) * round(math.sin(angle))),
-            round(start_z),
-        ]
-        stop = [
-            round(
-                port_config.position.x
-                + (port_config.width / 2) * round(math.cos(angle))
-                - port_config.length * round(math.sin(angle))
-            ),
-            round(
-                port_config.position.y
-                + (port_config.width / 2) * round(math.sin(angle))
-                + port_config.length * round(math.cos(angle))
-            ),
-            round(stop_z),
-        ]
+        start = [pp.position.x - pp.size.x / 2, pp.position.y - pp.size.y / 2, round(start_z)]
+        stop = [pp.position.x + pp.size.x / 2, pp.position.y + pp.size.y / 2, round(stop_z)]
+        if port_config.direction > 180:
+            start, stop = stop, start
         logger.debug("Adding port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddMSLPort(

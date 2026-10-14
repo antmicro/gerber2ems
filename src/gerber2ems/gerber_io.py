@@ -12,8 +12,8 @@ from math import cos, inf, radians, sin
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional
 
-from gerber2ems.common import PadProp, Point
-from gerber2ems.constants import BASE_UNIT, UNIT_MULTIPLIER
+from gerber2ems.common import BBox, PadProp, Point
+from gerber2ems.constants import BASE_UNIT, FAB_DIR, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 
@@ -698,3 +698,20 @@ class GerberFile:
                     scale=self.parser.scale,
                 )
             )
+
+
+def get_board_bbox_from_gerbers() -> BBox:
+    """Calculate board offset in gerber files."""
+    fab_dir = FAB_DIR
+    edge_cuts_path = list(fab_dir.glob("*Edge_Cuts.gbr"))
+    if len(edge_cuts_path) == 0:
+        logger.error(f"No EdgeCuts gerber in fab dir({fab_dir})")
+        exit(1)
+    edge_cuts = GerberFile(edge_cuts_path[0])
+    bbox = BBox()
+    for seg in edge_cuts.traces["no-net"].segments:
+        bbox.min.x = min(seg.start.x, seg.stop.x, bbox.min.x)
+        bbox.min.y = min(seg.start.y, seg.stop.y, bbox.min.y)
+        bbox.max.x = max(seg.start.x, seg.stop.x, bbox.max.x)
+        bbox.max.y = max(seg.start.y, seg.stop.y, bbox.max.y)
+    return bbox

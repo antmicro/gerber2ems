@@ -17,7 +17,7 @@ from scipy.optimize import fsolve
 from gerber2ems.common import Point
 from gerber2ems.config import Config
 from gerber2ems.constants import FAB_DIR
-from gerber2ems.gerber_io import Aperture, GerberFile, Pad, PlotMode, Trace, TraceSegment
+from gerber2ems.gerber_io import Aperture, GerberFile, Pad, PlotMode, Trace, TraceSegment, get_board_bbox_from_gerbers
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -55,22 +55,7 @@ class GridGenerator:
         self.add_pads: list[Pad] = []
         self.add_z_lines: list[int] = []
         self.add_apertures: dict[str, Aperture] = {}
-        self.get_board_offset()
-
-    def get_board_offset(self) -> None:
-        """Calculate board offset in gerber files."""
-        fab_dir = FAB_DIR
-        edge_cuts_path = list(fab_dir.glob("*Edge_Cuts.gbr"))
-        if len(edge_cuts_path) == 0:
-            logger.error(f"No EdgeCuts gerber in fab dir({fab_dir})")
-            exit(1)
-        edge_cuts = GerberFile(edge_cuts_path[0])
-        [self.xmin, self.xmax, self.ymin, self.ymax] = [inf, -inf, inf, -inf]
-        for seg in edge_cuts.traces["no-net"].segments:
-            self.xmin = min(seg.start.x, seg.stop.x, self.xmin)
-            self.ymin = min(seg.start.y, seg.stop.y, self.ymin)
-            self.xmax = max(seg.start.x, seg.stop.x, self.xmax)
-            self.ymax = max(seg.start.y, seg.stop.y, self.ymax)
+        self.bbox = get_board_bbox_from_gerbers()
 
     def generate_z(self) -> list[int]:
         """Generate grid in Z axis."""
@@ -137,9 +122,9 @@ class GridGenerator:
             self.y.add_lines_from_pads(pads, nets, gbr.apertures)
 
         logger.info("### Grid Generator: generate X axis ###")
-        grid = self.x.compile_grid(grid, self.xmin)
+        grid = self.x.compile_grid(grid, self.bbox.min.x)
         logger.info("### Grid Generator: generate Y axis ###")
-        grid = self.y.compile_grid(grid, self.ymin)
+        grid = self.y.compile_grid(grid, self.bbox.min.y)
 
         # process grid in Z axis
 

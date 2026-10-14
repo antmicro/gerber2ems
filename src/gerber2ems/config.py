@@ -8,11 +8,12 @@ import logging
 import sys
 from argparse import Namespace
 from collections.abc import Sequence
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from math import cos, pi, sin, sqrt
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import yaml
@@ -20,7 +21,7 @@ from serde import Untagged, coerce, field, from_dict, serde
 from serde.json import to_json
 
 from gerber2ems.common import PadProp, Point, mm_to_sim
-from gerber2ems.constants import CONFIG_FORMAT_VERSION, DEFAULT_CONFIG_PATH, FAB_DIR, GUIDELINES_FILE, UNIT_MULTIPLIER
+from gerber2ems.constants import CONFIG_FORMAT_VERSION, FAB_DIR, GUIDELINES_FILE, UNIT_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
@@ -76,13 +77,12 @@ class PortConfig:
         """Return simulation pad position & size."""
         if self.pad:
             return self.pad.sim_pad()
-        if not self.position or not self.direction:
+        if self.position is None or self.direction is None:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
         angle = self.direction / 360 * 2 * pi
         w, h = self.width, self.length
         size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
-        # TODO: verify position calc correctness
-        pos = Point(self.position.x + size.x / 2, self.position.y)
+        pos = Point(self.position.x + (self.width / 2) * cos(angle), self.position.y + (self.width / 2) * sin(angle))
         self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())
 
         return self.pad.sim_pad()
@@ -113,8 +113,8 @@ class DifferentialPairConfig:
     stop_p: int = field(default=1)
     start_n: int = field(default=2)
     stop_n: int = field(default=3)
-    name: Optional[str] = field(default=None)
-    nets: List[str] = field(default_factory=list)
+    name: str | None = field(default=None)
+    nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
     interface: Interface = field(default_factory=Interface)
 
@@ -136,8 +136,8 @@ class SingleEndedConfig:
 
     start: int = field(default=0)
     stop: int = field(default=1)
-    name: Optional[str] = field(default=None)
-    nets: List[str] = field(default_factory=list)
+    name: str | None = field(default=None)
+    nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
     interface: Interface = field(default_factory=Interface)
 
@@ -241,23 +241,24 @@ class _Config:
     """Main config class."""
 
     format_version: str = field(default=CONFIG_FORMAT_VERSION)
-    ports: List[PortConfig] = field(default_factory=list)
+    ports: list[PortConfig] = field(default_factory=list)
     frequency: Frequency = field(default_factory=Frequency)
     max_steps: int | None = field(default=None)
     sim_length: float | None = field(default=None)
     pixel_size: int = field(default=5.0)
     via: Via = field(default_factory=Via)
     grid: Grid = field(default_factory=Grid)
-    traces: List[SingleEndedConfig] = field(default_factory=list)
-    diff_pairs: List[DifferentialPairConfig] = field(default_factory=list, rename="differential_pairs")
+    traces: list[SingleEndedConfig] = field(default_factory=list)
+    diff_pairs: list[DifferentialPairConfig] = field(default_factory=list, rename="differential_pairs")
 
     pcb_width: int = field(default=0, skip=True)
     pcb_height: int = field(default=0, skip=True)
-    layers: List[LayerConfig] = field(default_factory=list, skip=True)
+    layers: list[LayerConfig] = field(default_factory=list, skip=True)
     trace_under_test: str | None = None
     arguments: Namespace = field(
         default_factory=Namespace, skip=True, deserializer=lambda _: None, serializer=lambda _: None
     )
+    unit_multiplier_applied: float = field(default=1, skip=True)
 
     def __post_init__(self) -> None:
         """Validate grid setting."""
@@ -270,14 +271,19 @@ class _Config:
         if not self.max_steps and not self.sim_length:
             self.sim_length = 5
 
-    def _apply_unit_multiplier(self) -> None:
-        self.grid.max *= UNIT_MULTIPLIER
-        self.grid.diagonal *= UNIT_MULTIPLIER
-        self.grid.optimal *= UNIT_MULTIPLIER
-        self.grid.perpendicular *= UNIT_MULTIPLIER
-        self.grid.margin.xy *= UNIT_MULTIPLIER
-        self.grid.margin.z *= UNIT_MULTIPLIER
-        self.via.plating_thickness *= UNIT_MULTIPLIER
+    def _apply_unit_multiplier(self, restore: bool = False) -> None:
+        mul = 1 / self.unit_multiplier_applied if restore else UNIT_MULTIPLIER
+        self.grid.max *= mul
+        self.grid.diagonal *= mul
+        self.grid.optimal *= mul
+        self.grid.perpendicular *= mul
+        self.grid.margin.xy *= mul
+        self.grid.margin.z *= mul
+        self.via.plating_thickness *= mul
+        for port in self.ports:
+            port.width *= mul
+            port.length *= mul
+        self.unit_multiplier_applied *= mul
 
     def _correct_trace_config(self) -> None:
         for trace in self.traces:
@@ -288,9 +294,6 @@ class _Config:
                 pair.start_p, pair.stop_p = pair.stop_p, pair.start_p
             if not self.ports[pair.start_n].excite and self.ports[pair.start_n].excite:
                 pair.start_n, pair.stop_n = pair.stop_n, pair.start_n
-        for port in self.ports:
-            port.width *= UNIT_MULTIPLIER
-            port.length *= UNIT_MULTIPLIER
 
 
 class Config:
@@ -298,6 +301,7 @@ class Config:
 
     _instance = None
     _config: _Config
+    _path: Path | None = None
 
     def __new__(cls, *args: Any) -> Config:
         """Get already existing instance of Config or create new if it does not exist."""
@@ -323,7 +327,7 @@ class Config:
                 logger.error("Yaml parsing failed at %d:%d: %s", error.lineno, error.colno, error.msg)
                 sys.exit(1)
 
-            interfaces: List[Interface] = []
+            interfaces: list[Interface] = []
             for trace in cls._instance._config.traces:
                 interfaces.append(trace.interface)
 
@@ -405,17 +409,13 @@ class Config:
                 )
 
     @classmethod
-    def load(cls, args: Namespace) -> None:
-        """Load config file (default: simulation.json)."""
+    def load(cls, cfg_path: Path, args: Namespace) -> None:
+        """Load config file."""
         global port_count
         if cls._instance is None:
             cls._instance = Config()
 
         logger.info("Parsing config")
-        cfg_path_s = args.config
-        if cfg_path_s is None:
-            cfg_path_s = DEFAULT_CONFIG_PATH
-        cfg_path = Path(cfg_path_s).absolute()
         json_cfg = get_cfg_json(cfg_path, args.update_config)
 
         version = json_cfg.get("format_version", None)
@@ -426,24 +426,25 @@ class Config:
         port_count = len(json_cfg["ports"])
         cls._instance._config = from_dict(_Config, json_cfg)
         cls._instance._config.arguments = args
-
-        if args.update_config:
-            with cfg_path.open(mode="w", encoding="utf-8") as file:
-                file.write(to_json(cls._instance._config, indent=4))
-
-        for port in cls._instance._config.ports:
-            port.width *= UNIT_MULTIPLIER
-            port.length *= UNIT_MULTIPLIER
         cls._instance._config._apply_unit_multiplier()
 
         cls.load_guidelines()
+
+    def save(self) -> None:
+        """Save config file."""
+        if not self._path:
+            raise AssertionError("Config has no filesystem path defined!")
+        cfg = deepcopy(self._config)
+        cfg._apply_unit_multiplier(True)
+        with self._path.open(mode="w", encoding="utf-8") as file:
+            file.write(to_json(cfg, indent=4))
 
     def __getattr__(self, name: str) -> Any:
         """Get value of field from internal config structure."""
         return getattr(self._config, name)
 
     @classmethod
-    def load_stackup(cls, stackup: Dict[str, Any]) -> None:
+    def load_stackup(cls, stackup: dict[str, Any]) -> None:
         """Load stackup from json object."""
         if not cls._instance:
             return
@@ -457,11 +458,11 @@ class Config:
             )
         )
 
-    def get_substrates(self) -> List[LayerConfig]:
+    def get_substrates(self) -> list[LayerConfig]:
         """Return substrate layers configs."""
         return list(filter(lambda layer: layer.kind == LayerKind.SUBSTRATE, self.layers))
 
-    def get_metals(self) -> List[LayerConfig]:
+    def get_metals(self) -> list[LayerConfig]:
         """Return metals layers configs."""
         return list(filter(lambda layer: layer.kind == LayerKind.METAL, self.layers))
 
@@ -475,7 +476,7 @@ def is_cfg_version_invalid(version: str | None) -> bool:
     )
 
 
-def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
+def get_cfg_json(cfg_path: Path, update_config: bool) -> dict[str, Any]:
     """Read config file and load it to dictionary.
 
     If update_config switch is enabled and there is no config file at provided path, returns config stub dictionary.
@@ -499,25 +500,24 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> Dict[str, Any]:
     if len(json_cfg) == 0:
         json_cfg = {"format_version": CONFIG_FORMAT_VERSION}
 
-    # if not json_cfg.get("ports", []):
-    #     ports_numbers = [p[0] for p in get_ports_from_all_pos_files()]
-    #     ports = [PortConfig.with_name(str(p)) for p in ports_numbers]
-    #     ports[-1].excite = True
-    #     if len(ports) >= 4:
-    #         ports[-3].excite = True
-    #     json_cfg["ports"] = ports
-    #     if len(ports) in [2, 3]:
-    #         json_cfg["traces"] = [{"start": ports_numbers[-1], "stop": ports_numbers[-2]}]
-    #     if len(ports) >= 4:
-    #         json_cfg["differential_pairs"] = [
-    #             {
-    #                 "start_p": ports_numbers[-1],
-    #                 "stop_p": ports_numbers[-2],
-    #                 "start_n": ports_numbers[-3],
-    #                 "stop_n": ports_numbers[-4],
-    #             }
-    #         ]
-    json_cfg.setdefault("ports", [])
+    if not json_cfg.get("ports", []):
+        ports_numbers = [p[0] for p in get_ports_from_all_pos_files()]
+        ports = [PortConfig.with_name(str(p)) for p in ports_numbers]
+        ports[-1].excite = True
+        if len(ports) >= 4:
+            ports[-3].excite = True
+        json_cfg["ports"] = ports
+        if len(ports) in [2, 3]:
+            json_cfg["traces"] = [{"start": ports_numbers[-1], "stop": ports_numbers[-2]}]
+        if len(ports) >= 4:
+            json_cfg["differential_pairs"] = [
+                {
+                    "start_p": ports_numbers[-1],
+                    "stop_p": ports_numbers[-2],
+                    "start_n": ports_numbers[-3],
+                    "stop_n": ports_numbers[-4],
+                }
+            ]
     return json_cfg
 
 

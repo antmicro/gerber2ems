@@ -1,14 +1,19 @@
 """Module responsible for set up of ports v2 based on gerber files."""
 
+import json
+import logging
 from collections import defaultdict
-from math import inf
+from pathlib import Path
 
+from gerber2ems import importer
 from gerber2ems.common import Point, mm_to_sim
 from gerber2ems.config import Config, PadProp, PortConfig
 from gerber2ems.constants import FAB_DIR
-from gerber2ems.gerber_io import GerberFile, Pad
+from gerber2ems.gerber_io import GerberFile, Pad, get_board_bbox_from_gerbers
 
 cfg = Config()
+
+logger = logging.getLogger(__name__)
 
 
 def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[str]) -> list[PortConfig]:
@@ -18,23 +23,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
     and build a port config referencing them as reference pads.
 
     """
-
-    def get_board_offset() -> tuple[float, float]:
-        """Calculate board offset in gerber files."""
-        fab_dir = FAB_DIR
-        edge_cuts_path = list(fab_dir.glob("*Edge_Cuts.gbr"))
-        if len(edge_cuts_path) == 0:
-            exit(1)
-        edge_cuts = GerberFile(edge_cuts_path[0])
-        [xmin, xmax, ymin, ymax] = [inf, -inf, inf, -inf]
-        for seg in edge_cuts.traces["no-net"].segments:
-            xmin = min(seg.start.x, seg.stop.x, xmin)
-            ymin = min(seg.start.y, seg.stop.y, ymin)
-            xmax = max(seg.start.x, seg.stop.x, xmax)
-            ymax = max(seg.start.y, seg.stop.y, ymax)
-        return xmin, ymin
-
-    offset = Point(*get_board_offset())
+    offset = get_board_bbox_from_gerbers().min
     offset.scale(-1)
     # Pads of the requested net, grouped by component
     net_pads_by_comp: dict[str, list[Pad]] = defaultdict(list)
@@ -58,12 +47,11 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 all_gnd.append(p)
 
     ports: list[PortConfig] = []
-    net_w_added_port = []
 
-    def find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp]):
+    def find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float):
         # Closest distance to any ground pad -> search radius (3x this)
         closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
-        radius = closest_gnd_distance * 3
+        radius = closest_gnd_distance * dist_mul
 
         return [p.mm_pad() for p in gnd_pads if p.position.distance_to(signal_pad.position) <= radius]
 
@@ -75,51 +63,64 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             pad = gerber_pad.to_pad_prop()
             size_sq = min(pad.size.x, pad.size.y)
             pad.size = Point(size_sq, size_sq)
-            matching_port_from_pnp = next(
+            port_match_from_pnp = next(
                 iter([p for p in cfg.ports if p.position and pad.position.distance_to(p.position) < mm_to_sim(0.1)]),
                 None,
             )
-            print(matching_port_from_pnp)
-            if not matching_port_from_pnp:
+            if not port_match_from_pnp:
                 # pad not in pnp (probably slicer has mindfully excluded it)
                 continue
-            if gerber_pad.layer != matching_port_from_pnp.layer:
+            if gerber_pad.layer != port_match_from_pnp.layer:
                 # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                 continue
 
-            close_gnd_pads = find_gnd(pad, gnd_pads) if gnd_pads else find_gnd(pad, all_gnd)
+            close_gnd_pads = find_gnd(pad, gnd_pads, 3) if gnd_pads else find_gnd(pad, all_gnd, 1.2)
 
-            if matching_port_from_pnp.length == 10000 and matching_port_from_pnp.width == 2000:
-                matching_port_from_pnp.length = 0
-                matching_port_from_pnp.width = 0
-            matching_port_from_pnp.length = matching_port_from_pnp.length or 3600
-            matching_port_from_pnp.plane = None
-            matching_port_from_pnp.pad = pad.mm_pad()
-            matching_port_from_pnp.pad.size.scale(0.7)
-            if matching_port_from_pnp.width:
-                matching_port_from_pnp.pad.size = Point(
-                    matching_port_from_pnp.width, matching_port_from_pnp.width
-                ).sim_to_mm()
-            matching_port_from_pnp.reference_pad = close_gnd_pads
-            matching_port_from_pnp.name = (
-                str(len(ports) + 1)
-                if matching_port_from_pnp.name in ("Unnamed", "", None)
-                else matching_port_from_pnp.name
+            if not port_match_from_pnp.pad:
+                pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
+                port_match_from_pnp.pad = pad.mm_pad()
+                if port_match_from_pnp.length == 10000 and port_match_from_pnp.width == 2000:
+                    port_match_from_pnp.length = 0
+                    port_match_from_pnp.width = 0
+                w = port_match_from_pnp.width
+                if w:
+                    port_match_from_pnp.pad.size = Point(w, w).sim_to_mm()
+
+            port_match_from_pnp.length = port_match_from_pnp.length or 3600
+            port_match_from_pnp.plane = None
+            port_match_from_pnp.reference_pad = close_gnd_pads
+            port_match_from_pnp.name = (
+                str(len(ports) + 1) if port_match_from_pnp.name in ("Unnamed", "", None) else port_match_from_pnp.name
             )
-            ports.append(matching_port_from_pnp)
-            # ports.append(
-            #     PortConfig(
-            #         name=str(len(ports) + 1),
-            #         length=300,
-            #         layer=gerber_pad.layer or 0,
-            #         pad=pad,
-            #         excite=gerber_pad.net not in net_w_added_port,
-            #         reference_pad=close_pads,
-            #     )
-            # )
-            net_w_added_port.append(pad)
-    from pprint import pprint
-
-    pprint(ports)
+            ports.append(port_match_from_pnp)
 
     return sorted(ports, key=lambda p: p.name)
+
+
+def preprocess() -> None:
+    """Run preprocess of simulation data.
+
+    Currently preprocessing includes:
+    * update ports in config based on PNP (with ports) and gerbers
+        (this detects and save position/size if simulation & reference pads)
+    """
+    logger.info("Preprocessing board before simulation")
+    importer.import_stackup()
+    importer.import_port_positions()
+    netinfo_path = Path.cwd() / "netinfo.json"
+    if netinfo_path.exists():
+        netinfo = json.load(open(netinfo_path))
+        nn = [net["name"].replace(",", r"\u002C") for net in netinfo["nets"]]
+    else:
+        if not cfg.trace_under_test:
+            raise ValueError("`gerber2ems --preprocess` requires `trace_under_test` in simulation.json")
+        nn = (
+            [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
+            if cfg.trace_under_test.endswith("_Diff")
+            else cfg.trace_under_test
+        )
+    cfg.ports = extract_ports_from_gerbers(
+        {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
+        nn,
+    )
+    cfg.save()
