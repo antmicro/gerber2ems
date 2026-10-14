@@ -12,6 +12,7 @@ import sys
 from dataclasses import dataclass
 from enum import IntEnum
 from functools import partial
+from itertools import chain
 from multiprocessing import Pool
 from pathlib import Path
 
@@ -194,7 +195,7 @@ class TriangleMerger:
             return True
 
         # General case:
-        # The endpoints of both segments lie on opposite sides of the other segment's line.
+        # The endpoints of first segment lie on opposite sides of the other segment's line.
         if d1 != d2 and d3 != d4:
             return True
 
@@ -253,7 +254,8 @@ class TriangleMerger:
 
         """
         edge_rev = edge.rev()
-        a_rev, b_rev = edge_rev in fa, edge_rev in fb
+        a_rev = False  # a_rev is always false due to _find_common_edge impl
+        b_rev = edge_rev in fb
 
         a_idx = fa.index(edge_rev if a_rev else edge)
         b_idx = fb.index(edge_rev if b_rev else edge)
@@ -274,6 +276,19 @@ class TriangleMerger:
 
         return merged
 
+    @staticmethod
+    def _find_common_edge(poly1: PolygonEdges, poly2: PolygonEdges) -> Edge | None:
+        """Find common edge between two polygons.
+
+        Returns:
+        Common edge if there is common edge, else None
+
+        """
+        for p2e in chain(poly2, (e.rev() for e in poly2)):
+            if p2e in poly1:
+                return p2e
+        return None
+
     @classmethod
     def merge_triangles(cls, triangles: list[Polygon]) -> list[Polygon]:
         """Merge a list of triangles into maximal non-self-intersecting polygons.
@@ -290,39 +305,38 @@ class TriangleMerger:
         List of merged polygons.
 
         """
-        polygons = [cls._polygon_edges(tri) for tri in triangles]
+        polygons = [(set((p.x, p.y) for p in tri), cls._polygon_edges(tri)) for tri in triangles]
 
         for iteration in range(12):
             if iteration % 3 == 2:
                 polygons = [poly for poly in reversed(polygons) if poly]
 
-            for poly1_idx, poly1 in enumerate(polygons):
-                if not poly1:
+            for poly1_idx, (poly1_set, poly1) in enumerate(polygons):
+                if not poly1 or len(poly1) > 200:
                     continue
-                for poly2 in polygons[poly1_idx + 1 :]:
-                    if not poly2:
+                for poly2_set, poly2 in polygons[poly1_idx + 1 :]:
+                    if not poly2 or len(poly1) > 200 or len(poly2) > 200:
                         continue
 
-                    # Find common edges between the two polys
-                    common = [p2e for p2e in poly2 if p2e in poly1] + [p2e.rev() for p2e in poly2 if p2e.rev() in poly1]
-
-                    # This is simple impl -> merge only merge if exactly one shared edge
-                    if len(common) != 1:
+                    if len(poly1_set & poly2_set) != 2:
+                        # check for points common between poly as fast failing common_edge check
                         continue
 
-                    # Get the single shared edge
-                    edge = next(iter(common))
+                    common_edge = cls._find_common_edge(poly1, poly2)
+                    if not common_edge:
+                        continue
 
                     # Try to merge the polys
-                    merged = cls._merge_two_polygons(poly1, poly2, edge)
+                    merged = cls._merge_two_polygons(poly1, poly2, common_edge)
                     if merged is not None:
                         poly1.clear()
+                        poly1_set |= poly2_set
                         poly1.extend(merged)
                         poly2.clear()
                         break
 
         # Convert final polys to polygon vertex lists
-        return [[edge.start for edge in poly] for poly in polygons if poly]
+        return [[edge.start for edge in poly] for (_poly_set, poly) in polygons if poly]
 
 
 def get_triangles(input_filename: str) -> list[Polygon]:
