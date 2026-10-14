@@ -49,7 +49,7 @@ class PortConfig:
 class Interface:
     """Interface config."""
 
-    name: str = field(default="undefined")
+    name: str | None = None
     min_frequency: float = field(default=0)
     max_frequency: float = field(default=float("nan"))
     se_impedance_nominal: float = field(default=float("nan"))
@@ -287,8 +287,19 @@ class Config:
                 interfaces.append(diff_pair.interface)
 
             for interface in interfaces:
+
+                if interface.name is None:
+                    logger.debug("Interface name is undefined")
+                    continue
+
                 interface_data = data["interfaces"].get(interface.name)
                 if interface_data is None:
+                    logger.warning("Interface not found in the interface list")
+                    available_interfaces = "Available interface names:"
+                    for available_interface in data["interfaces"]:
+                        if not available_interface.startswith("."):
+                            available_interfaces += "\n" + "\t" * 5 + available_interface
+                    logger.debug(available_interfaces)
                     continue
 
                 if interface_data.get("rise-fall-time") is not None:
@@ -322,6 +333,32 @@ class Config:
                         interface.skew_inter_pair = skew.get("inter-pair")
                     if np.isnan(interface.skew_clock_data):
                         interface.skew_clock_data = skew.get("clock-data")
+
+        for interface in interfaces:
+            interface_debug = ""
+
+            for parameter in (
+                "rise_fall_time",
+                "max_frequency",
+                "se_impedance_nominal",
+                "se_impedance_tolerance",
+                "diff_impedance_nominal",
+                "diff_impedance_tolerance",
+                "skew_intra_pair",
+                "skew_inter_pair",
+                "skew_clock_data",
+            ):
+                value = getattr(interface, parameter)
+
+                if str(value) != "nan" and value:
+                    interface_debug += f"\t\t {parameter + ':':<25} {value}\n"
+
+            if interface_debug:
+                logger.info(
+                    "Interface: %s\n%s",
+                    interface.name,
+                    interface_debug,
+                )
 
     @classmethod
     def load(cls, args: Namespace) -> None:

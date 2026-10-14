@@ -24,8 +24,8 @@ cfg = Config()
 def main() -> None:
     """Run the script."""
     args = parse_arguments()
-    Config.load(args)
     setup_logging(args)
+    Config.load(args)
     if args.update_config:
         sys.exit(0)
 
