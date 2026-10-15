@@ -16,6 +16,14 @@ cfg = Config()
 logger = logging.getLogger(__name__)
 
 
+def _find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float) -> list[PadProp]:
+    """Find closest ground pad from `gnd_pads` and other pads that are at at most `dist_mult` this distance."""
+    closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
+    radius = closest_gnd_distance * dist_mul
+
+    return [p.mm_pad() for p in gnd_pads if p.position.distance_to(signal_pad.position) <= radius]
+
+
 def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[str]) -> list[PortConfig]:
     """Create port configs for a net.
 
@@ -35,6 +43,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
         for pad in gerber.pads:
             if pad.net in net_name and pad.pin_ref is not None:
                 pad.layer = layer
+                pad.pos.move(offset)
                 net_pads_by_comp[pad.pin_ref.comp_ref].append(pad)
 
         for pad in gerber.pads:
@@ -46,20 +55,12 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 gnd_pads_by_comp[pad.pin_ref.comp_ref].append(p)
                 all_gnd.append(p)
 
-    ports: list[PortConfig] = []
-
-    def find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float):
-        # Closest distance to any ground pad -> search radius (3x this)
-        closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
-        radius = closest_gnd_distance * dist_mul
-
-        return [p.mm_pad() for p in gnd_pads if p.position.distance_to(signal_pad.position) <= radius]
+    ports = []
 
     for comp_ref, pads in net_pads_by_comp.items():
         gnd_pads = gnd_pads_by_comp.get(comp_ref, [])
 
         for gerber_pad in pads:
-            gerber_pad.pos.move(offset)
             pad = gerber_pad.to_pad_prop()
             size_sq = min(pad.size.x, pad.size.y)
             pad.size = Point(size_sq, size_sq)
@@ -74,24 +75,9 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                 continue
 
-            close_gnd_pads = find_gnd(pad, gnd_pads, 3) if gnd_pads else find_gnd(pad, all_gnd, 1.2)
+            close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
 
-            if not port_match_from_pnp.pad:
-                pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
-                port_match_from_pnp.pad = pad.mm_pad()
-                if port_match_from_pnp.length == 10000 and port_match_from_pnp.width == 2000:
-                    port_match_from_pnp.length = 0
-                    port_match_from_pnp.width = 0
-                w = port_match_from_pnp.width
-                if w:
-                    port_match_from_pnp.pad.size = Point(w, w).sim_to_mm()
-
-            port_match_from_pnp.length = port_match_from_pnp.length or 3600
-            port_match_from_pnp.plane = None
-            port_match_from_pnp.reference_pad = close_gnd_pads
-            port_match_from_pnp.name = (
-                str(len(ports) + 1) if port_match_from_pnp.name in ("Unnamed", "", None) else port_match_from_pnp.name
-            )
+            port_match_from_pnp.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
             ports.append(port_match_from_pnp)
 
     return sorted(ports, key=lambda p: p.name)

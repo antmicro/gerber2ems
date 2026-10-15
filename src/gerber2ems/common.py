@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import cos, inf, sin, sqrt
 from typing import Self
 
@@ -99,5 +99,5 @@ class PadProp:
 class BBox:
     """Point defining Bounding box in 2D space."""
 
-    min: Point = Point(inf, inf)
-    max: Point = Point(-inf, -inf)
+    min: Point = field(default_factory=lambda:Point(inf, inf))
+    max: Point = field(default_factory=lambda:Point(-inf, -inf))
