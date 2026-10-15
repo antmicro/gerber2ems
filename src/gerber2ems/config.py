@@ -444,6 +444,7 @@ class Config:
         cls._instance._config = from_dict(_Config, json_cfg)
         cls._instance._config.arguments = args
         cls._instance._config._apply_unit_multiplier()
+        cls._path = cfg_path
 
         cls.load_guidelines()
 
