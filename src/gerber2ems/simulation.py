@@ -17,7 +17,7 @@ import numpy as np
 import openEMS
 
 import gerber2ems.importer as importer
-from gerber2ems.common import Point
+from gerber2ems.common import BBox, Point
 from gerber2ems.config import Config, LayerKind, PortConfig
 from gerber2ems.constants import BASE_UNIT, GEOMETRY_FILE, SIMULATION_DIR, UNIT_MULTIPLIER, VIA_POLYGON, ObjectPriority
 from gerber2ems.gerber_io import Aperture, ApertureRect, Pad
@@ -210,7 +210,6 @@ class Simulation:
             if port_config.plane
             else self.get_virt_ref_plane_offset(port_config)
         )
-        print(start_z, stop_z)
         return start_z, stop_z
 
     def add_port_grid(self) -> None:
@@ -224,7 +223,7 @@ class Simulation:
             for idx, pp in enumerate((port_config.get_pad(), *port_config.get_ref_pads())):
                 ap = f"PORT{len(self.grid_gen.add_apertures) + 1}" + f"_{idx}" if port_config.reference_pad else ""
 
-                pp.position.move(Point(self.grid_gen.xmin, self.grid_gen.ymin))
+                pp.position.move(self.grid_gen.bbox.min)
                 self.grid_gen.add_pads.append(Pad(ap, "PORT", pp.position))
                 self.grid_gen.add_apertures[ap] = Aperture("", ApertureRect(pp.size.x, pp.size.y))
 
@@ -275,12 +274,8 @@ class Simulation:
         """Add lumped port based on config."""
         logger.debug(f"Adding port number {port_number}")
 
-        if port_config.position is None:
-            logger.error("Port has no defined position, skipping")
-            return
-
-        pos = port_config.position
         pp = port_config.get_pad()
+        pos = pp.position
         w2 = deepcopy(pp.size)
         w2.scale(0.5)
         start = [pos.x - w2.x, pos.y - w2.y, start_z]
@@ -300,49 +295,33 @@ class Simulation:
 
     def add_v2_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
         """Add V2 port (vertical, lumped port to virtual gnd patch)."""
-        if port_config.position is None:
-            logger.error(f"Port {port_number} has no defined position, skipping")
-            return
-
         start_z, stop_z = self.get_v2_port_z_span(port_config)
         self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
 
-        patch_start, patch_stop = deepcopy(port_config.position), deepcopy(port_config.position)
-        margin = port_config.get_pad().size.x / 2
+        pp = port_config.get_pad()
+        pp.size.scale(0.5)
+        bbox = BBox()
+        bbox.add_point(pp.position)
 
         for ref in port_config.get_ref_pads():
-            ref_pos, ref_size = ref.position, min(ref.size.x, ref.size.y) / 2
+            ref_size = min(ref.size.x, ref.size.y) / 2
             self.add_cylinder(
                 self.via_material,
-                ref_pos,
+                ref.position,
                 ref_size,
                 min(start_z, stop_z),
                 abs(start_z - stop_z),
                 ObjectPriority.PORT_V2_REF_STITCH,
             )
-            patch_start = patch_start.bbox_min(ref_pos)
-            patch_stop = patch_stop.bbox_max(ref_pos)
-            margin = max(margin, ref_size)
+            rmin, rmax = deepcopy(ref.position), deepcopy(ref.position)
+            rmin.move(Point(-ref_size, -ref_size))
+            rmax.move(Point(ref_size, ref_size))
+            bbox.add_point(rmin)
+            bbox.add_point(rmax)
 
         self.plane_material.AddBox(
-            [patch_start.x - margin, patch_start.y - margin, stop_z],
-            [patch_stop.x + margin, patch_stop.y + margin, stop_z],
-            priority=ObjectPriority.COOPER,
+            [bbox.min.x, bbox.min.y, stop_z], [bbox.max.x, bbox.max.y, stop_z], priority=ObjectPriority.COOPER
         )
-
-    def add_virtual_port(self, port_config: PortConfig, port_number: int) -> None:
-        """Add virtual port for extracting sim data from files. Needed due to OpenEMS api design."""
-        logger.debug("Adding virtual port number %d", port_number)
-        box = [[0, 0, 0], [10, 10, 10]]
-        kwargs = {"Feed_R": port_config.impedance, "priority": ObjectPriority.PORT, "excite": 0}
-
-        msl = not port_config.is_port_v2()
-        if msl:
-            metal_prop = self.csx.AddMetal(f"VirtualPort_{port_number}")
-            port = self.fdtd.AddMSLPort(port_number, metal_prop, *box, "x", "z", **kwargs)
-        else:
-            port = self.fdtd.AddLumpedPort(port_number, port_config.impedance, *box, "z", **kwargs)
-        self.ports.append(port)
 
     def add_plane(self, z_height: float) -> None:
         """Add metal plane in whole bounding box of the PCB."""
@@ -541,30 +520,27 @@ class Simulation:
             else:
                 prop.SetExcitation([0, 0, 1])
 
+    def clear_ports(self) -> None:
+        """Remove all ports & port leftovers from geometry.xml."""
+        self.ports = []
+
+        # delete everything port x created: probes port_ut_xA..C, port_it_xA..B, port_excite_x
+        pat = re.compile(r"^port_[a-z]+_[0-9a-zA-Z]")
+        for prop in self.csx.GetAllProperties():
+            if pat.match(prop.GetName()):
+                self.csx.DeleteProperty(prop)
+
     def add_ports(self) -> None:
         """Add ports for simulation."""
         logger.info("Adding ports")
 
-        self.ports = []
+        self.clear_ports()
 
         for index, port_config in enumerate(cfg.ports):
             if port_config.is_port_v2():
                 self.add_v2_port(port_config, index, True)
             else:
                 self.add_msl_port(port_config, index, True)
-
-    def add_virtual_ports(self) -> None:
-        """Add virtual ports needed for data postprocessing due to openEMS api design."""
-        logger.info("Adding virtual ports")
-
-        for i in range(11):
-            self.grid.AddLine("x", i)
-            self.grid.AddLine("y", i)
-        self.grid.AddLine("z", 0)
-        self.grid.AddLine("z", 10)
-
-        for port_config in cfg.ports:
-            self.add_virtual_port(port_config, len(self.ports))
 
     def calculate_excitation_length(self) -> int:
         """Calculate how many steps excitation signal will have."""

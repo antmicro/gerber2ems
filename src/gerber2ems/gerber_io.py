@@ -710,8 +710,6 @@ def get_board_bbox_from_gerbers() -> BBox:
     edge_cuts = GerberFile(edge_cuts_path[0])
     bbox = BBox()
     for seg in edge_cuts.traces["no-net"].segments:
-        bbox.min.x = min(seg.start.x, seg.stop.x, bbox.min.x)
-        bbox.min.y = min(seg.start.y, seg.stop.y, bbox.min.y)
-        bbox.max.x = max(seg.start.x, seg.stop.x, bbox.max.x)
-        bbox.max.y = max(seg.start.y, seg.stop.y, bbox.max.y)
+        bbox.add_point(seg.start)
+        bbox.add_point(seg.stop)
     return bbox

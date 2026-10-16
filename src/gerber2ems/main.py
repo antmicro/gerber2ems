@@ -106,10 +106,7 @@ def simulate() -> None:
             sim.run(index)
 
     if len(sim.ports) == 0:
-        if all(p.is_port_v2() for p in cfg.ports):
-            sim.add_ports()
-        else:
-            sim.add_virtual_ports()
+        sim.add_ports()
 
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
     post = Postprocesor(frequencies, len(cfg.ports))

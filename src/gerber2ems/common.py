@@ -99,5 +99,12 @@ class PadProp:
 class BBox:
     """Point defining Bounding box in 2D space."""
 
-    min: Point = field(default_factory=lambda:Point(inf, inf))
-    max: Point = field(default_factory=lambda:Point(-inf, -inf))
+    min: Point = field(default_factory=lambda: Point(inf, inf))
+    max: Point = field(default_factory=lambda: Point(-inf, -inf))
+
+    def add_point(self, point: Point) -> None:
+        """Expand BBox to encompass `point`."""
+        self.min.x = min(point.x, self.min.x)
+        self.min.y = min(point.y, self.min.y)
+        self.max.x = max(point.x, self.max.x)
+        self.max.y = max(point.y, self.max.y)

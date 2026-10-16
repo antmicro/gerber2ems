@@ -87,8 +87,10 @@ class PortConfig:
 
         return self.pad.sim_pad()
 
-    def update_from_pad(self: PortConfig, pad: PadProp, close_gnd_pads: list[PadProp], default_name: str) -> None:
+    def update_from_pad(self, pad: PadProp, close_gnd_pads: list[PadProp], default_name: str) -> None:
         """Update port properties using pad data."""
+        size_sq = min(pad.size.x, pad.size.y)
+        pad.size = Point(size_sq, size_sq)
         if not self.pad:
             pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
             self.pad = pad.mm_pad()
@@ -103,6 +105,14 @@ class PortConfig:
         self.plane = None
         self.reference_pad = close_gnd_pads
         self.name = default_name if self.name in ("Unnamed", "", None) else self.name
+
+    def matches_pad_pos(self, pad: PadProp) -> bool:
+        """Return true if port position matches pad position."""
+        if self.pad:
+            return pad.position.sim_to_mm().distance_to(self.pad.position) < 0.1
+        if self.position:
+            return pad.position.distance_to(self.position) < mm_to_sim(0.1)
+        return False
 
 
 @serde(type_check=coerce)

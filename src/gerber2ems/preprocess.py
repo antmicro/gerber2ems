@@ -6,7 +6,6 @@ from collections import defaultdict
 from pathlib import Path
 
 from gerber2ems import importer
-from gerber2ems.common import Point, mm_to_sim
 from gerber2ems.config import Config, PadProp, PortConfig
 from gerber2ems.constants import FAB_DIR
 from gerber2ems.gerber_io import GerberFile, Pad, get_board_bbox_from_gerbers
@@ -55,19 +54,15 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 gnd_pads_by_comp[pad.pin_ref.comp_ref].append(p)
                 all_gnd.append(p)
 
-    ports = []
+    ports: list[PortConfig] = []
 
     for comp_ref, pads in net_pads_by_comp.items():
         gnd_pads = gnd_pads_by_comp.get(comp_ref, [])
 
         for gerber_pad in pads:
             pad = gerber_pad.to_pad_prop()
-            size_sq = min(pad.size.x, pad.size.y)
-            pad.size = Point(size_sq, size_sq)
-            port_match_from_pnp = next(
-                iter([p for p in cfg.ports if p.position and pad.position.distance_to(p.position) < mm_to_sim(0.1)]),
-                None,
-            )
+
+            port_match_from_pnp = next((port for port in cfg.ports if port.matches_pad_pos(pad)), None)
             if not port_match_from_pnp:
                 # pad not in pnp (probably slicer has mindfully excluded it)
                 continue
