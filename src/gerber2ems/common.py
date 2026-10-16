@@ -88,11 +88,11 @@ class PadProp:
 
     def sim_pad(self) -> PadProp:
         """Convert pad coordinates to simulation space."""
-        return PadProp(self.position.mm_to_sim(), self.size.mm_to_sim())
+        return PadProp(self.position.mm_to_sim(), self.size.mm_to_sim(), self.id)
 
     def mm_pad(self) -> PadProp:
         """Convert pad coordinates from simulation space to real world millimeters."""
-        return PadProp(self.position.sim_to_mm(), self.size.sim_to_mm())
+        return PadProp(self.position.sim_to_mm(), self.size.sim_to_mm(), self.id)
 
 
 @dataclass

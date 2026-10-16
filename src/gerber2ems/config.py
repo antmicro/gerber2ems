@@ -143,7 +143,7 @@ class DifferentialPairConfig:
     name: str | None = field(default=None)
     nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
-    interface: Interface = field(default_factory=Interface)
+    interface: Interface = field(default_factory=Interface, skip_if_default=True)
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -166,7 +166,7 @@ class SingleEndedConfig:
     name: str | None = field(default=None)
     nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
-    interface: Interface = field(default_factory=Interface)
+    interface: Interface = field(default_factory=Interface, skip_if_default=True)
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -270,7 +270,7 @@ class _Config:
     format_version: str = field(default=CONFIG_FORMAT_VERSION)
     ports: list[PortConfig] = field(default_factory=list)
     frequency: Frequency = field(default_factory=Frequency)
-    max_steps: int | None = field(default=None)
+    max_steps: int | None = field(default=None, skip_if_default=True)
     sim_length: float | None = field(default=None)
     pixel_size: int = field(default=5.0)
     via: Via = field(default_factory=Via)
@@ -362,7 +362,6 @@ class Config:
                 interfaces.append(diff_pair.interface)
 
             for interface in interfaces:
-
                 if interface.name is None:
                     logger.debug("Interface name is undefined")
                     continue

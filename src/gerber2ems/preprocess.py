@@ -104,4 +104,5 @@ def preprocess() -> None:
         {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
         nn,
     )
+    cfg._correct_trace_config()
     cfg.save()
