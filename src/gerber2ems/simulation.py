@@ -558,7 +558,7 @@ class Simulation:
         delta_coeff = 0
         for axis in range(3):
             lines = self.grid.GetLines(axis, do_sort=True)
-            min_delta = min(b - a for a, b in zip(lines, lines[1:])) * unit
+            min_delta = min(b - a for a, b in zip(lines, lines[1:], strict=False)) * unit
             delta_coeff += 1 / (min_delta**2)
         step_time = cfl / (c * math.sqrt(delta_coeff))
         center_freq = (cfg.frequency.start + cfg.frequency.stop) * 0.5
