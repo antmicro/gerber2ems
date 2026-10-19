@@ -36,9 +36,9 @@ class PortConfig:
     position: Point | None = field(default=None, skip=True)
     """[DEPRECATED: Use PortConfig.pad]"""
     direction: float | None = field(default=None, skip=True)
-    width: float = 200
+    width: float | None = None
     """[DEPRECATED: Use PortConfig.pad]"""
-    length: float = 1000
+    length: float | None = None
     impedance: float = 50
     layer: int = 0
     plane: int | None = None
@@ -69,6 +69,10 @@ class PortConfig:
         """Return true if port is V2 port (vertical, lumped port to virtual gnd patch)."""
         return bool(self.reference_pad)
 
+    def vertical_height(self) -> float:
+        """Return V2 port height."""
+        return self.length or 3600
+
     def get_ref_pads(self) -> list[PadProp]:
         """Return reference pad position & size."""
         for i in range(len(self.reference_pad)):
@@ -87,9 +91,9 @@ class PortConfig:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
 
         angle = self.direction / 360 * 2 * pi
-        w, h = self.width, self.length
+        w, h = (self.width or 200) * UNIT_MULTIPLIER, (self.length or 1000) * UNIT_MULTIPLIER
         size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
-        pos = Point(self.position.x - (self.length / 2) * sin(angle), self.position.y + (self.length / 2) * cos(angle))
+        pos = Point(self.position.x - (h / 2) * sin(angle), self.position.y + (h / 2) * cos(angle))
         self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())
 
         return self.pad.sim_pad()
@@ -101,14 +105,9 @@ class PortConfig:
         if not self.pad:
             pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
             self.pad = pad.mm_pad()
-            if self.length == 10000 and self.width == 2000:
-                self.length = 0
-                self.width = 0
-            w = self.width
-            if w:
-                self.pad.size = Point(w, w).sim_to_mm()
+            if self.width:
+                self.pad.size = Point(self.width, self.width).sim_to_mm()
 
-        self.length = self.length or 3600
         self.plane = None
         self.reference_pad = close_gnd_pads
         self.name = default_name if self.name in ("Unnamed", "", None) else self.name
@@ -314,9 +313,6 @@ class _Config:
         self.grid.margin.xy *= mul
         self.grid.margin.z *= mul
         self.via.plating_thickness *= mul
-        for port in self.ports:
-            port.width *= mul
-            port.length *= mul
         self.unit_multiplier_applied *= mul
 
     def _correct_trace_config(self) -> None:

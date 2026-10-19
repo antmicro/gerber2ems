@@ -199,8 +199,8 @@ class Simulation:
     def get_virt_ref_plane_offset(self, port_config: PortConfig) -> float:
         """Get z offset of virtual ref plane linked to port layer."""
         if port_config.layer == 0:
-            return port_config.length
-        return self.get_metal_layer_offset(len(cfg.get_metals()) - 1) - port_config.length
+            return port_config.vertical_height()
+        return self.get_metal_layer_offset(len(cfg.get_metals()) - 1) - port_config.vertical_height()
 
     def get_v2_port_z_span(self, port_config: PortConfig) -> tuple[float, float]:
         """Get Z coordinates that limit port."""
