@@ -69,8 +69,18 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             if gerber_pad.layer != port_match_from_pnp.layer:
                 # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                 continue
-
-            close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
+            if port_match_from_pnp.reference_pad:
+                close_gnd_pads = []
+                for ref in port_match_from_pnp.reference_pad:
+                    if isinstance(ref, PadProp):
+                        close_gnd_pads.append(ref)
+                    else:
+                        fpad = next(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
+                        if fpad:
+                            raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
+                        close_gnd_pads.append(fpad)
+            else:
+                close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
 
             port_match_from_pnp.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
             ports.append(port_match_from_pnp)
@@ -78,7 +88,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
     return sorted(ports, key=lambda p: p.name)
 
 
-def preprocess() -> None:
+def preprocess_vertical() -> None:
     """Run preprocess of simulation data.
 
     Currently preprocessing includes:
@@ -94,7 +104,7 @@ def preprocess() -> None:
         nn = [net["name"].replace(",", r"\u002C") for net in netinfo["nets"]]
     else:
         if not cfg.trace_under_test:
-            raise ValueError("`gerber2ems --preprocess` requires `trace_under_test` in simulation.json")
+            raise ValueError("`gerber2ems --vertical` requires `trace_under_test` in simulation.json")
         nn = (
             [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
             if cfg.trace_under_test.endswith("_Diff")

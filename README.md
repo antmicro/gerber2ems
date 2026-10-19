@@ -165,8 +165,9 @@ Filename should end with "-PTH.drl"
 
 * Position file - File describing positions of ports.
   * Filename should end with "-pos.csv"
-  * Coordinates should be given in relation to bottom left corner
-  * The area of the port is calculated using the formulas in the table below, based on the `Width` and `Length` values from the `simulation.json` file:
+  * For vertical ports coordinates should be given with origin placed at center of pad
+  * For MSL ports coordinates should be given with origin placed at center far edge of pad
+  * (For MSL) The area of the port is calculated using the formulas in the table below, based on the `Width` and `Length` values from the `simulation.json` file:
 
     | Rotation [°] | `X` span                       | `Y` span                       | Wave travel direction |
     | ------------ | ------------------------------ | ------------------------------ | --------------------- |

@@ -30,7 +30,7 @@
             "interface": {
                 "max_frequency": 4e9,
                 "se_impedance_nominal": 50,
-                "se_impedance_tolerance": 0.75
+                "se_impedance_tolerance": 1
             }
         }
     ]

@@ -16,7 +16,7 @@ import gerber2ems.importer as importer
 from gerber2ems.config import Config
 from gerber2ems.constants import BASE_DIR, DEFAULT_CONFIG_PATH, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
 from gerber2ems.postprocess import Postprocesor
-from gerber2ems.preprocess import preprocess
+from gerber2ems.preprocess_vertical import preprocess_vertical
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -34,22 +34,14 @@ def main() -> None:
         cfg.save()
         sys.exit(0)
 
-    if not any(
-        [
-            args.geometry,
-            args.simulate,
-            args.postprocess,
-            args.preprocess,
-            args.all,
-        ]
-    ):
+    if not any([args.geometry, args.simulate, args.postprocess, args.vertical, args.all]):
         logger.info('No steps selected. Exiting. To select steps use "-g", "-s", "-p", "-a" flags')
         sys.exit(0)
 
     create_dir(BASE_DIR)
 
-    if args.preprocess:
-        preprocess()
+    if args.vertical:
+        preprocess_vertical()
 
     if args.geometry or args.all:
         logger.info("Creating geometry")
@@ -72,7 +64,7 @@ def geometry() -> None:
     sim = Simulation()
     importer.import_stackup()
     if any(p.position is None and p.pad is None for p in cfg.ports):
-        # skip loading ports if they've been loaded in `--preprocess`
+        # skip loading ports if they've been loaded in `--vertical`
         importer.import_port_positions()
     importer.process_gbrs_to_pngs()
 
@@ -106,6 +98,10 @@ def simulate() -> None:
             sim.run(index)
 
     if len(sim.ports) == 0:
+        importer.import_stackup()
+        if any(p.position is None and p.pad is None for p in cfg.ports):
+            # skip loading ports if they've been loaded in `--vertical`
+            importer.import_port_positions()
         sim.add_ports()
 
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
@@ -150,7 +146,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-g", "--geometry", action="store_true", help="Create geometry")
     parser.add_argument("-s", "--simulate", action="store_true", help="Run simulation")
     parser.add_argument("-p", "--postprocess", action="store_true", help="Postprocess the data")
-    parser.add_argument("--preprocess", action="store_true", help="Preprocess the data")
+    parser.add_argument("--vertical", action="store_true", help="Extract vertical ports data from gerber files")
     parser.add_argument(
         "-a", "--all", action="store_true", help="Execute all steps (geometry, simulation, postprocessing)"
     )

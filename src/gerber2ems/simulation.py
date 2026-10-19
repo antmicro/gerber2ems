@@ -221,11 +221,11 @@ class Simulation:
                 _port_start, port_end = self.get_v2_port_z_span(port_config)
                 self.grid_gen.add_z_lines.append(round(port_end))
             for idx, pp in enumerate((port_config.get_pad(), *port_config.get_ref_pads())):
-                ap = f"PORT{len(self.grid_gen.add_apertures) + 1}" + f"_{idx}" if port_config.reference_pad else ""
+                ap = f"PORT{len(self.grid_gen.add_apertures) + 1}" + f"_{idx}"
 
                 pp.position.move(self.grid_gen.bbox.min)
                 self.grid_gen.add_pads.append(Pad(ap, "PORT", pp.position))
-                self.grid_gen.add_apertures[ap] = Aperture("", ApertureRect(pp.size.x, pp.size.y))
+                self.grid_gen.add_apertures[ap] = Aperture("", ApertureRect(abs(pp.size.x), abs(pp.size.y)))
 
     def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
         """Add MicroStripLine port based on config."""
@@ -251,8 +251,6 @@ class Simulation:
 
         start = [pp.position.x - pp.size.x / 2, pp.position.y - pp.size.y / 2, round(start_z)]
         stop = [pp.position.x + pp.size.x / 2, pp.position.y + pp.size.y / 2, round(stop_z)]
-        if port_config.direction > 180:
-            start, stop = stop, start
         logger.debug("Adding port at start: %s end: %s", start, stop)
 
         port = self.fdtd.AddMSLPort(

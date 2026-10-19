@@ -43,6 +43,10 @@ class PortConfig:
     layer: int = 0
     plane: int | None = None
     pad: PadProp | None = None
+    """`pad.position` describes physical pad this port connects to.
+    
+    In config it's stored in millimeters, its position points to center of pad 
+    (opposed to middle of edge, when defining ports via pnp file)"""
     reference_pad: Sequence[PadProp | str] = field(default_factory=list)
     """List of pads that are reference point for port (eg. ground pin of IC)
     Can be either `PadProp` or name of pad"""
@@ -70,19 +74,22 @@ class PortConfig:
         for i in range(len(self.reference_pad)):
             pad = self.reference_pad[i]
             if isinstance(pad, str):
-                f"{self.name} reference_pad {i} ({pad}) has not been resolved: run `gerber2ems -c`"
+                f"{self.name} reference_pad {i} ({pad}) has not been resolved: run `gerber2ems --vertical`"
         return [pad.sim_pad() for pad in self.reference_pad if not isinstance(pad, str)]
 
     def get_pad(self) -> PadProp:
         """Return simulation pad position & size."""
         if self.pad:
             return self.pad.sim_pad()
+        if self.is_port_v2():
+            raise AssertionError("Ports v2 are expected to have `.pad` defined! Have you run `gerber2ems --vertical`?")
         if self.position is None or self.direction is None:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
+
         angle = self.direction / 360 * 2 * pi
         w, h = self.width, self.length
         size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
-        pos = Point(self.position.x + (self.width / 2) * cos(angle), self.position.y + (self.width / 2) * sin(angle))
+        pos = Point(self.position.x - (self.length / 2) * sin(angle), self.position.y + (self.length / 2) * cos(angle))
         self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())
 
         return self.pad.sim_pad()

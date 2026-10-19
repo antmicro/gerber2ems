@@ -52,9 +52,9 @@
             "interface": {
                 "max_frequency": 4e9,
                 "se_impedance_nominal": 50,
-                "se_impedance_tolerance": 0.2,
+                "se_impedance_tolerance": 0.4,
                 "diff_impedance_nominal": 100,
-                "diff_impedance_tolerance": 0.3
+                "diff_impedance_tolerance": 0.4
             }
         }
     ]

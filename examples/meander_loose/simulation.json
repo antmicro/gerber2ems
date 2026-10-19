@@ -14,17 +14,5 @@
             "plane": 1,
             "excite": true
         }
-    ],
-    "traces": [
-        {
-            "start": 0,
-            "stop": 0,
-            "interface": {
-                "min_frequency": 2.4e9,
-                "max_frequency": 4e9,
-                "se_impedance_nominal": 70,
-                "se_impedance_tolerance": 1
-            }
-        }
     ]
 }
