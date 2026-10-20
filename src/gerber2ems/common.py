@@ -1,8 +1,8 @@
 """Contains common helper classes and functions."""
 
 from __future__ import annotations
-from copy import deepcopy
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from math import cos, inf, sin, sqrt
 from typing import Self

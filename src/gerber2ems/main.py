@@ -40,7 +40,7 @@ def main() -> None:
 
     create_dir(BASE_DIR)
 
-    if args.vertical:
+    if args.vertical or args.all:
         preprocess_vertical()
 
     if args.geometry or args.all:

@@ -297,16 +297,16 @@ class Simulation:
         self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
 
         pp = port_config.get_pad()
-        pp.size.scale(0.5)
         bbox = BBox()
         bbox.add_pad(pp)
 
         for ref in port_config.get_ref_pads():
-            ref_size = min(ref.size.x, ref.size.y) / 2
+            ref_size = min(ref.size.x, ref.size.y)
+            ref.size.x, ref.size.y = ref_size, ref_size
             self.add_cylinder(
                 self.via_material,
                 ref.position,
-                ref_size,
+                ref_size / 2,
                 min(start_z, stop_z),
                 abs(start_z - stop_z),
                 ObjectPriority.PORT_VERTICAL_REF_STITCH,
@@ -536,8 +536,9 @@ class Simulation:
                     self.add_vertical_port(port_config, index, True)
                 case PortType.MSL:
                     self.add_msl_port(port_config, index, True)
-                # case PortType.LUMPED:
-                #     self.add_lumped_port(port_config, index, True)
+                case PortType.LUMPED:
+                    start_z, stop_z = self.get_lumped_port_z_span(port_config)
+                    self.add_lumped_port(port_config, index, start_z, stop_z, True)
 
     def calculate_excitation_length(self) -> int:
         """Calculate how many steps excitation signal will have."""
