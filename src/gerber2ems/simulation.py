@@ -18,7 +18,7 @@ import openEMS
 
 import gerber2ems.importer as importer
 from gerber2ems.common import BBox, Point
-from gerber2ems.config import Config, LayerKind, PortConfig
+from gerber2ems.config import Config, LayerKind, PortConfig, PortType
 from gerber2ems.constants import BASE_UNIT, GEOMETRY_FILE, SIMULATION_DIR, UNIT_MULTIPLIER, VIA_POLYGON, ObjectPriority
 from gerber2ems.gerber_io import Aperture, ApertureRect, Pad
 from gerber2ems.grid_gen import GridGenerator
@@ -202,7 +202,7 @@ class Simulation:
             return port_config.vertical_height()
         return self.get_metal_layer_offset(len(cfg.get_metals()) - 1) - port_config.vertical_height()
 
-    def get_v2_port_z_span(self, port_config: PortConfig) -> tuple[float, float]:
+    def get_lumped_port_z_span(self, port_config: PortConfig) -> tuple[float, float]:
         """Get Z coordinates that limit port."""
         start_z = self.get_metal_layer_offset(port_config.layer)
         stop_z = (
@@ -217,8 +217,8 @@ class Simulation:
         logger.info("Adding ports grid")
 
         for port_config in cfg.ports:
-            if port_config.is_port_v2():
-                _port_start, port_end = self.get_v2_port_z_span(port_config)
+            if port_config.type == PortType.VERTICAL:
+                _port_start, port_end = self.get_lumped_port_z_span(port_config)
                 self.grid_gen.add_z_lines.append(round(port_end))
             for idx, pp in enumerate((port_config.get_pad(), *port_config.get_ref_pads())):
                 ap = f"PORT{len(self.grid_gen.add_apertures) + 1}" + f"_{idx}"
@@ -291,15 +291,15 @@ class Simulation:
         )
         self.ports.append(port)
 
-    def add_v2_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
+    def add_vertical_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
         """Add V2 port (vertical, lumped port to virtual gnd patch)."""
-        start_z, stop_z = self.get_v2_port_z_span(port_config)
+        start_z, stop_z = self.get_lumped_port_z_span(port_config)
         self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
 
         pp = port_config.get_pad()
         pp.size.scale(0.5)
         bbox = BBox()
-        bbox.add_point(pp.position)
+        bbox.add_pad(pp)
 
         for ref in port_config.get_ref_pads():
             ref_size = min(ref.size.x, ref.size.y) / 2
@@ -309,13 +309,9 @@ class Simulation:
                 ref_size,
                 min(start_z, stop_z),
                 abs(start_z - stop_z),
-                ObjectPriority.PORT_V2_REF_STITCH,
+                ObjectPriority.PORT_VERTICAL_REF_STITCH,
             )
-            rmin, rmax = deepcopy(ref.position), deepcopy(ref.position)
-            rmin.move(Point(-ref_size, -ref_size))
-            rmax.move(Point(ref_size, ref_size))
-            bbox.add_point(rmin)
-            bbox.add_point(rmax)
+            bbox.add_pad(ref)
 
         self.plane_material.AddBox(
             [bbox.min.x, bbox.min.y, stop_z], [bbox.max.x, bbox.max.y, stop_z], priority=ObjectPriority.COOPER
@@ -535,10 +531,13 @@ class Simulation:
         self.clear_ports()
 
         for index, port_config in enumerate(cfg.ports):
-            if port_config.is_port_v2():
-                self.add_v2_port(port_config, index, True)
-            else:
-                self.add_msl_port(port_config, index, True)
+            match port_config.type:
+                case PortType.VERTICAL:
+                    self.add_vertical_port(port_config, index, True)
+                case PortType.MSL:
+                    self.add_msl_port(port_config, index, True)
+                # case PortType.LUMPED:
+                #     self.add_lumped_port(port_config, index, True)
 
     def calculate_excitation_length(self) -> int:
         """Calculate how many steps excitation signal will have."""

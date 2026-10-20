@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import enum
 import json
 import logging
 import sys
@@ -10,7 +11,7 @@ from argparse import Namespace
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from math import cos, pi, sin, sqrt
 from pathlib import Path
 from typing import Any
@@ -27,12 +28,25 @@ logger = logging.getLogger(__name__)
 port_count: int = 0
 
 
+class PortType(StrEnum):
+    """Describes Simulation Port type."""
+
+    MSL = enum.auto()
+    """MSL port between pad and plane underneath"""
+    LUMPED = enum.auto()
+    """Lumped port between pad and plane underneath"""
+    VERTICAL = enum.auto()
+    """Lumped port between pad and virtual GND plane above board surface"""
+
+
 @serde(type_check=coerce, tagging=Untagged, skip_if_none=True)
 @dataclass
 class PortConfig:
     """Class representing and parsing port config."""
 
     name: str = field(default="Unnamed", alias=["number"])
+    type: PortType = PortType.VERTICAL
+    """Describes Simulation Port type."""
     position: Point | None = field(default=None, skip=True)
     """[DEPRECATED: Use PortConfig.pad]"""
     direction: float | None = field(default=None, skip=True)
@@ -54,9 +68,11 @@ class PortConfig:
     excite: bool = False
 
     def __post_init__(self) -> None:
-        """Resolve v2 port properties."""
-        if self.is_port_v2():
+        """Resolve vertical port properties."""
+        if self.type == PortType.VERTICAL:
             self.plane = None
+        else:
+            self.reference_pad = []
 
     @staticmethod
     def with_name(p: str) -> PortConfig:
@@ -65,12 +81,8 @@ class PortConfig:
         pc.name = p
         return pc
 
-    def is_port_v2(self) -> bool:
-        """Return true if port is V2 port (vertical, lumped port to virtual gnd patch)."""
-        return bool(self.reference_pad)
-
     def vertical_height(self) -> float:
-        """Return V2 port height."""
+        """Return vertical port height."""
         return self.length or 3600
 
     def get_ref_pads(self) -> list[PadProp]:
@@ -85,8 +97,10 @@ class PortConfig:
         """Return simulation pad position & size."""
         if self.pad:
             return self.pad.sim_pad()
-        if self.is_port_v2():
-            raise AssertionError("Ports v2 are expected to have `.pad` defined! Have you run `gerber2ems --vertical`?")
+        if self.type == PortType.VERTICAL:
+            raise AssertionError(
+                "Ports vertical are expected to have `.pad` defined! Have you run `gerber2ems --vertical`?"
+            )
         if self.position is None or self.direction is None:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
 
@@ -102,11 +116,11 @@ class PortConfig:
         """Update port properties using pad data."""
         size_sq = min(pad.size.x, pad.size.y)
         pad.size = Point(size_sq, size_sq)
-        if not self.pad:
-            pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
-            self.pad = pad.mm_pad()
-            if self.width:
-                self.pad.size = Point(self.width, self.width).sim_to_mm()
+
+        pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
+        self.pad = pad.mm_pad()
+        if self.width:
+            self.pad.size = Point(self.width, self.width).sim_to_mm()
 
         self.plane = None
         self.reference_pad = close_gnd_pads

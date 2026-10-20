@@ -1,6 +1,7 @@
 """Contains common helper classes and functions."""
 
 from __future__ import annotations
+from copy import deepcopy
 
 from dataclasses import dataclass, field
 from math import cos, inf, sin, sqrt
@@ -108,3 +109,11 @@ class BBox:
         self.min.y = min(point.y, self.min.y)
         self.max.x = max(point.x, self.max.x)
         self.max.y = max(point.y, self.max.y)
+
+    def add_pad(self, pad: PadProp) -> None:
+        """Expand `bbox` to include pad outline."""
+        rmin, rmax = deepcopy(pad.position), deepcopy(pad.position)
+        rmin.move(Point(-pad.size.x / 2, -pad.size.y / 2))
+        rmax.move(Point(pad.size.x / 2, pad.size.y / 2))
+        self.add_point(rmin)
+        self.add_point(rmax)

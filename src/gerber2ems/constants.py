@@ -39,7 +39,7 @@ class ObjectPriority:
     COOPER: int = 1
     VIA: int = 50
     VIA_FILLING: int = 51
-    PORT_V2_REF_STITCH: int = 70
+    PORT_VERTICAL_REF_STITCH: int = 70
     PORT: int = 100
 
     @staticmethod

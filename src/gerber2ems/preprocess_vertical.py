@@ -1,4 +1,4 @@
-"""Module responsible for set up of ports v2 based on gerber files."""
+"""Module responsible for set up of ports vertical based on gerber files."""
 
 import json
 import logging
@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from gerber2ems import importer
-from gerber2ems.config import Config, PadProp, PortConfig
+from gerber2ems.config import Config, PadProp, PortConfig, PortType
 from gerber2ems.constants import FAB_DIR
 from gerber2ems.gerber_io import GerberFile, Pad, get_board_bbox_from_gerbers
 
@@ -69,17 +69,20 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             if gerber_pad.layer != port_match_from_pnp.layer:
                 # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                 continue
+            if port_match_from_pnp.type != PortType.VERTICAL:
+                continue
+
+            close_gnd_pads = []
             if port_match_from_pnp.reference_pad:
-                close_gnd_pads = []
                 for ref in port_match_from_pnp.reference_pad:
                     if isinstance(ref, PadProp):
                         close_gnd_pads.append(ref)
-                    else:
-                        fpad = next(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
-                        if fpad:
-                            raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
-                        close_gnd_pads.append(fpad)
-            else:
+                        ref = ref.id
+                    fpad = next(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
+                    if fpad:
+                        raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
+                    close_gnd_pads.append(fpad)
+            if not close_gnd_pads:
                 close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
 
             port_match_from_pnp.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
