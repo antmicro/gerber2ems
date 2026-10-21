@@ -164,6 +164,7 @@ class DifferentialPairConfig:
     nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
     interface: Interface = field(default_factory=Interface, skip_if_default=True)
+    diff_impedance: float = 100
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -288,7 +289,7 @@ class _Config:
     """Main config class."""
 
     format_version: str = field(default=CONFIG_FORMAT_VERSION)
-    ports: list[PortConfig] = field(default_factory=list)
+    all_ports: list[PortConfig] = field(default_factory=list, rename="ports")
     frequency: Frequency = field(default_factory=Frequency)
     max_steps: int | None = field(default=None, skip_if_default=True)
     sim_length: float | None = field(default=None)
@@ -331,13 +332,46 @@ class _Config:
 
     def _correct_trace_config(self) -> None:
         for trace in self.traces:
-            if not self.ports[trace.start].excite and self.ports[trace.start].excite:
+            if not self.all_ports[trace.start].excite and self.all_ports[trace.start].excite:
                 trace.start, trace.stop = trace.stop, trace.start
         for pair in self.diff_pairs:
-            if not self.ports[pair.start_p].excite and self.ports[pair.start_p].excite:
+            if not self.all_ports[pair.start_p].excite and self.all_ports[pair.start_p].excite:
                 pair.start_p, pair.stop_p = pair.stop_p, pair.start_p
-            if not self.ports[pair.start_n].excite and self.ports[pair.start_n].excite:
+            if not self.all_ports[pair.start_n].excite and self.all_ports[pair.start_n].excite:
                 pair.start_n, pair.stop_n = pair.stop_n, pair.start_n
+
+    @property
+    def ports(self) -> list[PortConfig]:
+        if not self.trace_under_test:
+            return self.all_ports
+        port_idx = []
+        for trace in self.traces:
+            if self.trace_under_test == trace.name:
+                port_idx = [trace.start, trace.stop]
+        for pair in self.diff_pairs:
+            if self.trace_under_test == pair.name:
+                port_idx = [pair.start_p, pair.stop_p, pair.start_n, pair.stop_n]
+        return [self.all_ports[p] for p in sorted(port_idx)]
+
+    @property
+    def tut(self) -> SingleEndedConfig | DifferentialPairConfig:
+        if not self.trace_under_test:
+            return self.diff_pairs[0] if self.diff_pairs else self.traces[0]
+        for pair in self.diff_pairs:
+            if self.trace_under_test == pair.name:
+                pair = deepcopy(pair)
+                ports = self.ports
+                for p in ["start_p", "stop_p", "start_n", "stop_n"]:
+                    setattr(pair, p, ports.index(self.all_ports[getattr(pair, p)]))
+                return pair
+        for trace in self.traces:
+            if self.trace_under_test == trace.name:
+                trace = deepcopy(trace)
+                ports = self.ports
+                for p in ["start", "stop"]:
+                    setattr(trace, p, ports.index(self.all_ports[getattr(trace, p)]))
+                return trace
+        raise ValueError(f"Trace under test (`{self.trace_under_test}`) not found in config!")
 
 
 class Config:

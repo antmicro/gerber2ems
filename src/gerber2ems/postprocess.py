@@ -14,7 +14,7 @@ import numpy as np
 import skrf
 from matplotlib.axes import Axes
 
-from gerber2ems.config import Config, Interface
+from gerber2ems.config import Config, DifferentialPairConfig, Interface, SingleEndedConfig
 from gerber2ems.constants import PLOT_STYLE, SIMULATION_DIR
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class Postprocesor:
         self.s_params[:] = np.nan
         self.impedances = np.empty([self.count, len(self.frequencies)], np.complex128)
         self.impedances[:] = np.nan
-        self.diff_impedances = np.empty([len(cfg.diff_pairs), len(self.frequencies)], np.complex128)
+        self.diff_impedances = np.empty([min(len(cfg.diff_pairs), 1), len(self.frequencies)], np.complex128)
         self.diff_impedances[:] = np.nan
         self.delays = np.empty(
             [self.count, self.count, len(self.frequencies)], np.float64
@@ -84,7 +84,7 @@ class Postprocesor:
     def calculate_diff_impedance(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating differential S-parameters and impedance")
-        for idx, pair in enumerate(cfg.diff_pairs):
+        for idx, pair in enumerate([cfg.tut]):
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -111,14 +111,15 @@ class Postprocesor:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating Delay & Impedance")
 
-        for trace in cfg.traces:
-            self.interfaces[trace.start] = trace.interface
-            self.interfaces[trace.stop] = trace.interface
-        for pair in cfg.diff_pairs:
-            self.interfaces[pair.start_p] = pair.interface
-            self.interfaces[pair.stop_p] = pair.interface
-            self.interfaces[pair.start_n] = pair.interface
-            self.interfaces[pair.stop_n] = pair.interface
+        tut = cfg.tut
+        if isinstance(tut, SingleEndedConfig):
+            self.interfaces[tut.start] = tut.interface
+            self.interfaces[tut.stop] = tut.interface
+        if isinstance(tut, DifferentialPairConfig):
+            self.interfaces[tut.start_p] = tut.interface
+            self.interfaces[tut.stop_p] = tut.interface
+            self.interfaces[tut.start_n] = tut.interface
+            self.interfaces[tut.stop_n] = tut.interface
 
         for i, reference_z in enumerate(self.reference_zs):
             s_param = self.s_params[i][i]
@@ -209,7 +210,7 @@ class Postprocesor:
         """Render differential pair S parameter plots to files."""
         logger.info("Rendering differential pair S-parameter plots")
         plt.style.use(PLOT_STYLE)
-        for pair in cfg.diff_pairs:
+        for pair in [cfg.tut]:
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -255,7 +256,7 @@ class Postprocesor:
         logger.info("Rendering differential pair impedance plots")
         plt.style.use(PLOT_STYLE)
 
-        for idx, pair in enumerate(cfg.diff_pairs):
+        for idx, pair in enumerate([cfg.tut]):
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -450,7 +451,9 @@ class Postprocesor:
         """Render all trace delay plots to files."""
         logger.info("Rendering trace delay plots")
         plt.style.use(PLOT_STYLE)
-        for trace in cfg.traces:
+        tut = cfg.tut
+        if isinstance(tut, SingleEndedConfig):
+            trace = tut
             if trace.correct and self.is_valid(self.delays[trace.stop][trace.start]):
                 fig, axes = plt.subplots()
                 axes.plot(
@@ -468,7 +471,8 @@ class Postprocesor:
                     transparent=cfg.arguments.transparent,
                 )
 
-        for pair in cfg.diff_pairs:
+        if isinstance(tut, SingleEndedConfig):
+            pair = tut
             if (
                 pair.correct
                 and self.is_valid(self.delays[pair.stop_n][pair.start_n])

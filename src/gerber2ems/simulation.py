@@ -489,8 +489,11 @@ class Simulation:
         incident: List[np.ndarray] = []
         reflected: List[np.ndarray] = []
         for idx, port in enumerate(self.ports):
+            cfg_port = cfg.all_ports[idx]
+            if cfg_port not in cfg.ports:
+                continue
             try:
-                port.CalcPort(str(result_path), frequencies, ref_impedance=cfg.ports[idx].impedance)
+                port.CalcPort(str(result_path), frequencies, ref_impedance=cfg_port.impedance)
                 logger.debug("Found data for port %d", idx)
             except IOError:
                 logger.error("Port data files do not exist. Did you run simulation step?")
@@ -530,7 +533,7 @@ class Simulation:
 
         self.clear_ports()
 
-        for index, port_config in enumerate(cfg.ports):
+        for index, port_config in enumerate(cfg.all_ports):
             match port_config.type:
                 case PortType.VERTICAL:
                     self.add_vertical_port(port_config, index, True)

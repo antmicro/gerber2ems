@@ -62,7 +62,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
         for gerber_pad in pads:
             pad = gerber_pad.to_pad_prop()
 
-            port_match_from_pnp = next((port for port in cfg.ports if port.matches_pad_pos(pad)), None)
+            port_match_from_pnp = next((port for port in cfg.all_ports if port.matches_pad_pos(pad)), None)
             if not port_match_from_pnp:
                 # pad not in pnp (probably slicer has mindfully excluded it)
                 continue
@@ -74,14 +74,18 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
 
             close_gnd_pads = []
             if port_match_from_pnp.reference_pad:
+                proc_refs = set()
                 for ref in port_match_from_pnp.reference_pad:
                     if isinstance(ref, PadProp):
                         close_gnd_pads.append(ref)
                         ref = ref.id
-                    fpad = next(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
-                    if fpad:
+                    if ref in proc_refs:
+                        continue
+                    fpad = tuple(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
+                    proc_refs.add(ref)
+                    if not fpad:
                         raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
-                    close_gnd_pads.append(fpad)
+                    close_gnd_pads.extend(fpad)
             if not close_gnd_pads:
                 close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
 
@@ -113,7 +117,7 @@ def preprocess_vertical() -> None:
             if cfg.trace_under_test.endswith("_Diff")
             else cfg.trace_under_test
         )
-    cfg.ports = extract_ports_from_gerbers(
+    cfg.all_ports = extract_ports_from_gerbers(
         {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
         nn,
     )

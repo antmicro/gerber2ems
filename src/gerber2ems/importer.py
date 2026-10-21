@@ -519,16 +519,16 @@ def import_port_positions() -> None:
     Parses them to find port footprints and inserts their position information to config object.
     """
     for number, position, direction in get_ports_from_all_pos_files():
-        if len(cfg.ports) > number:
-            port = cfg.ports[number]
+        if len(cfg.all_ports) > number:
+            port = cfg.all_ports[number]
             if port.position is None:
-                cfg.ports[number].position = position
-                cfg.ports[number].direction = direction
+                cfg.all_ports[number].position = position
+                cfg.all_ports[number].direction = direction
             else:
                 logger.warning(
                     "Port #%i is defined twice on the board. Ignoring the second instance",
                     number,
                 )
-    for index, port in enumerate(cfg.ports):
+    for index, port in enumerate(cfg.all_ports):
         if port.position is None:
             logger.error("Port #%i is not defined on board. It will be skipped", index)
