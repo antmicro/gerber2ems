@@ -45,7 +45,7 @@ class PortConfig:
     """Class representing and parsing port config."""
 
     name: str = field(default="Unnamed", alias=["number"])
-    type: PortType = PortType.VERTICAL
+    type: PortType | None = None
     """Describes Simulation Port type."""
     position: Point | None = field(default=None, skip=True)
     """[DEPRECATED: Use PortConfig.pad]"""

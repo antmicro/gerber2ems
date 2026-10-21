@@ -55,42 +55,42 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 all_gnd.append(p)
 
     ports: list[PortConfig] = []
+    for port in cfg.all_ports:
+        if port.type != PortType.VERTICAL:
+            ports.append(port)
+            continue
 
-    for comp_ref, pads in net_pads_by_comp.items():
-        gnd_pads = gnd_pads_by_comp.get(comp_ref, [])
+        for comp_ref, pads in net_pads_by_comp.items():
+            gnd_pads = gnd_pads_by_comp.get(comp_ref, [])
 
-        for gerber_pad in pads:
-            pad = gerber_pad.to_pad_prop()
+            for gerber_pad in pads:
+                pad = gerber_pad.to_pad_prop()
 
-            port_match_from_pnp = next((port for port in cfg.all_ports if port.matches_pad_pos(pad)), None)
-            if not port_match_from_pnp:
-                # pad not in pnp (probably slicer has mindfully excluded it)
-                continue
-            if gerber_pad.layer != port_match_from_pnp.layer:
-                # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
-                continue
-            if port_match_from_pnp.type != PortType.VERTICAL:
-                continue
+                if not port.matches_pad_pos(pad):
+                    continue
 
-            close_gnd_pads = []
-            if port_match_from_pnp.reference_pad:
-                proc_refs = set()
-                for ref in port_match_from_pnp.reference_pad:
-                    if isinstance(ref, PadProp):
-                        close_gnd_pads.append(ref)
-                        ref = ref.id
-                    if ref in proc_refs:
-                        continue
-                    fpad = tuple(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
-                    proc_refs.add(ref)
-                    if not fpad:
-                        raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
-                    close_gnd_pads.extend(fpad)
-            if not close_gnd_pads:
-                close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
+                if gerber_pad.layer != port.layer:
+                    # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
+                    continue
+                close_gnd_pads = []
+                if port.reference_pad:
+                    proc_refs = set()
+                    for ref in port.reference_pad:
+                        if isinstance(ref, PadProp):
+                            close_gnd_pads.append(ref)
+                            ref = ref.id
+                        if ref in proc_refs:
+                            continue
+                        fpad = tuple(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
+                        proc_refs.add(ref)
+                        if not fpad:
+                            raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
+                        close_gnd_pads.extend(fpad)
+                if not close_gnd_pads:
+                    close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
 
-            port_match_from_pnp.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
-            ports.append(port_match_from_pnp)
+                port.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
+                ports.append(port)
 
     return sorted(ports, key=lambda p: p.name)
 
@@ -105,6 +105,9 @@ def preprocess_vertical() -> None:
     logger.info("Preprocessing board before simulation")
     importer.import_stackup()
     importer.import_port_positions()
+
+    for port in cfg.all_ports:
+        port.type = port.type or PortType.VERTICAL
     netinfo_path = Path.cwd() / "netinfo.json"
     if netinfo_path.exists():
         netinfo = json.load(open(netinfo_path))
