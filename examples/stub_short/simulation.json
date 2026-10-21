@@ -27,6 +27,7 @@
         {
             "start": 0,
             "stop": 1,
+            "name": "Net-(J10-Pad1)",
             "interface": {
                 "max_frequency": 4e9,
                 "se_impedance_nominal": 50,

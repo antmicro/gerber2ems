@@ -13,7 +13,7 @@ import coloredlogs
 import numpy as np
 
 import gerber2ems.importer as importer
-from gerber2ems.config import Config, PortType
+from gerber2ems.config import Config
 from gerber2ems.constants import BASE_DIR, DEFAULT_CONFIG_PATH, GEOMETRY_DIR, GEOMETRY_FILE, RESULTS_DIR, SIMULATION_DIR
 from gerber2ems.postprocess import Postprocesor
 from gerber2ems.preprocess_vertical import preprocess_vertical
@@ -43,9 +43,6 @@ def main() -> None:
     if args.vertical or args.all:
         preprocess_vertical()
 
-    for port in cfg.all_ports:
-        port.type = port.type or PortType.MSL
-
     if args.geometry or args.all:
         logger.info("Creating geometry")
         create_dir(GEOMETRY_DIR, cleanup=True)
@@ -66,7 +63,7 @@ def geometry() -> None:
 
     sim = Simulation()
     importer.import_stackup()
-    if any(p.position is None and p.pad is None for p in cfg.ports):
+    if any(p.position is None and p.pad is None for p in cfg.all_ports):
         # skip loading ports if they've been loaded in `--vertical`
         importer.import_port_positions()
     importer.process_gbrs_to_pngs()

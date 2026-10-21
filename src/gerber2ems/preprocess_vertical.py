@@ -106,8 +106,6 @@ def preprocess_vertical() -> None:
     importer.import_stackup()
     importer.import_port_positions()
 
-    for port in cfg.all_ports:
-        port.type = port.type or PortType.VERTICAL
     netinfo_path = Path.cwd() / "netinfo.json"
     if netinfo_path.exists():
         netinfo = json.load(open(netinfo_path))

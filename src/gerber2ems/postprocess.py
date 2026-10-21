@@ -84,7 +84,10 @@ class Postprocesor:
     def calculate_diff_impedance(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
         logger.info("Processing all data from simulation. Calculating differential S-parameters and impedance")
-        for idx, pair in enumerate([cfg.tut]):
+        tut = cfg.tut
+        if isinstance(tut, DifferentialPairConfig):
+            idx = 0
+            pair = tut
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -210,7 +213,9 @@ class Postprocesor:
         """Render differential pair S parameter plots to files."""
         logger.info("Rendering differential pair S-parameter plots")
         plt.style.use(PLOT_STYLE)
-        for pair in [cfg.tut]:
+        tut = cfg.tut
+        if isinstance(tut, DifferentialPairConfig):
+            pair = tut
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -256,7 +261,10 @@ class Postprocesor:
         logger.info("Rendering differential pair impedance plots")
         plt.style.use(PLOT_STYLE)
 
-        for idx, pair in enumerate([cfg.tut]):
+        tut = cfg.tut
+        if isinstance(tut, DifferentialPairConfig):
+            idx = 0
+            pair = tut
             if (
                 pair.correct
                 and self.is_valid(self.s_params[pair.start_p][pair.start_p])
@@ -471,7 +479,7 @@ class Postprocesor:
                     transparent=cfg.arguments.transparent,
                 )
 
-        if isinstance(tut, SingleEndedConfig):
+        if isinstance(tut, DifferentialPairConfig):
             pair = tut
             if (
                 pair.correct

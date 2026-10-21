@@ -45,7 +45,7 @@ class PortConfig:
     """Class representing and parsing port config."""
 
     name: str = field(default="Unnamed", alias=["number"])
-    type: PortType | None = None
+    type: PortType = PortType.MSL
     """Describes Simulation Port type."""
     position: Point | None = field(default=None, skip=True)
     """[DEPRECATED: Use PortConfig.pad]"""
@@ -354,9 +354,13 @@ class _Config:
         return [self.all_ports[p] for p in sorted(port_idx)]
 
     @property
-    def tut(self) -> SingleEndedConfig | DifferentialPairConfig:
+    def tut(self) -> SingleEndedConfig | DifferentialPairConfig | None:
         if not self.trace_under_test:
-            return self.diff_pairs[0] if self.diff_pairs else self.traces[0]
+            if self.diff_pairs:
+                return self.diff_pairs[0]
+            if self.traces:
+                return self.traces[0]
+            return None
         for pair in self.diff_pairs:
             if self.trace_under_test == pair.name:
                 pair = deepcopy(pair)
