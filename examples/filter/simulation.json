@@ -1,54 +1,63 @@
 {
-    "format_version": "1.2",
-    "frequency": {
-        "start": 200000000.0,
-        "stop": 4000000000.0
-    },
-    "pixel_size": 2.5,
-    "ports": [
+    "format_version":"1.4",
+    "ports":[
         {
-            "width": 2200,
-            "length": 3000,
-            "impedance": 50,
-            "layer": 0,
-            "plane": 2,
-            "excite": true
+            "name":"2",
+            "type":"vertical",
+            "impedance":50.0,
+            "layer":0,
+            "db_margin":-15.0,
+            "excite":true
         },
         {
-            "width": 2200,
-            "length": 3000,
-            "impedance": 50,
-            "layer": 0,
-            "plane": 2,
-            "excite": false
+            "name":"1",
+            "type":"vertical",
+            "impedance":50.0,
+            "layer":0,
+            "db_margin":-15.0,
+            "excite":false
         }
     ],
-    "traces": [
+    "frequency":{
+        "start":200000000.0,
+        "stop":6000000000.0
+    },
+    "sim_length":5.0,
+    "pixel_size":2,
+    "via":{
+        "plating_thickness":50.0,
+        "filling_epsilon":1.0
+    },
+    "grid":{
+        "inter_layers":4,
+        "optimal":50.0,
+        "diagonal":50.0,
+        "perpendicular":200.0,
+        "max":500.0,
+        "margin":{
+            "xy":2400.0,
+            "z":5000.0,
+            "from_trace":false
+        },
+        "cell_ratio":{
+            "xy":1.2,
+            "z":1.5
+        }
+    },
+    "traces":[
         {
-            "start": 0,
-            "stop": 1,
-            "interface": {
-                "min_frequency": 2.8e9,
-                "max_frequency": 3.9e9,
-                "se_impedance_nominal": 50,
-                "se_impedance_tolerance": 1
+            "start":0,
+            "stop":1,
+            "name":"Net-(J10-Pad1)",
+            "nets":[],
+            "interface":{
+                "min_frequency":2800000000.0,
+                "max_frequency":3900000000.0,
+                "se_impedance_nominal":50.0,
+                "se_impedance_tolerance":1.0
             }
         }
     ],
-    "grid": {
-        "inter_layers": 4,
-        "optimal": 40.0,
-        "diagonal": 40.0,
-        "perpendicular": 200.0,
-        "max": 500.0,
-        "margin": {
-            "xy": 2400.0,
-            "z": 5000.0,
-            "from_trace": false
-        },
-        "cell_ratio": {
-            "xy": 1.2,
-            "z": 1.5
-        }
-    }
+    "differential_pairs":[],
+    "trace_under_test":"Net-(J10-Pad1)"
 }

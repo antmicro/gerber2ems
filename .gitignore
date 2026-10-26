@@ -5,6 +5,8 @@ examples/*/fab/*
 !examples/*/fab/stackup.json
 !examples/*/fab/*-PTH.drl
 !examples/*/fab/*-pos.csv
+!examples/*/fab/*Silkscreen.gbr
+!examples/*/fab/*Mask.gbr
 !examples/*/simulation.json
 !examples/*/vna.csv
 

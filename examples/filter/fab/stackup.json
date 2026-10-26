@@ -4,8 +4,8 @@
             "name": "F.SilkS",
             "type": "Top Silk Screen",
             "color": null,
-            "thickness": null,
             "material": null,
+            "thickness": null,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "F_Silkscreen"
@@ -14,8 +14,8 @@
             "name": "F.Paste",
             "type": "Top Solder Paste",
             "color": null,
-            "thickness": null,
             "material": null,
+            "thickness": null,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "F_Paste"
@@ -23,9 +23,9 @@
         {
             "name": "F.Mask",
             "type": "Top Solder Mask",
-            "color": null,
-            "thickness": 0.01,
+            "color": "Black",
             "material": null,
+            "thickness": 0.01,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "F_Mask"
@@ -34,18 +34,18 @@
             "name": "F.Cu",
             "type": "copper",
             "color": null,
-            "thickness": 0.035,
             "material": null,
+            "thickness": 0.035,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "F_Cu"
         },
         {
             "name": "dielectric 1",
-            "type": "prepreg",
+            "type": "core",
             "color": null,
-            "thickness": 0.12,
             "material": "FR4",
+            "thickness": 0.12,
             "epsilon": 4.18,
             "lossTangent": 0.02,
             "user-name": "dielectric 1"
@@ -54,8 +54,8 @@
             "name": "In1.Cu",
             "type": "copper",
             "color": null,
-            "thickness": 0.035,
             "material": null,
+            "thickness": 0.035,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "In1_Cu"
@@ -64,8 +64,8 @@
             "name": "dielectric 2",
             "type": "prepreg",
             "color": null,
-            "thickness": 1.2,
             "material": "FR4",
+            "thickness": 1.2,
             "epsilon": 4.18,
             "lossTangent": 0.02,
             "user-name": "dielectric 2"
@@ -74,18 +74,38 @@
             "name": "In2.Cu",
             "type": "copper",
             "color": null,
-            "thickness": 0.035,
             "material": null,
+            "thickness": 0.035,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "In2_Cu"
         },
         {
+            "name": "dielectric 3",
+            "type": "core",
+            "color": null,
+            "material": "FR4",
+            "thickness": 0.12,
+            "epsilon": 4.18,
+            "lossTangent": 0.02,
+            "user-name": "dielectric 3"
+        },
+        {
+            "name": "B.Cu",
+            "type": "copper",
+            "color": null,
+            "material": null,
+            "thickness": 0.035,
+            "epsilon": null,
+            "lossTangent": null,
+            "user-name": "B_Cu"
+        },
+        {
             "name": "B.Mask",
             "type": "Bottom Solder Mask",
-            "color": null,
-            "thickness": 0.01,
+            "color": "Black",
             "material": null,
+            "thickness": 0.01,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "B_Mask"
@@ -94,8 +114,8 @@
             "name": "B.Paste",
             "type": "Bottom Solder Paste",
             "color": null,
-            "thickness": null,
             "material": null,
+            "thickness": null,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "B_Paste"
@@ -104,8 +124,8 @@
             "name": "B.SilkS",
             "type": "Bottom Silk Screen",
             "color": null,
-            "thickness": null,
             "material": null,
+            "thickness": null,
             "epsilon": null,
             "lossTangent": null,
             "user-name": "B_Silkscreen"

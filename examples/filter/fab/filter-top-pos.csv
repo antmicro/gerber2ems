@@ -1,0 +1,5 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"J19","Conn_SMA_RF2-143-T-17-50-G","RF_SMA_BoardEdge_RF2-143-T-17-50-G",52.779211,7.127500,-90.000000,top
+"J19","Conn_SMA_RF2-143-T-17-50-G","RF_SMA_BoardEdge_RF2-143-T-17-50-G",-2.655000,7.135000,90.000000,top
+"SP1","Simulation_Port","Simulation_Port",2.300000,7.142000,-90.000000,top
+"SP2","Simulation_Port","Simulation_Port",47.825000,7.127500,90.000000,top
