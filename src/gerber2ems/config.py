@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 import yaml
-from serde import Untagged, coerce, field, from_dict, serde
+from serde import Untagged, coerce, field, from_dict, serde, to_dict
 from serde.json import to_json
 
 from gerber2ems.common import PadProp, Point, mm_to_sim
@@ -351,7 +351,7 @@ class _Config:
         for pair in self.diff_pairs:
             if self.trace_under_test == pair.name:
                 port_idx = [pair.start_p, pair.stop_p, pair.start_n, pair.stop_n]
-        return [self.all_ports[p] for p in sorted(port_idx)]
+        return [self.all_ports[p] for p in sorted(port_idx)] or self.all_ports
 
     @property
     def tut(self) -> SingleEndedConfig | DifferentialPairConfig | None:
@@ -375,6 +375,11 @@ class _Config:
                 for p in ["start", "stop"]:
                     setattr(trace, p, ports.index(self.all_ports[getattr(trace, p)]))
                 return trace
+
+        if self.diff_pairs and not self.diff_pairs[0].name:
+            return self.diff_pairs[0]
+        if self.traces and not self.traces[0].name:
+            return self.traces[0]
         raise ValueError(f"Trace under test (`{self.trace_under_test}`) not found in config!")
 
 
@@ -581,23 +586,28 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> dict[str, Any]:
 
     if len(json_cfg) == 0:
         json_cfg = {"format_version": CONFIG_FORMAT_VERSION}
-
-    if not json_cfg.get("ports", []):
+    ports = json_cfg.setdefault("ports", [])
+    if not ports:
         ports_numbers = [p[0] for p in get_ports_from_all_pos_files()]
-        ports = [PortConfig.with_name(str(p)) for p in ports_numbers]
+        ports.extend(to_dict(PortConfig.with_name(str(p))) for p in ports_numbers)
         ports[-1].excite = True
         if len(ports) >= 4:
             ports[-3].excite = True
-        json_cfg["ports"] = ports
-        if len(ports) in [2, 3]:
-            json_cfg["traces"] = [{"start": ports_numbers[-1], "stop": ports_numbers[-2]}]
-        if len(ports) >= 4:
+
+    traces, diffs = json_cfg.get("traces", []), json_cfg.get("differential_pairs", [])
+    if not diffs and not traces:
+        tut = json_cfg.get("trace_under_test")
+        dtut = {"name": tut} if tut else {}
+        if len(ports) in [2, 3] and not traces:
+            json_cfg["traces"] = [{"start": len(ports) - 1, "stop": len(ports) - 2, **dtut}]
+        if len(ports) >= 4 and not diffs:
             json_cfg["differential_pairs"] = [
                 {
-                    "start_p": ports_numbers[-1],
-                    "stop_p": ports_numbers[-2],
-                    "start_n": ports_numbers[-3],
-                    "stop_n": ports_numbers[-4],
+                    "start_p": len(ports) - 1,
+                    "stop_p": len(ports) - 2,
+                    "start_n": len(ports) - 3,
+                    "stop_n": len(ports) - 4,
+                    **dtut,
                 }
             ]
     return json_cfg

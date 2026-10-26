@@ -112,7 +112,9 @@ def preprocess_vertical() -> None:
         nn = [net["name"].replace(",", r"\u002C") for net in netinfo["nets"]]
     else:
         if not cfg.trace_under_test:
-            raise ValueError("`gerber2ems --vertical` requires `trace_under_test` in simulation.json")
+            if any(p == PortType.VERTICAL for p in cfg.all_ports):
+                raise ValueError("`gerber2ems --vertical` requires `trace_under_test` in simulation.json")
+            return
         nn = (
             [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
             if cfg.trace_under_test.endswith("_Diff")

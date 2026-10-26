@@ -51,10 +51,10 @@
             "name":"Net-(J10-Pad1)",
             "nets":[],
             "interface":{
-                "min_frequency":2800000000.0,
-                "max_frequency":3900000000.0,
+                "min_frequency":3200000000.0,
+                "max_frequency":3700000000.0,
                 "se_impedance_nominal":50.0,
-                "se_impedance_tolerance":1.0
+                "se_impedance_tolerance":0.4
             }
         }
     ],
