@@ -22,7 +22,7 @@
         "start":200000000.0,
         "stop":6000000000.0
     },
-    "sim_length":5.0,
+    "sim_length":10.0,
     "pixel_size":2,
     "via":{
         "plating_thickness":50.0,
@@ -51,8 +51,8 @@
             "name":"Net-(J10-Pad1)",
             "nets":[],
             "interface":{
-                "min_frequency":3200000000.0,
-                "max_frequency":3700000000.0,
+                "min_frequency":3250000000.0,
+                "max_frequency":3650000000.0,
                 "se_impedance_nominal":50.0,
                 "se_impedance_tolerance":0.4
             }
