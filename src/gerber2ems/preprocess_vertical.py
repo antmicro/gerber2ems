@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 
 def _find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float) -> list[PadProp]:
     """Find closest ground pad from `gnd_pads` and other pads that are at at most `dist_mult` this distance."""
-    closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
+    gnd_pads_sl = [p for p in gnd_pads if p.layer == signal_pad.layer]
+    closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads_sl), default=0.0)
     radius = closest_gnd_distance * dist_mul
 
-    return [
-        p for p in gnd_pads if p.layer == signal_pad.layer and p.position.distance_to(signal_pad.position) <= radius
-    ]
+    return [p for p in gnd_pads_sl if p.position.distance_to(signal_pad.position) <= radius]
 
 
 def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[str]) -> list[PortConfig]:
@@ -76,7 +75,6 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                     proc_refs = set()
                     for ref in port.reference_pad:
                         if isinstance(ref, PadProp):
-                            close_gnd_pads.append(ref)
                             ref = ref.id
                         if ref in proc_refs:
                             continue
