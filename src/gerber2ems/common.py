@@ -74,7 +74,7 @@ class Point:
         return self.__class__(max(self.x, other.x), max(self.y, other.y))
 
 
-@serde(type_check=coerce)
+@serde(type_check=coerce, skip_if_none=True)
 @dataclass
 class PadProp:
     """Basic properties of signal pad required for simulation."""
@@ -86,6 +86,8 @@ class PadProp:
     id: str | None = None
     """Expected name format: `J15,9` (component-designator,pin-number)
     This will be matched to pad designated with `%TO.P,J15,9,net_name*%` in gerber file"""
+    layer: int | None = None
+    """index of cooper layer"""
 
     def sim_pad(self) -> PadProp:
         """Convert pad coordinates to simulation space."""

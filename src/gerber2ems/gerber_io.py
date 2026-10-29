@@ -83,7 +83,7 @@ class Pad:
             raise ValueError(f"Aperture data can not be retrieved for {self}")
         ap_bbox = self._aperture_data.data.bbox(self.pos, self.rotation, self.scale, self.mirror, 0)
         pad_id = (self.pin_ref.comp_ref + "," + self.pin_ref.pin_num) if self.pin_ref else None
-        return PadProp(self.pos, ap_bbox[0].vector_to(ap_bbox[1]), pad_id)
+        return PadProp(self.pos, ap_bbox[0].vector_to(ap_bbox[1]), pad_id, self.layer)
 
 
 @dataclass

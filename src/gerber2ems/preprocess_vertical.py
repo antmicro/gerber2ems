@@ -8,7 +8,7 @@ from pathlib import Path
 from gerber2ems import importer
 from gerber2ems.config import Config, PadProp, PortConfig, PortType
 from gerber2ems.constants import FAB_DIR
-from gerber2ems.gerber_io import GerberFile, Pad, get_board_bbox_from_gerbers
+from gerber2ems.gerber_io import GerberFile, get_board_bbox_from_gerbers
 
 cfg = Config()
 
@@ -20,7 +20,11 @@ def _find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float) -> 
     closest_gnd_distance = min((signal_pad.position.distance_to(gnd.position) for gnd in gnd_pads), default=0.0)
     radius = closest_gnd_distance * dist_mul
 
-    return [p.mm_pad() for p in gnd_pads if p.position.distance_to(signal_pad.position) <= radius]
+    return [
+        p.mm_pad()
+        for p in gnd_pads
+        if p.layer == signal_pad.layer and p.position.distance_to(signal_pad.position) <= radius
+    ]
 
 
 def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[str]) -> list[PortConfig]:
@@ -33,7 +37,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
     offset = get_board_bbox_from_gerbers().min
     offset.scale(-1)
     # Pads of the requested net, grouped by component
-    net_pads_by_comp: dict[str, list[Pad]] = defaultdict(list)
+    net_pads_by_comp: dict[str, list[PadProp]] = defaultdict(list)
     # All ground pads, grouped by component
     gnd_pads_by_comp: dict[str, list[PadProp]] = defaultdict(list)
     all_gnd = []
@@ -43,7 +47,8 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             if pad.net in net_name and pad.pin_ref is not None:
                 pad.layer = layer
                 pad.pos.move(offset)
-                net_pads_by_comp[pad.pin_ref.comp_ref].append(pad)
+                p = pad.to_pad_prop()
+                net_pads_by_comp[pad.pin_ref.comp_ref].append(p)
 
         for pad in gerber.pads:
             if pad.net == "GND" and pad.pin_ref is not None:
@@ -63,13 +68,11 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
         for comp_ref, pads in net_pads_by_comp.items():
             gnd_pads = gnd_pads_by_comp.get(comp_ref, [])
 
-            for gerber_pad in pads:
-                pad = gerber_pad.to_pad_prop()
-
+            for pad in pads:
                 if not port.matches_pad_pos(pad):
                     continue
 
-                if gerber_pad.layer != port.layer:
+                if pad.layer != port.layer:
                     # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                     continue
                 close_gnd_pads = []
@@ -81,7 +84,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                             ref = ref.id
                         if ref in proc_refs:
                             continue
-                        fpad = tuple(p.mm_pad() for p in all_gnd if p.id and p.id == ref)
+                        fpad = tuple(p.mm_pad() for p in all_gnd if p.layer == pad.layer and p.id and p.id == ref)
                         proc_refs.add(ref)
                         if not fpad:
                             raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
