@@ -245,9 +245,7 @@ class Simulation:
             return
 
         start_z = self.get_metal_layer_offset(port_config.layer)
-        stop_z = self.get_metal_layer_offset(
-            port_config.plane or (1 if port_config.layer == 0 else len(cfg.get_metals()) - 2)
-        )
+        stop_z = self.get_metal_layer_offset(port_config.plane or port_config.default_plane_idx())
 
         start = [pp.position.x - pp.size.x / 2, pp.position.y - pp.size.y / 2, round(start_z)]
         stop = [pp.position.x + pp.size.x / 2, pp.position.y + pp.size.y / 2, round(stop_z)]
@@ -292,7 +290,7 @@ class Simulation:
         self.ports.append(port)
 
     def add_vertical_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
-        """Add V2 port (vertical, lumped port to virtual gnd patch)."""
+        """Add Vertical port (vertical, lumped port to virtual gnd patch)."""
         start_z, stop_z = self.get_lumped_port_z_span(port_config)
         self.add_lumped_port(port_config, port_number, start_z, stop_z, excite)
 

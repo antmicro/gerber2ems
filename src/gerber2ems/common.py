@@ -91,11 +91,19 @@ class PadProp:
 
     def sim_pad(self) -> PadProp:
         """Convert pad coordinates to simulation space."""
-        return PadProp(self.position.mm_to_sim(), self.size.mm_to_sim(), self.id)
+        return PadProp(self.position.mm_to_sim(), self.size.mm_to_sim(), self.id, self.layer)
 
     def mm_pad(self) -> PadProp:
         """Convert pad coordinates from simulation space to real world millimeters."""
-        return PadProp(self.position.sim_to_mm(), self.size.sim_to_mm(), self.id)
+        return PadProp(self.position.sim_to_mm(), self.size.sim_to_mm(), self.id, self.layer)
+
+    def mm_pad_port(self) -> PadProp:
+        """Convert pad coordinates from simulation space to real world millimeters and scales down the port size."""
+        pad = self.mm_pad()
+        size_sq = min(pad.size.x, pad.size.y)
+        pad.size = Point(size_sq, size_sq)
+        pad.size.scale(0.7)  # smaller port than pad to fit into circular pads (~sqrt(2)/2)
+        return pad
 
 
 @dataclass

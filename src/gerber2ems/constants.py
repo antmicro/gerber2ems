@@ -17,6 +17,10 @@ DEFAULT_CONFIG_PATH = "./simulation.json"
 # Via geometry is approximated using n-sided right prism
 VIA_POLYGON = 12
 
+DEFAULT_MSL_WIDTH = 0.2
+DEFAULT_MSL_LENGTH = 1
+DEFAULT_VERTICAL_LENGTH = 0.36
+
 STACKUP_FORMAT_VERSION = "1.0"
 CONFIG_FORMAT_VERSION = "1.4"
 """`simulation.json` config file format specification revision

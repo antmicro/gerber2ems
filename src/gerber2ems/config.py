@@ -22,7 +22,15 @@ from serde import Untagged, coerce, field, from_dict, serde, to_dict
 from serde.json import to_json
 
 from gerber2ems.common import PadProp, Point, mm_to_sim
-from gerber2ems.constants import CONFIG_FORMAT_VERSION, FAB_DIR, GUIDELINES_FILE, UNIT_MULTIPLIER
+from gerber2ems.constants import (
+    CONFIG_FORMAT_VERSION,
+    DEFAULT_MSL_LENGTH,
+    DEFAULT_MSL_WIDTH,
+    DEFAULT_VERTICAL_LENGTH,
+    FAB_DIR,
+    GUIDELINES_FILE,
+    UNIT_MULTIPLIER,
+)
 
 logger = logging.getLogger(__name__)
 port_count: int = 0
@@ -59,8 +67,8 @@ class PortConfig:
     pad: PadProp | None = None
     """`pad.position` describes physical pad this port connects to.
     
-    In config it's stored in millimeters, its position points to center of pad 
-    (opposed to middle of edge, when defining ports via pnp file)"""
+    In the config it's stored in millimeters, its position points to the center of the pad
+    (as opposed to the middle of the edge, when defining ports via pnp file)"""
     reference_pad: Sequence[PadProp | str] = field(default_factory=list)
     """List of pads that are reference point for port (eg. ground pin of IC)
     Can be either `PadProp` or name of pad"""
@@ -83,7 +91,7 @@ class PortConfig:
 
     def vertical_height(self) -> float:
         """Return vertical port height."""
-        return self.length or 3600
+        return (self.length or mm_to_sim(DEFAULT_VERTICAL_LENGTH)) * UNIT_MULTIPLIER
 
     def get_ref_pads(self) -> list[PadProp]:
         """Return reference pad position & size."""
@@ -105,7 +113,8 @@ class PortConfig:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
 
         angle = self.direction / 360 * 2 * pi
-        w, h = (self.width or 200) * UNIT_MULTIPLIER, (self.length or 1000) * UNIT_MULTIPLIER
+        w = (self.width or mm_to_sim(DEFAULT_MSL_WIDTH)) * UNIT_MULTIPLIER
+        h = (self.length or mm_to_sim(DEFAULT_MSL_LENGTH)) * UNIT_MULTIPLIER
         size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
         pos = Point(self.position.x - (h / 2) * sin(angle), self.position.y + (h / 2) * cos(angle))
         self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())
@@ -114,11 +123,7 @@ class PortConfig:
 
     def update_from_pad(self, pad: PadProp, close_gnd_pads: list[PadProp], default_name: str) -> None:
         """Update port properties using pad data."""
-        size_sq = min(pad.size.x, pad.size.y)
-        pad.size = Point(size_sq, size_sq)
-
-        pad.size.scale(0.7)  # smaller port than pad to fit into circular pads
-        self.pad = pad.mm_pad()
+        self.pad = pad
         if self.width:
             self.pad.size = Point(self.width, self.width).sim_to_mm()
 
@@ -129,10 +134,17 @@ class PortConfig:
     def matches_pad_pos(self, pad: PadProp) -> bool:
         """Return true if port position matches pad position."""
         if self.pad:
-            return pad.position.sim_to_mm().distance_to(self.pad.position) < 0.1
+            return pad.position.distance_to(self.pad.position) < 0.1
         if self.position:
-            return pad.position.distance_to(self.position) < mm_to_sim(0.1)
+            return pad.position.distance_to(self.position.sim_to_mm()) < 0.1
         return False
+
+    def default_plane_idx(self) -> int:
+        """Return default index of layer that should be used as reference plane for port.
+
+        Returns first internal layer for ports placed on top, and last internal layer for ports on bottom.
+        """
+        return 1 if self.layer == 0 else len(Config().get_metals()) - 2
 
 
 @serde(type_check=coerce)
@@ -164,7 +176,6 @@ class DifferentialPairConfig:
     nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
     interface: Interface = field(default_factory=Interface, skip_if_default=True)
-    diff_impedance: float = 100
 
     def __post_init__(self) -> None:
         """Validate trace config."""

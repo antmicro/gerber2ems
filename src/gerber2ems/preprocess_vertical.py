@@ -21,9 +21,7 @@ def _find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float) -> 
     radius = closest_gnd_distance * dist_mul
 
     return [
-        p.mm_pad()
-        for p in gnd_pads
-        if p.layer == signal_pad.layer and p.position.distance_to(signal_pad.position) <= radius
+        p for p in gnd_pads if p.layer == signal_pad.layer and p.position.distance_to(signal_pad.position) <= radius
     ]
 
 
@@ -47,15 +45,14 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             if pad.net in net_name and pad.pin_ref is not None:
                 pad.layer = layer
                 pad.pos.move(offset)
-                p = pad.to_pad_prop()
+                p = pad.to_pad_prop().mm_pad_port()
                 net_pads_by_comp[pad.pin_ref.comp_ref].append(p)
 
         for pad in gerber.pads:
             if pad.net == "GND" and pad.pin_ref is not None:
                 pad.layer = layer
-                p = pad.to_pad_prop()
-                p.position.move(offset)
-                p.size.scale(0.7)
+                pad.pos.move(offset)
+                p = pad.to_pad_prop().mm_pad_port()
                 gnd_pads_by_comp[pad.pin_ref.comp_ref].append(p)
                 all_gnd.append(p)
 
@@ -71,7 +68,6 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
             for pad in pads:
                 if not port.matches_pad_pos(pad):
                     continue
-
                 if pad.layer != port.layer:
                     # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                     continue
@@ -84,14 +80,13 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                             ref = ref.id
                         if ref in proc_refs:
                             continue
-                        fpad = tuple(p.mm_pad() for p in all_gnd if p.layer == pad.layer and p.id and p.id == ref)
+                        fpad = tuple(p for p in all_gnd if p.layer == pad.layer and p.id and p.id == ref)
                         proc_refs.add(ref)
                         if not fpad:
                             raise ValueError(f"Pad `{ref}` could not be found in gerber files!")
                         close_gnd_pads.extend(fpad)
                 if not close_gnd_pads:
                     close_gnd_pads = _find_gnd(pad, gnd_pads, 3) if gnd_pads else _find_gnd(pad, all_gnd, 1.2)
-
                 port.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
                 ports.append(port)
 
@@ -103,7 +98,7 @@ def preprocess_vertical() -> None:
 
     Currently preprocessing includes:
     * update ports in config based on PNP (with ports) and gerbers
-        (this detects and save position/size if simulation & reference pads)
+        (this detects and save position/size of simulation & reference pads)
     """
     logger.info("Preprocessing board before simulation")
     importer.import_stackup()
