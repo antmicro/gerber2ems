@@ -91,7 +91,7 @@ class PortConfig:
 
     def vertical_height(self) -> float:
         """Return vertical port height."""
-        return (self.length or mm_to_sim(DEFAULT_VERTICAL_LENGTH)) * UNIT_MULTIPLIER
+        return self.length or mm_to_sim(DEFAULT_VERTICAL_LENGTH)
 
     def get_ref_pads(self) -> list[PadProp]:
         """Return reference pad position & size."""
@@ -112,9 +112,15 @@ class PortConfig:
         if self.position is None or self.direction is None:
             raise AssertionError("PortConfig position&direction are expected to be loaded before adding ports")
 
-        angle = self.direction / 360 * 2 * pi
         w = (self.width or mm_to_sim(DEFAULT_MSL_WIDTH)) * UNIT_MULTIPLIER
         h = (self.length or mm_to_sim(DEFAULT_MSL_LENGTH)) * UNIT_MULTIPLIER
+        if self.type == PortType.LUMPED:
+            size = Point(w, w)
+            pos = Point(self.position.x, self.position.y)
+            self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())
+            return self.pad.sim_pad()
+
+        angle = self.direction / 360 * 2 * pi
         size = Point(w * round(cos(angle)) - h * round(sin(angle)), w * round(sin(angle)) + h * round(cos(angle)))
         pos = Point(self.position.x - (h / 2) * sin(angle), self.position.y + (h / 2) * cos(angle))
         self.pad = PadProp(pos.sim_to_mm(), size.sim_to_mm())

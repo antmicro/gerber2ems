@@ -1,9 +1,7 @@
 """Module responsible for set up of ports vertical based on gerber files."""
 
-import json
 import logging
 from collections import defaultdict
-from pathlib import Path
 
 from gerber2ems import importer
 from gerber2ems.config import Config, PadProp, PortConfig, PortType
@@ -24,10 +22,10 @@ def _find_gnd(signal_pad: PadProp, gnd_pads: list[PadProp], dist_mul: float) -> 
     return [p for p in gnd_pads_sl if p.position.distance_to(signal_pad.position) <= radius]
 
 
-def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[str]) -> list[PortConfig]:
-    """Create port configs for a net.
+def extract_ports_from_gerbers(gerbers: dict[int, GerberFile]) -> list[PortConfig]:
+    """Create port configs.
 
-    For each pad of the net, find the closest ground pads of the same component
+    For each pad, find the closest ground pads of the same component
     and build a port config referencing them as reference pads.
 
     """
@@ -41,7 +39,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
 
     for layer, gerber in gerbers.items():
         for pad in gerber.pads:
-            if pad.net in net_name and pad.pin_ref is not None:
+            if pad.net != "GND" and pad.pin_ref is not None:
                 pad.layer = layer
                 pad.pos.move(offset)
                 p = pad.to_pad_prop().mm_pad_port()
@@ -70,7 +68,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile], net_name: list[st
                 if pad.layer != port.layer:
                     # for now THT pads are detected twice in gerber files, use only one that matches simulation.json
                     continue
-                close_gnd_pads = []
+                close_gnd_pads: list[PadProp] = []
                 if port.reference_pad:
                     proc_refs = set()
                     for ref in port.reference_pad:
@@ -102,23 +100,8 @@ def preprocess_vertical() -> None:
     importer.import_stackup()
     importer.import_port_positions()
 
-    netinfo_path = Path.cwd() / "netinfo.json"
-    if netinfo_path.exists():
-        netinfo = json.load(open(netinfo_path))
-        nn = [net["name"].replace(",", r"\u002C") for net in netinfo["nets"]]
-    else:
-        if not cfg.trace_under_test:
-            if any(p == PortType.VERTICAL for p in cfg.all_ports):
-                raise ValueError("`gerber2ems --vertical` requires `trace_under_test` in simulation.json")
-            return
-        nn = (
-            [cfg.trace_under_test.removesuffix("_Diff") + sx for sx in ("_P", "_N")]
-            if cfg.trace_under_test.endswith("_Diff")
-            else cfg.trace_under_test
-        )
     cfg.all_ports = extract_ports_from_gerbers(
-        {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())},
-        nn,
+        {idx: GerberFile(next(FAB_DIR.glob("*" + lc.file + ".gbr"))) for idx, lc in enumerate(cfg.get_metals())}
     )
     cfg._correct_trace_config()
     cfg.save()
