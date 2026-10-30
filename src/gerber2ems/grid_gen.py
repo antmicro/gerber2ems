@@ -559,6 +559,7 @@ class GridGeneratorAxis:
         """Shrink/Merge conflicting edge regions (try to follow the rule of thirds as closely as possible)."""
         grid_size = cfg.grid.optimal
         grid_min = grid_size / 1.8
+        self.edge_cells = list(set(self.edge_cells))
         self.edge_cells.sort(key=lambda k: k.prio, reverse=True)  # sort by prio: high to low
         to_delete = []
         for i in range(0, len(self.edge_cells)):
@@ -602,6 +603,7 @@ class GridGeneratorAxis:
         """Merge overlapping regions."""
         reg_list = getattr(self, reg_field)
         to_delete = []
+        reg_list = list(set(reg_list))
         for i in range(0, len(reg_list)):
             reg = reg_list[i]
             for j in range(0, i):

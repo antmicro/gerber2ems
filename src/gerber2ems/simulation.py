@@ -216,7 +216,8 @@ class Simulation:
         """Add grid around ports for simulation."""
         logger.info("Adding ports grid")
 
-        for port_config in cfg.ports:
+        main_ports = cfg.ports
+        for port_config in cfg.all_ports:
             if port_config.type == PortType.VERTICAL:
                 _port_start, port_end = self.get_lumped_port_z_span(port_config)
                 self.grid_gen.add_z_lines.append(round(port_end))
@@ -225,7 +226,8 @@ class Simulation:
 
                 pp.position.move(self.grid_gen.bbox.min)
                 self.grid_gen.add_pads.append(Pad(ap, "PORT", pp.position))
-                self.grid_gen.add_apertures[ap] = Aperture("", ApertureRect(abs(pp.size.x), abs(pp.size.y)))
+                aper_size = pp.size if port_config in main_ports else Point(0, 0)
+                self.grid_gen.add_apertures[ap] = Aperture("", ApertureRect(abs(aper_size.x), abs(aper_size.y)))
 
     def add_msl_port(self, port_config: PortConfig, port_number: int, excite: bool = False) -> None:
         """Add MicroStripLine port based on config."""
