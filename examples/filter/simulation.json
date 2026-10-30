@@ -2,7 +2,7 @@
     "format_version":"1.4",
     "ports":[
         {
-            "name":"2",
+            "name":"1",
             "type":"vertical",
             "impedance":50.0,
             "layer":0,
@@ -10,7 +10,7 @@
             "excite":true
         },
         {
-            "name":"1",
+            "name":"2",
             "type":"vertical",
             "impedance":50.0,
             "layer":0,
@@ -51,7 +51,7 @@
             "name":"Net-(J10-Pad1)",
             "nets":[],
             "interface":{
-                "min_frequency":3250000000.0,
+                "min_frequency":3255000000.0,
                 "max_frequency":3650000000.0,
                 "se_impedance_nominal":50.0,
                 "se_impedance_tolerance":0.4

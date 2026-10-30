@@ -378,19 +378,10 @@ class _Config:
             if self.traces:
                 return self.traces[0]
             return None
-        for pair in self.diff_pairs:
-            if self.trace_under_test == pair.name:
-                pair = deepcopy(pair)
-                ports = self.ports
-                for p in ["start_p", "stop_p", "start_n", "stop_n"]:
-                    setattr(pair, p, ports.index(self.all_ports[getattr(pair, p)]))
-                return pair
-        for trace in self.traces:
+
+        for trace in (*self.diff_pairs, *self.traces):
+            assert isinstance(trace, (SingleEndedConfig, DifferentialPairConfig))
             if self.trace_under_test == trace.name:
-                trace = deepcopy(trace)
-                ports = self.ports
-                for p in ["start", "stop"]:
-                    setattr(trace, p, ports.index(self.all_ports[getattr(trace, p)]))
                 return trace
 
         if self.diff_pairs and not self.diff_pairs[0].name:
@@ -398,6 +389,15 @@ class _Config:
         if self.traces and not self.traces[0].name:
             return self.traces[0]
         raise ValueError(f"Trace under test (`{self.trace_under_test}`) not found in config!")
+
+    def tut_port_indexes(self) -> list[int]:
+        """Return indexes of ports used by trace under test."""
+        tut = self.tut
+        if isinstance(tut, DifferentialPairConfig):
+            return [tut.start_p, tut.stop_p, tut.start_n, tut.stop_n]
+        if isinstance(tut, SingleEndedConfig):
+            return [tut.start, tut.stop]
+        return list(range(len(self.all_ports)))
 
 
 class Config:
@@ -528,6 +528,8 @@ class Config:
 
         port_count = len(json_cfg["ports"])
         cls._instance._config = from_dict(_Config, json_cfg)
+        for idx, port in enumerate(cls._instance._config.all_ports):
+            port.name = port.name if port.name.isdecimal() else str(idx)
         cls._instance._config.arguments = args
         cls._instance._config._apply_unit_multiplier()
         cls._path = cfg_path

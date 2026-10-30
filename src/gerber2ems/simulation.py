@@ -488,8 +488,6 @@ class Simulation:
         reflected: List[np.ndarray] = []
         for idx, port in enumerate(self.ports):
             cfg_port = cfg.all_ports[idx]
-            if cfg_port not in cfg.ports:
-                continue
             try:
                 port.CalcPort(str(result_path), frequencies, ref_impedance=cfg_port.impedance)
                 logger.debug("Found data for port %d", idx)

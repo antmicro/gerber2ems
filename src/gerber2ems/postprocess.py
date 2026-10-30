@@ -2,7 +2,6 @@
 
 import csv
 import logging
-import os
 import re
 import sys
 from cmath import rect
@@ -27,7 +26,7 @@ class Postprocesor:
 
     def __init__(self, frequencies: np.ndarray, port_count: int) -> None:
         """Initialize postprocessor."""
-        self.frequencies = frequencies  # Frequency list for whitch parameters are calculated
+        self.frequencies = frequencies  # Frequency list for which parameters are calculated
         self.count = port_count  # Number of ports
 
         self.interfaces = np.empty([self.count], Interface)
@@ -41,7 +40,7 @@ class Postprocesor:
             [self.count, self.count, len(self.frequencies)], np.complex128
         )  # Reflected wave phasors table ([measured_port][excited_port][frequency])
         self.reflected[:] = np.nan
-        self.reference_zs = np.array([p.impedance for p in cfg.ports])
+        self.reference_zs = np.array([p.impedance for p in cfg.all_ports])
 
         self.s_params = np.empty(
             [self.count, self.count, len(self.frequencies)], np.complex128
@@ -172,7 +171,7 @@ class Postprocesor:
                     fig, ax1 = plt.subplots()
                 for j in range(self.count):
                     s_param = self.s_params[j][i]
-                    if i > 9 or j > 9:
+                    if i + 1 > 9 or j + 1 > 9:
                         s_label = "$S_{" + f"{j + 1},{i + 1}" + "}$"
                     else:
                         s_label = "$S_{" + f"{j + 1}{i + 1}" + "}$"
@@ -438,7 +437,7 @@ class Postprocesor:
         for port in range(self.count):
             if self.is_valid(self.s_params[port][port]):
                 fig, axes = plt.subplots()
-                s11_margin = cfg.ports[port].db_margin
+                s11_margin = cfg.all_ports[port].db_margin
                 vswr_margin = (10 ** (s11_margin / 20) + 1) / (10 ** (s11_margin / 20) - 1)
                 net.plot_s_smith(
                     m=port,
@@ -543,32 +542,32 @@ class Postprocesor:
         """Save all parameters to files."""
         for i, _ in enumerate(self.s_params):
             if self.is_valid(self.s_params[i][i]):
-                self.sparam_port_to_file(i, SIMULATION_DIR)
+                file_path = SIMULATION_DIR / sparam_path_pat.format(i)
+                indexes = cfg.tut_port_indexes()
 
-    def sparam_port_to_file(self, port_number: int, path: str) -> None:
+                self.sparam_port_to_file(i, file_path, indexes)
+                if len(indexes) != len(cfg.all_ports):
+                    self.sparam_port_to_file(i, file_path.with_stem(file_path.stem + "_all"))
+
+    def sparam_port_to_file(self, port_number: int, path: Path, indexes: list[int] | None = None) -> None:
         """Save all parameters from single excitation."""
+        if not indexes:
+            indexes = list(range(len(cfg.all_ports)))
         frequencies = np.transpose([self.frequencies]) / 1e6
-        s_params = np.transpose(self.s_params[:, port_number, :], (1, 0))
+        s_params = np.transpose(self.s_params[indexes, port_number, :], (1, 0))
 
         header: str = "Frequency [MHz], "
-        header += "".join([f"re(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
-        header += "".join([f"im(S{i}-{port_number}), " for i, _ in enumerate(self.s_params[port_number])])
+        header += "".join([f"re(S{i}-{port_number}), " for i in indexes])
+        header += "".join([f"im(S{i}-{port_number}), " for i in indexes])
 
-        file_path = sparam_path_pat.format(port_number)
-        output = np.hstack(
-            [
-                frequencies,
-                np.real(s_params),
-                np.imag(s_params),
-            ]
-        )
-        logger.debug("Saving port no. %d parameters to file: %s", port_number, file_path)
-        np.savetxt(os.path.join(path, file_path), output, fmt="%g", delimiter=", ", header=header, comments="")
+        output = np.hstack([frequencies, np.real(s_params), np.imag(s_params)])
+        logger.debug("Saving port no. %d parameters to file: %s", port_number, path)
+        np.savetxt(path, output, fmt="%g", delimiter=", ", header=header, comments="")
 
     def load_sparams(self) -> None:
         """Load s-param from CSV file."""
         nprect = np.vectorize(rect)
-        for idx, port in enumerate(cfg.ports):
+        for idx, port in enumerate(cfg.all_ports):
             if not port.excite:
                 continue
             fpath = cfg.arguments.input / sparam_path_pat.format(idx)

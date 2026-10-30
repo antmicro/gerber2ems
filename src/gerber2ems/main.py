@@ -89,7 +89,7 @@ def simulate() -> None:
     """Run the simulation."""
     from gerber2ems.simulation import Simulation
 
-    for index, port in enumerate(cfg.ports):
+    for index, port in enumerate(cfg.all_ports):
         if port.excite:
             sim = Simulation(GEOMETRY_FILE)
             logging.info("Simulating with excitation on port #%i", index)
@@ -99,18 +99,18 @@ def simulate() -> None:
 
     if len(sim.ports) == 0:
         importer.import_stackup()
-        if any(p.position is None and p.pad is None for p in cfg.ports):
+        if any(p.position is None and p.pad is None for p in cfg.all_ports):
             # skip loading ports if they've been loaded in `--vertical`
             importer.import_port_positions()
         sim.add_ports()
 
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
-    post = Postprocesor(frequencies, len(cfg.ports))
+    post = Postprocesor(frequencies, len(cfg.all_ports))
 
-    for index, port in enumerate(cfg.ports):
+    for index, port in enumerate(cfg.all_ports):
         if port.excite:
             reflected, incident = sim.get_port_parameters(index, frequencies)
-            for i, _ in enumerate(cfg.ports):
+            for i, _ in enumerate(cfg.all_ports):
                 post.add_port_data(i, index, incident[i], reflected[i])
 
     post.calculate_sparams()
@@ -121,7 +121,7 @@ def postprocess() -> None:
     """Postprocess data from the simulation."""
     cfg.arguments.output.mkdir(exist_ok=True, parents=True)
     frequencies = np.linspace(cfg.frequency.start, cfg.frequency.stop, 1001)
-    post = Postprocesor(frequencies, len(cfg.ports))
+    post = Postprocesor(frequencies, len(cfg.all_ports))
     post.load_sparams()
     post.process_data()
     post.save_to_file()

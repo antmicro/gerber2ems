@@ -86,7 +86,7 @@ def extract_ports_from_gerbers(gerbers: dict[int, GerberFile]) -> list[PortConfi
                 port.update_from_pad(pad, close_gnd_pads, str(len(ports) + 1))
                 ports.append(port)
 
-    return sorted(ports, key=lambda p: p.name)
+    return sorted(ports, key=lambda p: int(p.name))
 
 
 def preprocess_vertical() -> None:
