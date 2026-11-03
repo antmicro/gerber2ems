@@ -27,11 +27,13 @@
         {
             "start": 0,
             "stop": 1,
-            "interface": {
-                "max_frequency": 4e9,
-                "se_impedance_nominal": 50,
-                "se_impedance_tolerance": 1
-            }
+            "interface": [
+                {
+                    "max_frequency": 3.5e9,
+                    "se_impedance_nominal": 50,
+                    "se_impedance_tolerance": 0.8
+                }
+            ]
         }
     ]
 }

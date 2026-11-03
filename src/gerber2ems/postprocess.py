@@ -288,8 +288,11 @@ class Postprocesor:
                     axs[0].grid(True)
                     axs[1].grid(True)
 
-                    if cfg.arguments.boundaries and not np.isnan(self.interfaces[pair.start_p].diff_impedance_nominal):
-                        self.draw_boudaries(axs, pair.start_p, True)
+                    interfaces = self.interfaces[pair.start_p]
+                    if np.ndim(interfaces) > 0:
+                        for interface in interfaces:
+                            if cfg.arguments.boundaries and not np.isnan(interface.diff_impedance_nominal):
+                                self.draw_boudaries(interface, axs, True)
 
                     bottom, top = axs[0].get_ylim()
                     axs[0].set_ylim([min(bottom, 0), max(top, 200)])
@@ -332,8 +335,11 @@ class Postprocesor:
                 axs[0].grid(True)
                 axs[1].grid(True)
 
-                if cfg.arguments.boundaries and not np.isnan(self.interfaces[port].se_impedance_nominal):
-                    self.draw_boudaries(axs, port)
+                interfaces = self.interfaces[port]
+                if np.ndim(interfaces) > 0:
+                    for interface in interfaces:
+                        if cfg.arguments.boundaries and not np.isnan(interface.se_impedance_nominal):
+                            self.draw_boudaries(interface, axs)
 
                 bottom, top = axs[0].get_ylim()
                 axs[0].set_ylim([min(bottom, 0), max(top, 100)])
@@ -346,11 +352,10 @@ class Postprocesor:
                     transparent=cfg.arguments.transparent,
                 )
 
-    def get_impedance_boundaries(self, port: int, diff: bool = False) -> tuple[float, float]:
+    def get_impedance_boundaries(self, interface: Interface, diff: bool = False) -> tuple[float, float]:
         """Get impedance boundaries."""
-        if not isinstance(self.interfaces[port], Interface):
+        if not isinstance(interface, Interface):
             return float("nan"), float("nan")
-        interface = self.interfaces[port]
         if diff:
             impedance_nominal = interface.diff_impedance_nominal
             if np.isnan(impedance_nominal):
@@ -366,68 +371,70 @@ class Postprocesor:
         max_z = np.real(impedance_nominal + z_tolerance)
         return min_z, max_z
 
-    def draw_boudaries(self, axs: List[Axes], port: int, diff: bool = False) -> None:
+    def draw_boudaries(self, interface: Interface, axs: List[Axes], diff: bool = False) -> None:
         """Render boundaries on a plot."""
-        min_z, max_z = self.get_impedance_boundaries(port, diff)
+        min_z, max_z = self.get_impedance_boundaries(interface, diff)
         if np.isnan(min_z):
             return
 
         axs[0].axhline(min_z, linestyle="solid", color="orange", alpha=0.5)
         axs[0].axhline(max_z, linestyle="solid", color="orange", alpha=0.5)
 
-        interface = self.interfaces[port]
         min_freq = float(interface.min_frequency) / 1e9
         max_freq = float(interface.max_frequency) / 1e9
         axs[0].axvline(min_freq, linestyle="solid", color="orange", alpha=0.5)
         axs[0].axvline(max_freq, linestyle="solid", color="orange", alpha=0.5)
-
-        square = plt.Rectangle((min_freq, min_z), max_freq, np.real(max_z - min_z), color="orange", alpha=0.3)
+        square = plt.Rectangle(
+            (min_freq, min_z), max_freq - min_freq, np.real(max_z - min_z), color="orange", alpha=0.3
+        )
         axs[0].add_patch(square)
 
     def verify_boundaries(self, idx: int, diff: bool = False) -> None:
         """Verify if results are inside boundaries for defined interface."""
-        min_z, max_z = self.get_impedance_boundaries(idx, diff)
-        if np.isnan(min_z):
+        interfaces = self.interfaces[idx]
+        if np.ndim(interfaces) == 0 and np.isnan(interfaces):
             return
-        error_message = "Interface {interface.name}: Impedance (local extremum {extr_z:.2f}Ω) is \
-            out of range ({min_z:.2f}Ω-{max_z:.2f}Ω) at {range_bottom:.0f}-{range_top:.0f} MHz for "
-        if diff:
-            impedance = self.diff_impedances[idx]
-            logger.info(f"Verifying diff boundaries for pair {idx}")
-            error_message += "pair {idx}"
-        else:
-            impedance = self.impedances[idx]
-            logger.info(f"Verifying se boundaries for port {idx}")
-            error_message += "port {idx}"
-        interface = self.interfaces[idx]
-        min_freq = float(interface.min_frequency)
-        max_freq = float(interface.max_frequency)
-
-        abs_impedance = np.abs(impedance)
-        extr_z = interface.se_impedance_nominal
-        range_bottom = None
-        range_top = None
-        in_range_segment = False
-        for i, item in enumerate(abs_impedance):
-            freq = self.frequencies[i]
-            if not (min_freq <= freq <= max_freq):
-                continue
-            if not min_z <= item <= max_z:
-                if (item < min_z and item < extr_z) or (item > max_z and item > extr_z):
-                    extr_z = item
-                freq_mhz = freq / 1e6
-                if not in_range_segment:
-                    range_bottom = freq_mhz
-                    range_top = freq_mhz
-                    in_range_segment = True
-                else:
-                    range_top = freq_mhz
-            elif in_range_segment:
-                in_range_segment = False
+        for interface in interfaces:
+            min_z, max_z = self.get_impedance_boundaries(interface, diff)
+            if np.isnan(min_z):
+                return
+            error_message = "Interface {interface.name}: Impedance (local extremum {extr_z:.2f}Ω) is \
+out of range ({min_z:.2f}Ω-{max_z:.2f}Ω) at {range_bottom:.0f}-{range_top:.0f} MHz for "
+            if diff:
+                impedance = self.diff_impedances[idx]
+                logger.info(f"Verifying diff boundaries for pair {idx}")
+                error_message += "pair {idx}"
+            else:
+                impedance = self.impedances[idx]
+                logger.info(f"Verifying se boundaries for port {idx}")
+                error_message += "port {idx}"
+            min_freq = float(interface.min_frequency)
+            max_freq = float(interface.max_frequency)
+            abs_impedance = np.abs(impedance)
+            extr_z = interface.se_impedance_nominal
+            range_bottom = None
+            range_top = None
+            in_range_segment = False
+            for i, item in enumerate(abs_impedance):
+                freq = self.frequencies[i]
+                if not (min_freq <= freq <= max_freq):
+                    continue
+                if not min_z <= item <= max_z:
+                    if (item < min_z and item < extr_z) or (item > max_z and item > extr_z):
+                        extr_z = item
+                    freq_mhz = freq / 1e6
+                    if not in_range_segment:
+                        range_bottom = freq_mhz
+                        range_top = freq_mhz
+                        in_range_segment = True
+                    else:
+                        range_top = freq_mhz
+                elif in_range_segment:
+                    in_range_segment = False
+                    logger.error(error_message.format(**locals()))
+                    extr_z = interface.se_impedance_nominal
+            if in_range_segment:
                 logger.error(error_message.format(**locals()))
-                extr_z = interface.se_impedance_nominal
-        if in_range_segment:
-            logger.error(error_message.format(**locals()))
 
     def render_smith(self) -> None:
         """Render port reflection smithcharts to files."""

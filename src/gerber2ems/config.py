@@ -181,7 +181,7 @@ class DifferentialPairConfig:
     name: str | None = field(default=None)
     nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
-    interface: Interface = field(default_factory=Interface, skip_if_default=True)
+    interface: list[Interface] = field(default_factory=list, skip_if_default=True)
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -204,7 +204,7 @@ class SingleEndedConfig:
     name: str | None = field(default=None)
     nets: list[str] = field(default_factory=list)
     correct: bool = field(default=True, skip=True)
-    interface: Interface = field(default_factory=Interface, skip_if_default=True)
+    interface: list[Interface] = field(default_factory=list, skip_if_default=True)
 
     def __post_init__(self) -> None:
         """Validate trace config."""
@@ -433,10 +433,10 @@ class Config:
 
             interfaces: list[Interface] = []
             for trace in cls._instance._config.traces:
-                interfaces.append(trace.interface)
+                interfaces += trace.interface
 
             for diff_pair in cls._instance._config.diff_pairs:
-                interfaces.append(diff_pair.interface)
+                interfaces += diff_pair.interface
 
             for interface in interfaces:
                 if interface.name is None:
@@ -614,6 +614,9 @@ def get_cfg_json(cfg_path: Path, update_config: bool) -> dict[str, Any]:
             ports[-3].excite = True
 
     traces, diffs = json_cfg.get("traces", []), json_cfg.get("differential_pairs", [])
+    for trace in (*traces, *diffs):
+        if isinstance(trace.get("interface"), dict):
+            trace["interface"] = [trace["interface"]]
     if not diffs and not traces:
         tut = json_cfg.get("trace_under_test")
         dtut = {"name": tut} if tut else {}

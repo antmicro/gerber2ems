@@ -50,12 +50,20 @@
             "stop":1,
             "name":"Net-(J10-Pad1)",
             "nets":[],
-            "interface":{
-                "min_frequency":3255000000.0,
-                "max_frequency":3650000000.0,
-                "se_impedance_nominal":50.0,
-                "se_impedance_tolerance":0.4
-            }
+            "interface":[
+                {
+                    "min_frequency":700000000.0,
+                    "max_frequency":1200000000.0,
+                    "se_impedance_nominal":50.0,
+                    "se_impedance_tolerance":0.6
+                },
+                {
+                    "min_frequency":2700000000.0,
+                    "max_frequency":3000000000.0,
+                    "se_impedance_nominal":50.0,
+                    "se_impedance_tolerance":0.8
+                }
+            ]
         }
     ],
     "differential_pairs":[],
