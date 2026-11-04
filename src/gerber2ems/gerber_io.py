@@ -558,7 +558,7 @@ class GerberFile:
                 comp_ref=split[1], pin_num=split[2], pin_name=split[3] if len(split) > 3 else ""
             )
         elif split[0] == "TO.N":
-            self.parser.net = split[1].replace(r"\u002C", ",")
+            self.parser.net = bytes(split[1], "utf-8").decode("unicode_escape")
         elif split[0] == "TA" and split[1] == "AperFunction":
             self.parser.aperture_func = split[2]
         elif split[0] == "TD":
