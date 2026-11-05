@@ -153,21 +153,21 @@ class PortConfig:
         return 1 if self.layer == 0 else len(Config().get_metals()) - 2
 
 
-@serde(type_check=coerce)
+@serde(type_check=coerce, skip_if_default=True)
 class Interface:
     """Interface config."""
 
     name: str | None = None
-    min_frequency: float = field(default=0)
-    max_frequency: float = field(default=float("nan"))
-    se_impedance_nominal: float = field(default=float("nan"))
-    se_impedance_tolerance: float = field(default=float("nan"))
-    diff_impedance_nominal: float = field(default=float("nan"))
-    diff_impedance_tolerance: float = field(default=float("nan"))
-    skew_intra_pair: float = field(default=float("nan"))
-    skew_inter_pair: float = field(default=float("nan"))
-    skew_clock_data: float = field(default=float("nan"))
-    rise_fall_time: float = field(default=float("nan"))
+    min_frequency: float = 0
+    max_frequency: float | None = None
+    se_impedance_nominal: float | None = None
+    se_impedance_tolerance: float | None = None
+    diff_impedance_nominal: float | None = None
+    diff_impedance_tolerance: float | None = None
+    skew_intra_pair: float | None = None
+    skew_inter_pair: float | None = None
+    skew_clock_data: float | None = None
+    rise_fall_time: float | None = None
 
 
 @serde(type_check=coerce)
@@ -454,35 +454,35 @@ class Config:
                     continue
 
                 if interface_data.get("rise-fall-time") is not None:
-                    if np.isnan(interface.rise_fall_time):
+                    if interface.rise_fall_time is None:
                         interface.rise_fall_time = interface_data.get("rise-fall-time")
                         interface.max_frequency = 0.35 / interface.rise_fall_time
                         logger.info(f"Knee frequency: {np.ceil(interface.max_frequency) / 1e6} MHz")
-                if np.isnan(interface.max_frequency):
+                if interface.max_frequency is None:
                     interface.max_frequency = interface_data.get("frequency")
                     logger.info(f"Defined frequency: {float(interface.max_frequency) / 1e6} MHz")
 
                 impedance = interface_data.get("impedance")
                 se_impedance = impedance.get("se")
                 if se_impedance is not None:
-                    if np.isnan(interface.se_impedance_nominal):
+                    if interface.se_impedance_nominal is None:
                         interface.se_impedance_nominal = se_impedance.get("nominal")
-                    if np.isnan(interface.se_impedance_tolerance):
+                    if interface.se_impedance_tolerance is None:
                         interface.se_impedance_tolerance = se_impedance.get("tolerance")
                 diff_impedance = impedance.get("diff")
                 if diff_impedance is not None:
-                    if np.isnan(interface.diff_impedance_nominal):
+                    if interface.diff_impedance_nominal is None:
                         interface.diff_impedance_nominal = diff_impedance.get("nominal")
-                    if np.isnan(interface.diff_impedance_tolerance):
+                    if interface.diff_impedance_tolerance is None:
                         interface.diff_impedance_tolerance = diff_impedance.get("tolerance")
 
                 skew = interface_data.get("skew")
                 if skew is not None:
-                    if np.isnan(interface.skew_intra_pair):
+                    if interface.skew_intra_pair is None:
                         interface.skew_intra_pair = skew.get("intra-pair")
-                    if np.isnan(interface.skew_inter_pair):
+                    if interface.skew_inter_pair is None:
                         interface.skew_inter_pair = skew.get("inter-pair")
-                    if np.isnan(interface.skew_clock_data):
+                    if interface.skew_clock_data is None:
                         interface.skew_clock_data = skew.get("clock-data")
 
         for interface in interfaces:

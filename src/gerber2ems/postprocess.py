@@ -291,7 +291,7 @@ class Postprocesor:
                     interfaces = self.interfaces[pair.start_p]
                     if np.ndim(interfaces) > 0:
                         for interface in interfaces:
-                            if cfg.arguments.boundaries and not np.isnan(interface.diff_impedance_nominal):
+                            if cfg.arguments.boundaries and interface.diff_impedance_nominal is not None:
                                 self.draw_boudaries(interface, axs, True)
 
                     bottom, top = axs[0].get_ylim()
@@ -338,7 +338,7 @@ class Postprocesor:
                 interfaces = self.interfaces[port]
                 if np.ndim(interfaces) > 0:
                     for interface in interfaces:
-                        if cfg.arguments.boundaries and not np.isnan(interface.se_impedance_nominal):
+                        if cfg.arguments.boundaries and interface.se_impedance_nominal is not None:
                             self.draw_boudaries(interface, axs)
 
                 bottom, top = axs[0].get_ylim()
@@ -358,12 +358,12 @@ class Postprocesor:
             return float("nan"), float("nan")
         if diff:
             impedance_nominal = interface.diff_impedance_nominal
-            if np.isnan(impedance_nominal):
+            if impedance_nominal is None:
                 return float("nan"), float("nan")
             impedance_tolerance = interface.diff_impedance_tolerance
         else:
             impedance_nominal = interface.se_impedance_nominal
-            if np.isnan(impedance_nominal):
+            if impedance_nominal is None:
                 return float("nan"), float("nan")
             impedance_tolerance = interface.se_impedance_tolerance
         z_tolerance = impedance_nominal * impedance_tolerance
