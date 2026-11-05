@@ -27,7 +27,7 @@ WORKDIR /home/docker
 RUN echo "Installing openEMS..." \
   && git clone https://github.com/thliebig/openEMS-Project.git \
   && pushd ./openEMS-Project \
-  && git checkout a30587728affa4f8451e13819981899bd8ab6b64 \
+  && git checkout v0.37.0 \
   && git submodule update --init --recursive \
   && ./update_openEMS.sh ~/opt/openEMS --python \
   && popd

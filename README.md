@@ -19,11 +19,11 @@ sudo apt install build-essential cmake git libhdf5-dev libvtk9-dev libboost-all-
 
 Clone the repository, compile and install openEMS:
 
-It is recommended to use the `a30587728affa4f8451e13819981899bd8ab6b64` commit, as this is the latest one tested with gerber2ems.
+It is recommended to use the stable v0.37.0 version of OpenEMS, as this is the latest one tested with gerber2ems.
 ```bash
 git clone https://github.com/thliebig/openEMS-Project.git
 pushd ./openEMS-Project
-git checkout a30587728affa4f8451e13819981899bd8ab6b64
+git checkout v0.37.0
 git submodule update --init --recursive
 ./update_openEMS.sh ~/opt/openEMS --python
 popd
