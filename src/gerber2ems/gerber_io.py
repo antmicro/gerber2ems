@@ -246,21 +246,21 @@ class ApertureObround(ApertureRect):
         y2 = self.y / 2
         d = y2 - x2
         rect = [
-            Point(d, y2),
-            Point(-d, y2),
-            Point(-d, -y2),
-            Point(d, -y2),
+            Point(x2, d),
+            Point(-x2, d),
+            Point(-x2, -d),
+            Point(x2, -d),
         ]
-        circ = [Point(x2, 0), Point(-x2, 0)]
+        circ = [Point(0, y2), Point(0, -y2)]
         seg_c = partial(TraceSegment, aperture="", width=0, mode=PlotMode.CIRCULAR_CLOCK)
         seg_l = partial(TraceSegment, aperture="", width=0, mode=PlotMode.LINEAR)
         return [
             seg_l(rect[0], rect[1], normal=False),
             seg_l(rect[2], rect[3], normal=True),
-            seg_c(rect[0], circ[0]),
-            seg_c(rect[3], circ[0]),
-            seg_c(rect[1], circ[1]),
-            seg_c(rect[2], circ[1]),
+            seg_c(circ[0], rect[0]),
+            seg_c(rect[1], circ[0]),
+            seg_c(circ[1], rect[2]),
+            seg_c(rect[3], circ[1]),
         ]
 
 
