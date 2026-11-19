@@ -330,7 +330,7 @@ class ApertureMacro(ApertureType):
         self.variables = []
         self.commands = []
         for line in lines_i:
-            if line.startswith("0"):
+            if line.startswith("0 "):
                 # comment line
                 continue
             if line.startswith("$"):
@@ -529,12 +529,17 @@ class GerberFile:
         self.parser = ParserState()
         with open(path) as file_h:
             file = file_h.read()
-            lines = re.findall(r".*[*][%]?\n", file)
+            # split lines at `*` or `*%`, `%` from `*%` will added as separate item to the list
+            lines = re.split(r"[*]([%]?)", file)
         for line in lines:
+            line = line.replace("\n", "")  # newlines in gerber files have no mechanical meaning
+            if not line:
+                continue
+            sline = line.strip().strip("%").strip()
             if line.startswith("%"):
-                self.process_percent_line(line)
+                self.process_percent_line(sline)
             else:
-                self.process_normal_line(line)
+                self.process_normal_line(sline)
 
     def process_percent_line(self, line: str) -> None:
         """Parse & process line starting with `%` sign.
@@ -549,10 +554,19 @@ class GerberFile:
         Function updates parser state and aperture dictionary
         """
         self.unparsed = self.unparsed + line
-        sline = line.strip("%*\n")
-        split = sline.split(",")
+
+        if not line:
+            # current line was empty or block ending `%` (stripped by caller)
+            if self.parser.ap_macro:
+                # We are in aperture macro block
+                apm = ApertureMacro(self.parser.ap_macro)
+                self.ap_macros[apm.name] = apm
+                self.parser.ap_macro = []
+            return
+
+        split = line.split(",")
         if split[0][0:2] == "AM":
-            self.parser.ap_macro.append(sline)
+            self.parser.ap_macro.append(line)
         elif split[0] == "TO.P":
             self.parser.refpin = PadMeta(
                 comp_ref=split[1], pin_num=split[2], pin_name=split[3] if len(split) > 3 else ""
@@ -614,8 +628,7 @@ class GerberFile:
 
         Function updates parser state and Trace/Pad collections
         """
-        sline = line.strip("%*\n")
-        split = sline.split(",")
+        split = line.split(",")
         if split[0] in ["AB", "SR"]:
             self.parser.unparsed_region = not self.parser.unparsed_region
 
@@ -624,11 +637,7 @@ class GerberFile:
             return
 
         if len(self.parser.ap_macro) != 0:
-            self.parser.ap_macro.append(sline)
-            if line.rstrip().endswith("%"):
-                apm = ApertureMacro(self.parser.ap_macro)
-                self.ap_macros[apm.name] = apm
-                self.parser.ap_macro = []
+            self.parser.ap_macro.append(line)
         elif split[0] == "G36":
             self.parser.zone_contours = []
             self.parser.zone = True
@@ -648,7 +657,7 @@ class GerberFile:
         elif split[0].startswith("D"):
             self.parser.aperture = split[0]
         elif split[0].startswith("X"):
-            self.process_drawing_line(sline)
+            self.process_drawing_line(line)
 
     def process_drawing_line(self, line: str) -> None:
         """Parse & process line that describes plotting operation (starting with X).
