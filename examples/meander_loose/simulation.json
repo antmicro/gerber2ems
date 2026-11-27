@@ -14,5 +14,13 @@
             "plane": 1,
             "excite": true
         }
+    ],
+    "traces":[
+        {
+            "start":0,
+            "stop":0,
+            "name":"0_0",
+            "nets":[]
+        }
     ]
 }

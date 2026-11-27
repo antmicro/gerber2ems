@@ -14,7 +14,7 @@ import skrf
 from matplotlib.axes import Axes
 
 from gerber2ems.config import Config, DifferentialPairConfig, Interface, SingleEndedConfig
-from gerber2ems.constants import PLOT_STYLE, SIMULATION_DIR
+from gerber2ems.constants import PLOT_STYLE, RESULTS_DIR, SIMULATION_DIR
 
 logger = logging.getLogger(__name__)
 cfg = Config()
@@ -79,6 +79,11 @@ class Postprocesor:
                 for j, _ in enumerate(self.incident):
                     if self.is_valid(self.reflected[j][i]):
                         self.s_params[j][i] = self.reflected[j][i] / self.incident[i][i]
+
+    def calculate_diff_sparams(self, pi: int, ni: int, pj: int, nj: int) -> np.ndarray:
+        """Differential response at pair i for differential excitation of pair j."""
+        s = self.s_params
+        return 0.5 * (s[pi][pj] - s[pi][nj] - s[ni][pj] + s[ni][nj])
 
     def calculate_diff_impedance(self) -> None:
         """Calculate all needed parameters for further processing. Should be called after all ports are added."""
@@ -221,24 +226,16 @@ class Postprocesor:
                 and self.is_valid(self.s_params[pair.start_n][pair.start_n])
             ):
                 fig, axes = plt.subplots()
-                s_param = 0.5 * (
-                    self.s_params[pair.start_p][pair.start_p]
-                    - self.s_params[pair.start_n][pair.start_p]
-                    - self.s_params[pair.start_p][pair.start_n]
-                    + self.s_params[pair.start_n][pair.start_n]
-                )
+                ports = [pair.start_p, pair.start_n, pair.stop_p, pair.stop_n]
+                p1, n1, p2, n2 = ports
+                s_param = self.calculate_diff_sparams(p1, n1, p1, n1)
                 if self.is_valid(s_param):
                     axes.plot(
                         self.frequencies / 1e9,
                         20 * np.log10(np.abs(s_param)),
                         label="$SDD_{11}$",
                     )
-                s_param = 0.5 * (
-                    self.s_params[pair.stop_p][pair.start_p]
-                    - self.s_params[pair.stop_p][pair.start_n]
-                    - self.s_params[pair.stop_n][pair.start_p]
-                    + self.s_params[pair.stop_n][pair.start_n]
-                )
+                s_param = self.calculate_diff_sparams(p2, n2, p1, n1)
                 if self.is_valid(s_param):
                     axes.plot(
                         self.frequencies / 1e9,
@@ -480,7 +477,7 @@ out of range ({min_z:.2f}Ω-{max_z:.2f}Ω) at {range_bottom:.0f}-{range_top:.0f}
                 axes.set_ylabel("Trace delay [ns]")
                 axes.grid(True)
                 fig.savefig(
-                    cfg.arguments.output / f"{trace.name}_delay.png",
+                    cfg.arguments.output / "delay.png",
                     bbox_inches="tight",
                     transparent=cfg.arguments.transparent,
                 )
@@ -508,7 +505,9 @@ out of range ({min_z:.2f}Ω-{max_z:.2f}Ω) at {range_bottom:.0f}-{range_top:.0f}
                 axes.set_ylabel("Trace delay [ns]")
                 axes.grid(True)
                 fig.savefig(
-                    cfg.arguments.output / "diff_delay.png", bbox_inches="tight", transparent=cfg.arguments.transparent
+                    cfg.arguments.output / "delay.png",
+                    bbox_inches="tight",
+                    transparent=cfg.arguments.transparent,
                 )
 
     def save_to_file(self) -> None:
@@ -638,6 +637,133 @@ out of range ({min_z:.2f}Ω-{max_z:.2f}Ω) at {range_bottom:.0f}-{range_top:.0f}
                         )
                         raise Exception("S-param CSV parse error")
                     self.s_params[sxx[0], sxx[1], :] = data[col, :] + data[im, :] * 1j
+
+    def se_network(self, signal: SingleEndedConfig | DifferentialPairConfig) -> skrf.Network | None:
+        """Single-ended network: 2-port (or 1-port) for SE trace, 4-port (or 2-port) for diff pair.
+
+        Ports are grouped by end: (start_p, start_n, stop_p, stop_n).
+        """
+        raw: tuple[int, ...] = (
+            (signal.start_p, signal.start_n, signal.stop_p, signal.stop_n)
+            if isinstance(signal, DifferentialPairConfig)
+            else (signal.start, signal.stop)
+        )
+        ends = tuple((p,) for p in dict.fromkeys(raw))
+        logger.info("Creating and filling SE matrix")
+        return self.network_common("data_se", "single ended", ends, signal, is_mixed_mode=False)
+
+    def sdd_network(self, signal: DifferentialPairConfig) -> skrf.Network | None:
+        """S2P of a differential pair (SDD, referenced to 2*Z0), or S1P without a distinct stop end."""
+        ends = tuple(dict.fromkeys(((signal.start_p, signal.start_n), (signal.stop_p, signal.stop_n))))
+        logger.info("Creating and filling SDD matrix")
+        return self.network_common("data_sdd", "differential pair (mixed-mode SDD)", ends, signal, is_mixed_mode=True)
+
+    def network_common(
+        self,
+        name: str,
+        kind: str,
+        ends: tuple[tuple[int, ...], ...],
+        signal: SingleEndedConfig | DifferentialPairConfig,
+        is_mixed_mode: bool,
+    ) -> skrf.Network | None:
+        """Build a 1-, 2-, or 4-port skrf.Network from grouped port ends."""
+        ports = tuple(p for end in ends for p in end)
+
+        if len({self.reference_zs[p] for p in ports}) != 1:
+            logger.warning(f"{signal.name}: port impedances differ, skipping touchstone")
+            return None
+
+        # Diff-pair exports (SE 4-port, SDD 2-port) use end-to-end symmetry; SE trace 2-port uses lossless reflection
+        matrix = self._build_matrix(
+            signal.name,
+            ends,
+            use_end_symmetry=isinstance(signal, DifferentialPairConfig),
+            is_mixed_mode=is_mixed_mode,
+        )
+        if matrix is None:
+            return None
+
+        z0 = float(np.real(self.reference_zs[ports[0]])) * (2 if is_mixed_mode else 1)
+        return skrf.Network(
+            frequency=skrf.Frequency.from_f(self.frequencies, unit="Hz"),
+            s=matrix,
+            z0=z0,
+            name=name,
+            comments=f"gerber2ems {kind} {signal.name}, ports {tuple(p + 1 for p in ports)}",
+        )
+
+    def save_touchstones(self) -> None:
+        """Save all touchstone files."""
+        if cfg.tut is None:
+            logger.info("No trace under test configured, skipping touchstone export")
+            return
+        networks = [self.se_network(cfg.tut)]
+        if isinstance(cfg.tut, DifferentialPairConfig):
+            networks.append(self.sdd_network(cfg.tut))
+        ntw: skrf.Network
+        for ntw in filter(None, networks):
+            ntw.write_touchstone(dir=str(RESULTS_DIR))
+            logger.info(f"Saved touchstone {ntw.name}.s{ntw.nports}p")
+
+    def _build_matrix(
+        self,
+        name: str,
+        ends: tuple[tuple[int, ...], ...],
+        use_end_symmetry: bool,
+        is_mixed_mode: bool = False,
+    ) -> np.ndarray | None:
+        """Build an (n_freq, N, N) S-matrix over `ends`, filling unexcited ends by reciprocity and symmetry."""
+        n = len(ends)
+        matrix = np.empty((len(self.frequencies), n, n), dtype=np.complex128)
+
+        def lookup(r: int, c: int) -> tuple[np.ndarray, str]:
+            for i, j in ((r, c), (c, r)):
+                raw = (
+                    self.calculate_diff_sparams(*ends[i], *ends[j])
+                    if is_mixed_mode
+                    else self.s_params[ends[i]][ends[j]]
+                )
+                val = np.asarray(raw, dtype=np.complex128)
+                if self.is_valid(val) or (i, j) == (c, r):
+                    return val, f"SDD{i + 1}{j + 1}" if is_mixed_mode else f"S{ends[i][0] + 1}{ends[j][0] + 1}"
+            raise AssertionError("unreachable")
+
+        for r in range(n):
+            for c in range(n):
+                val, src = lookup(r, c)
+                target = f"SDD{r + 1}{c + 1}" if is_mixed_mode else f"S{ends[r][0] + 1}{ends[c][0] + 1}"
+                if self.is_valid(val) and src != target:
+                    logger.debug(f"{name}: {target} estimated from {src} by reciprocity")
+
+                # End-to-end symmetry: ends are grouped (start..., stop...)
+                # XOR n // 2 swaps start and stop (n=4: 0<->2, 1<->3; n=2: 0<->1)
+                if not self.is_valid(val) and use_end_symmetry and n in (2, 4):
+                    mr, mc = r ^ (n // 2), c ^ (n // 2)
+                    val, src = lookup(mr, mc)
+                    if self.is_valid(val):
+                        logger.debug(f"{name}: {target} estimated from {src} by end-to-end symmetry")
+
+                # Lossless reciprocity: estimate unexcited reflection S22 = -conj(S11) * exp(2j * angle(S21))
+                if not self.is_valid(val) and not use_end_symmetry and n == 2 and r == c:
+                    other = 1 - r
+                    s_other, src_other = lookup(other, other)
+                    s_trans, src_trans = lookup(r, other)
+                    if self.is_valid(s_other) and self.is_valid(s_trans):
+                        val = -np.conj(s_other) * np.exp(2j * np.angle(s_trans))
+                        logger.debug(
+                            f"{name}: {target} estimated from {src_other} and {src_trans} via lossless reciprocity"
+                        )
+
+                if not self.is_valid(val):
+                    logger.warning(
+                        f"{name}: {target} can not be obtained by none of following \
+assumptions (reciprocity, end2end symmetry, lossless reciprocity), skipping touchstone"
+                    )
+                    return None
+
+                matrix[:, r, c] = val
+
+        return matrix
 
     @staticmethod
     def is_valid(array: np.ndarray) -> bool:

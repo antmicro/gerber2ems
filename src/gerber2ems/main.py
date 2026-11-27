@@ -131,6 +131,7 @@ def postprocess() -> None:
     post.render_diff_pair_s_params()
     post.render_diff_impedance()
     post.render_trace_delays()
+    post.save_touchstones()
 
 
 def parse_arguments() -> argparse.Namespace:
